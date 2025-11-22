@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中二科學 - 氣體交換模型 (Bell Jar Model)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Glass Effect for the Jar */
+        .glass-jar {
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-bottom: none;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.5), 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Balloon Animation smoothness */
+        .balloon {
+            transition: transform 0.1s ease-out;
+            transform-origin: top center;
+            /* Modified: Inverted pear shape (Wide top, narrow bottom) */
+            border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%;
+        }
+
+        /* Air particle animation */
+        @keyframes flowDown {
+            0% { transform: translateY(-20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(20px); opacity: 0; }
+        }
+        @keyframes flowUp {
+            0% { transform: translateY(20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-20px); opacity: 0; }
+        }
+
+        .air-in { animation: flowDown 0.8s infinite; }
+        .air-out { animation: flowUp 0.8s infinite; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        
+        .noselect {
+            -webkit-touch-callout: none; 
+            -webkit-user-select: none; 
+            -khtml-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 h-screen flex flex-col overflow-hidden noselect">
+
+    <!-- Header -->
+    <header class="bg-teal-600 text-white p-4 shadow-md flex-none z-10">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-lungs mr-2"></i>呼吸機制模擬器 (Bell Jar Model)</h1>
+            <span class="text-sm opacity-80">中二級科學 - 氣體交換</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 h-full overflow-auto">
+        
+        <!-- Simulation Area (Left/Top) -->
+        <div class="flex-1 bg-white rounded-2xl shadow-lg relative flex justify-center items-center p-4 min-h-[400px] md:min-h-0">
+            
+            <!-- Labels -->
+            <div class="absolute top-4 left-4 text-sm text-gray-500 space-y-1">
+                <p><span class="inline-block w-3 h-3 bg-gray-400 rounded-full mr-1"></span>Y形管 = 氣管/支氣管</p>
+                <p><span class="inline-block w-3 h-3 bg-pink-400 rounded-full mr-1"></span>氣球 = 肺部</p>
+                <p><span class="inline-block w-3 h-3 bg-blue-200 border border-gray-400 mr-1"></span>玻璃鐘罩 = 胸腔</p>
+                <p><span class="inline-block w-3 h-3 bg-orange-400 rounded-full mr-1"></span>橡皮膜 = 橫膈膜</p>
+            </div>
+
+            <!-- The Apparatus Container -->
+            <div class="relative w-64 h-96 flex flex-col items-center">
+                
+                <!-- Tube (Trachea) -->
+                <div class="w-4 h-16 bg-gray-300 absolute top-0 z-20 border-x-2 border-gray-400"></div>
+                
+                <!-- Air Flow Arrows (Dynamic) -->
+                <div id="air-flow-indicator" class="absolute top-2 z-30 text-blue-600 text-xl font-bold opacity-0">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+
+                <!-- Stopper -->
+                <div class="w-16 h-4 bg-gray-800 absolute top-14 z-20 rounded"></div>
+
+                <!-- The Bell Jar -->
+                <div class="glass-jar w-full h-80 mt-16 rounded-t-[8rem] relative overflow-hidden z-10 flex justify-center">
+                    
+                    <!-- Internal Y-Tube -->
+                    <div class="absolute top-0 w-4 h-10 bg-gray-300 border-x border-gray-400"></div>
+                    <div class="absolute top-8 w-24 h-4 flex justify-between">
+                        <!-- Left Branch -->
+                        <div class="w-12 h-4 bg-gray-300 transform -rotate-45 origin-top-right border border-gray-400 rounded-full"></div>
+                        <!-- Right Branch -->
+                        <div class="w-12 h-4 bg-gray-300 transform rotate-45 origin-top-left border border-gray-400 rounded-full"></div>
+                    </div>
+
+                    <!-- Balloons (Lungs) -->
+                    <div class="absolute top-16 w-full flex justify-center gap-4">
+                        <!-- Modified: Removed rounded-[50%] to use custom CSS pear shape -->
+                        <div id="left-lung" class="balloon w-14 h-20 bg-pink-400 border border-pink-500 shadow-inner origin-top"></div>
+                        <div id="right-lung" class="balloon w-14 h-20 bg-pink-400 border border-pink-500 shadow-inner origin-top"></div>
+                    </div>
+
+                    <!-- Pressure Indicator Particles (Visual Sugar) -->
+                    <div id="particles" class="absolute inset-0 pointer-events-none opacity-30">
+                        <!-- JS will populate simple dots here if pressure is high -->
+                    </div>
+                </div>
+
+                <!-- Diaphragm (Rubber Sheet) Area -->
+                <div class="absolute bottom-0 w-full h-24 z-20">
+                    <!-- SVG for the flexible rubber sheet -->
+                    <svg width="100%" height="100%" viewBox="0 0 256 100" class="overflow-visible">
+                        <!-- The Rubber Sheet Path -->
+                        <path id="diaphragm-path" d="M0,0 Q128,-20 256,0 L256,10 L0,10 Z" fill="#fb923c" stroke="#c2410c" stroke-width="2" />
+                        
+                        <!-- The Knot/Handle Area -->
+                        <g id="handle-group" transform="translate(128, -10)" style="cursor: ns-resize;">
+                            <!-- Connection line -->
+                            <line x1="0" y1="0" x2="0" y2="20" stroke="#c2410c" stroke-width="3" />
+                            <!-- The Handle Knob -->
+                            <circle cx="0" cy="25" r="12" fill="#be185d" stroke="#831843" stroke-width="2" class="shadow-lg hover:fill-pink-600 transition-colors"/>
+                            <text x="0" y="29" text-anchor="middle" fill="white" font-size="10" font-weight="bold"><i class="fas fa-arrows-alt-v"></i></text>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Drag Instruction -->
+            <div class="absolute bottom-4 right-4 bg-yellow-100 text-yellow-800 px-3 py-1 rounded shadow text-sm animate-pulse" id="instruction-badge">
+                <i class="fas fa-hand-pointer mr-1"></i> 拉動底部的紅色手柄
+            </div>
+        </div>
+
+        <!-- Explanation Panel (Right/Bottom) -->
+        <div class="w-full md:w-1/3 flex flex-col gap-4">
+            
+            <!-- Status Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300" id="status-card">
+                <h2 class="text-lg font-bold text-gray-600 mb-2">目前狀態</h2>
+                <div class="text-3xl font-black text-gray-800 mb-1" id="status-text">靜止狀態</div>
+                <div class="text-sm text-gray-500">(Resting State)</div>
+            </div>
+
+            <!-- Physics Data Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg flex-grow overflow-y-auto">
+                <h3 class="text-lg font-bold text-teal-700 mb-4 border-b pb-2">科學原理分析</h3>
+                
+                <div class="space-y-4">
+                    <!-- Volume -->
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-gray-700">鐘罩內體積 (Volume):</span>
+                        <span id="vol-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">不變</span>
+                    </div>
+                    
+                    <!-- Pressure -->
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-gray-700">鐘罩內氣壓 (Pressure):</span>
+                        <span id="pressure-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">與大氣相若</span>
+                    </div>
+
+                    <!-- Pressure Comparison -->
+                    <div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 mt-2">
+                        <strong>比較大氣壓強 (Atmospheric P.):</strong>
+                        <p id="comparison-text" class="mt-1">
+                            內部氣壓 = 大氣壓強。<br>
+                            沒有空氣淨流動。
+                        </p>
+                    </div>
+
+                    <!-- Concept Mapping -->
+                    <div class="mt-6">
+                        <h4 class="font-bold text-sm text-gray-500 mb-2">概念對應:</h4>
+                        <ul class="text-sm space-y-2 text-gray-700">
+                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>鐘罩體積變大 = 胸腔擴張</li>
+                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>氣壓下降 = 空氣被「吸入」</li>
+                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>氣球膨脹 = 肺部充氣</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Elements
+        const handleGroup = document.getElementById('handle-group');
+        const diaphragmPath = document.getElementById('diaphragm-path');
+        const leftLung = document.getElementById('left-lung');
+        const rightLung = document.getElementById('right-lung');
+        const statusCard = document.getElementById('status-card');
+        const statusText = document.getElementById('status-text');
+        const volIndicator = document.getElementById('vol-indicator');
+        const pressureIndicator = document.getElementById('pressure-indicator');
+        const comparisonText = document.getElementById('comparison-text');
+        const flowIcon = document.getElementById('air-flow-indicator');
+        const instructionBadge = document.getElementById('instruction-badge');
+
+        // State variables
+        let isDragging = false;
+        let startY = 0;
+        let currentY = -20; // Initial control point Y for the curve (slightly domed up)
+        let prevClampedY = 0; // Added: To track movement for air flow
+        let flowTimeout = null; // Added: To hide arrows when stopped
+        const baseControlY = -20; // Resting state (dome up)
+        const maxDown = 60; // Max inhale (pull down)
+        const maxUp = -50; // Max exhale (push up)
+
+        // Update UI based on vertical offset (dy)
+        function updateSimulation(yOffset) {
+            // 1. Clamp the value
+            // yOffset: positive = down (inhale), negative = up (exhale)
+            let clampedY = Math.max(maxUp, Math.min(maxDown, yOffset));
+            
+            // Calculate delta for flow direction
+            let deltaY = clampedY - prevClampedY;
+            prevClampedY = clampedY;
+
+            // 2. Update Diaphragm SVG Path
+            // The path is a Quadratic Bezier: Q controlX controlY endX endY
+            // We modify controlY. 
+            // At rest (0 offset), controlY is baseControlY (-20).
+            // When pulled down (+60), controlY becomes approx 50.
+            
+            const currentControlY = baseControlY + (clampedY * 1.2); 
+            const handleY = -10 + clampedY; // Handle moves linearly
+
+            diaphragmPath.setAttribute('d', `M0,0 Q128,${currentControlY} 256,0 L256,10 L0,10 Z`);
+            handleGroup.setAttribute('transform', `translate(128, ${handleY})`);
+
+            // 3. Update Balloon Size
+            // Base scale is 1. 
+            // Max inhale (y=60) -> scale 1.5
+            // Max exhale (y=-50) -> scale 0.6
+            const scaleFactor = 1 + (clampedY / 120);
+            leftLung.style.transform = `scale(${scaleFactor})`;
+            rightLung.style.transform = `scale(${scaleFactor})`;
+
+            // 4. Update Text & Colors
+            updateInfoPanel(clampedY);
+            updateFlowIcon(deltaY); // Modified: Pass delta instead of position
+
+            // Remove instruction once interacted
+            if (Math.abs(clampedY) > 5) {
+                instructionBadge.style.display = 'none';
+            }
+        }
+
+        function updateFlowIcon(delta) {
+            // Clear previous timeout to keep arrow visible while moving
+            if (flowTimeout) clearTimeout(flowTimeout);
+
+            // Visual threshold for movement
+            const threshold = 0.2;
+
+            if (delta > threshold) {
+                // Inhaling (Moving Down) - Air enters
+                flowIcon.innerHTML = '<i class="fas fa-arrow-down"></i>';
+                flowIcon.className = 'absolute top-2 z-30 text-blue-600 text-xl font-bold air-in';
+                flowIcon.style.opacity = 1;
+            } else if (delta < -threshold) {
+                // Exhaling (Moving Up) - Air exits
+                flowIcon.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                flowIcon.className = 'absolute top-2 z-30 text-red-600 text-xl font-bold air-out';
+                flowIcon.style.opacity = 1;
+            } 
+            // Note: If delta is 0 (stopped), we don't immediately hide it here,
+            // we let the timeout handle the hiding to prevent flickering.
+
+            // Set timeout to hide arrow if movement stops
+            flowTimeout = setTimeout(() => {
+                flowIcon.style.opacity = 0;
+                flowIcon.classList.remove('air-in', 'air-out');
+            }, 150); // Hide after 150ms of no movement
+        }
+
+        function updateInfoPanel(y) {
+            if (y > 10) {
+                // INHALATION
+                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-green-500 transition-colors duration-300";
+                statusText.innerText = "吸氣 (Inhalation)";
+                statusText.className = "text-3xl font-black text-green-600 mb-1";
+                
+                volIndicator.innerText = "增加 (Increase)";
+                volIndicator.className = "px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm";
+                
+                pressureIndicator.innerText = "下降 (Decrease)";
+                pressureIndicator.className = "px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-sm";
+                
+                comparisonText.innerHTML = "內部氣壓 <strong class='text-red-500'>低於 (<)</strong> 大氣壓強。<br>空氣由高壓流向低壓，進入肺部。";
+
+            } else if (y < -10) {
+                // EXHALATION
+                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-orange-500 transition-colors duration-300";
+                statusText.innerText = "呼氣 (Exhalation)";
+                statusText.className = "text-3xl font-black text-orange-600 mb-1";
+                
+                volIndicator.innerText = "減少 (Decrease)";
+                volIndicator.className = "px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-bold text-sm";
+                
+                pressureIndicator.innerText = "上升 (Increase)";
+                pressureIndicator.className = "px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm";
+                
+                comparisonText.innerHTML = "內部氣壓 <strong class='text-blue-500'>高於 (>)</strong> 大氣壓強。<br>空氣被擠出肺部，流向體外。";
+
+            } else {
+                // REST
+                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300";
+                statusText.innerText = "靜止狀態";
+                statusText.className = "text-3xl font-black text-gray-800 mb-1";
+                
+                volIndicator.innerText = "不變";
+                volIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
+                
+                pressureIndicator.innerText = "平衡";
+                pressureIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
+                
+                comparisonText.innerHTML = "內部氣壓 <strong class='text-gray-500'>等於 (=)</strong> 大氣壓強。<br>沒有空氣淨流動。";
+            }
+        }
+
+        // Mouse Events
+        handleGroup.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            // Get current transform Y value
+            const transform = handleGroup.getAttribute('transform');
+            // Parse existing translation if needed, or reset logic slightly
+            // Simpler: we just track delta from where we clicked relative to the "current" logical Y
+            // But to keep it simple, let's reset startY logic to be offset based.
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            // Calculate delta
+            // We need to map the mouse movement to the Y value
+            // This is a simplified drag logic (not absolute position tracking but delta tracking)
+            // To make it robust: center of SVG is the anchor.
+            
+            // Let's assume startY corresponds to the current simulation Y state
+            // Actually, let's just use the bounding rect of the container to normalize
+            const svgRect = document.querySelector('svg').getBoundingClientRect();
+            const mouseY = e.clientY - svgRect.top; // Y position within SVG
+            
+            // The anchor point of the handle is at y=15 in SVG coords when rest (logic above)
+            // Let's just map mouse Y directly to a comfortable range
+            
+            // Heuristic: 0 to 100px relative to the bottom container
+            // Let's use a direct mapping logic for smoother UX
+            let relativeY = mouseY - 25; // 25 is the visual center of the handle roughly
+            
+            // Apply specific offset to match the logic: yOffset 0 is "rest" which is visually slightly up
+            // Let's just calculate offset from the "neutral" line (y=10 in SVG logic)
+            let offset = relativeY - 10; 
+            
+            updateSimulation(offset);
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            // Optional: Snap back to rest?
+            // Real diaphragms relax, but for teaching, keeping the state is sometimes better.
+            // Let's add a gentle snap back animation if released
+            snapBack();
+        });
+
+        // Touch Events (Mobile)
+        handleGroup.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            e.preventDefault(); // Prevent scrolling
+        }, {passive: false});
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const svgRect = document.querySelector('svg').getBoundingClientRect();
+            const mouseY = touch.clientY - svgRect.top;
+            let relativeY = mouseY - 25;
+            let offset = relativeY - 10;
+            updateSimulation(offset);
+            e.preventDefault();
+        }, {passive: false});
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+            snapBack();
+        });
+
+        // Snap back animation
+        function snapBack() {
+            // We simply animate the values back to 0 over time using requestAnimationFrame
+            // But since we are keeping state in DOM, we need to read current state or just let it stay?
+            // Real physics: Diaphragm relaxes (moves UP) automatically.
+            // So we should snap back to "rest" (y=0) or slightly up.
+            
+            // For this demo, let's let it stay where the user left it so they can read the text, 
+            // unless they pull it extremely far.
+            // Actually, breathing requires effort. Relaxing returns to start. 
+            // Let's implement a slow return for realism.
+            
+            const currentTransform = handleGroup.getAttribute('transform');
+            const match = /translate\(128, ([-0-9.]+)\)/.exec(currentTransform);
+            if(match) {
+                let currentY = parseFloat(match[1]);
+                let targetY = -10; // Logic offset 0 -> visual handle y = -10
+                
+                // For simplicity in this code block, we won't force auto-return 
+                // to allow the teacher to pause and explain the specific state.
+                // Uncomment below to enable auto-return:
+                /*
+                let interval = setInterval(() => {
+                    // Linear interpolation back to 0
+                    // This requires refactoring updateSimulation to separate state from input
+                    // Skipping for simplicity of the single file demo.
+                }, 16);
+                */
+            }
+        }
+        
+        // Initialize
+        updateSimulation(0);
+
+    </script>
+</body>
+</html>

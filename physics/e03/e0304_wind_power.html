@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>風力發電物理模型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 加入 MathJax 用於顯示 LaTeX 公式 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+    <style>
+        /* 自定義滑桿樣式 */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #34d399; /* emerald-400 */
+            cursor: pointer;
+            margin-top: -8px; 
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563; /* gray-600 */
+            border-radius: 2px;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-slate-800 p-4 border-b border-slate-700 shadow-lg">
+        <div class="container mx-auto flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-emerald-400">🌬️ 風能發電物理模型</h1>
+            <span class="text-sm text-slate-400 hidden sm:block">物理教學互動教具</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto p-4 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Left Column: Controls & Data -->
+        <div class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <!-- Controls Card -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-xl border border-slate-700">
+                <h2 class="text-xl font-semibold mb-4 text-emerald-300 border-b border-slate-600 pb-2">參數設定</h2>
+                
+                <!-- Slider 1: Wind Speed -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300">風速 ($v$)</label>
+                        <span class="text-emerald-400 font-mono"><span id="val-speed">10.0</span> m/s</span>
+                    </div>
+                    <input type="range" id="slider-speed" min="0" max="30" step="0.1" value="10.0" class="w-full">
+                </div>
+
+                <!-- Slider 2: Blade Length -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300">扇葉長度/半徑 ($r$)</label>
+                        <span class="text-emerald-400 font-mono"><span id="val-length">15.0</span> m</span>
+                    </div>
+                    <input type="range" id="slider-length" min="1" max="30" step="0.5" value="15.0" class="w-full">
+                </div>
+
+                <!-- Slider 3: Air Density -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300">空氣密度 ($\rho$)</label>
+                        <span class="text-emerald-400 font-mono"><span id="val-density">1.225</span> kg/m³</span>
+                    </div>
+                    <input type="range" id="slider-density" min="1.0" max="1.4" step="0.001" value="1.225" class="w-full">
+                    <p class="text-xs text-slate-500 mt-1">*標準大氣壓約為 1.225 kg/m³</p>
+                </div>
+
+                <!-- Slider 4: Efficiency -->
+                <div class="mb-2">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300">系統總效率 ($\eta$)</label>
+                        <span class="text-emerald-400 font-mono"><span id="val-efficiency">30</span>%</span>
+                    </div>
+                    <!-- Update: Max efficiency increased to 60% -->
+                    <input type="range" id="slider-efficiency" min="0" max="60" step="1" value="30" class="w-full">
+                    <p class="text-xs text-slate-500 mt-1">*Betz 極限理論上限約 59.3%</p>
+                </div>
+            </div>
+
+            <!-- Physics & Calculation Card -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-xl border border-slate-700 flex-grow flex flex-col justify-center">
+                <h2 class="text-xl font-semibold mb-4 text-blue-300 border-b border-slate-600 pb-2">功率計算</h2>
+                
+                <div class="mb-4 bg-slate-900 p-3 rounded border border-slate-600 flex flex-col items-center justify-center min-h-[100px]">
+                    <p class="text-lg mb-2">
+                        $$P = \frac{1}{2} \rho A v^3 \eta$$
+                    </p>
+                    <p class="text-sm text-slate-400">
+                        $$A = \pi r^2 \text{ (掃掠面積)}$$
+                    </p>
+                </div>
+
+                <div class="space-y-2 text-sm text-slate-300 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span>掃掠面積 ($A$):</span>
+                        <span class="font-mono text-blue-200"><span id="display-area">0</span> m²</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>風能功率 ($P_{wind}$):</span>
+                        <span class="font-mono text-blue-200"><span id="display-wind-power">0</span></span>
+                    </div>
+                </div>
+
+                <div class="mt-auto bg-emerald-900/30 border border-emerald-500/50 p-4 rounded-lg text-center">
+                    <h3 class="text-emerald-200 text-sm uppercase tracking-wider mb-1">輸出功率 Output Power</h3>
+                    <p class="text-4xl font-bold text-emerald-400 font-mono" id="display-output">0 kW</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Animation -->
+        <div class="w-full lg:w-2/3 bg-black rounded-xl shadow-2xl overflow-hidden relative border border-slate-600 h-[500px] lg:h-auto">
+            <!-- Overlay Info -->
+            <div class="absolute top-4 right-4 bg-black/50 backdrop-blur px-3 py-1 rounded text-xs text-slate-400 z-10 pointer-events-none">
+                視覺模擬 Visual Simulation
+            </div>
+            
+            <canvas id="simCanvas" class="w-full h-full block"></canvas>
+        </div>
+    </main>
+
+    <script>
+        // --- 常數與變數初始化 ---
+        const PI = Math.PI;
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // DOM 元素
+        const inputs = {
+            speed: document.getElementById('slider-speed'),
+            length: document.getElementById('slider-length'),
+            density: document.getElementById('slider-density'),
+            efficiency: document.getElementById('slider-efficiency')
+        };
+
+        const displays = {
+            speed: document.getElementById('val-speed'),
+            length: document.getElementById('val-length'),
+            density: document.getElementById('val-density'),
+            efficiency: document.getElementById('val-efficiency'),
+            area: document.getElementById('display-area'),
+            windPower: document.getElementById('display-wind-power'),
+            output: document.getElementById('display-output')
+        };
+
+        // 模擬狀態
+        let state = {
+            v: parseFloat(inputs.speed.value),      // 風速 m/s
+            r: parseFloat(inputs.length.value),     // 半徑 m
+            rho: parseFloat(inputs.density.value),  // 密度 kg/m^3
+            eta: parseFloat(inputs.efficiency.value), // 效率 %
+            angle: 0,                               // 扇葉角度
+            particles: []                           // 風粒子陣列
+        };
+
+        // --- 物理計算功能 ---
+        function calculate() {
+            // 1. 更新狀態
+            state.v = parseFloat(inputs.speed.value);
+            state.r = parseFloat(inputs.length.value);
+            state.rho = parseFloat(inputs.density.value);
+            state.eta = parseFloat(inputs.efficiency.value);
+
+            // 2. 更新 UI 數值顯示
+            displays.speed.textContent = state.v.toFixed(1);
+            displays.length.textContent = state.r.toFixed(1);
+            displays.density.textContent = state.rho.toFixed(3);
+            displays.efficiency.textContent = state.eta.toFixed(0);
+
+            // 3. 物理計算
+            const area = PI * Math.pow(state.r, 2);
+            const etaDecimal = state.eta / 100;
+            
+            // 風中蘊含的總功率 P_wind = 0.5 * rho * A * v^3
+            const rawWindPower = 0.5 * state.rho * area * Math.pow(state.v, 3);
+            
+            // 實際輸出功率
+            const outputPower = rawWindPower * etaDecimal;
+
+            // 4. 顯示計算結果 (Area)
+            displays.area.textContent = area.toFixed(1);
+
+            // 格式化功率顯示 (W -> kW -> MW)
+            displays.windPower.textContent = formatPower(rawWindPower);
+            displays.output.textContent = formatPower(outputPower);
+        }
+
+        function formatPower(watts) {
+            if (watts >= 1000000) {
+                return (watts / 1000000).toFixed(2) + " MW";
+            } else if (watts >= 1000) {
+                return (watts / 1000).toFixed(2) + " kW";
+            } else {
+                return watts.toFixed(1) + " W";
+            }
+        }
+
+        // --- Canvas 動畫功能 ---
+
+        // 初始化粒子
+        function initParticles() {
+            for(let i=0; i<50; i++) {
+                state.particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    len: Math.random() * 20 + 10,
+                    speedOffset: Math.random() * 0.5 + 0.8
+                });
+            }
+        }
+
+        // 調整 Canvas 大小
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // 初始呼叫
+        initParticles(); // 初始粒子
+
+        function draw() {
+            // 清除背景
+            ctx.fillStyle = '#0f172a'; // slate-900
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width * 0.6; // 發電機稍微靠右
+            const centerY = canvas.height * 0.6; // 地面在下方，中心稍微靠下
+            
+            // 視覺比例縮放因子 (將真實米數轉換為像素)
+            // 假設最大 30m 半徑佔據畫面的 40% 高度
+            const scaleFactor = (canvas.height * 0.4) / 30; 
+            const visualRadius = state.r * scaleFactor;
+            const hubRadius = visualRadius * 0.1 > 5 ? visualRadius * 0.1 : 5;
+
+            // --- 1. 繪製風粒子 (背景) ---
+            ctx.strokeStyle = `rgba(167, 243, 208, ${state.rho - 0.8})`; // 顏色隨密度微調透明度
+            ctx.lineWidth = 1;
+            
+            // 粒子移動速度係數 (視覺用)
+            const particleSpeed = state.v * 0.5; 
+
+            state.particles.forEach(p => {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.len, p.y);
+                ctx.stroke();
+
+                // 移動
+                p.x += particleSpeed * p.speedOffset;
+
+                // 循環
+                if (p.x > canvas.width) {
+                    p.x = -50;
+                    p.y = Math.random() * canvas.height;
+                }
+            });
+
+            // --- 2. 繪製塔架 ---
+            const towerWidthTop = hubRadius * 1.5;
+            const towerWidthBottom = hubRadius * 3;
+            
+            const gradTower = ctx.createLinearGradient(centerX - 20, 0, centerX + 20, 0);
+            gradTower.addColorStop(0, '#334155');
+            gradTower.addColorStop(0.5, '#64748b');
+            gradTower.addColorStop(1, '#334155');
+
+            ctx.fillStyle = gradTower;
+            ctx.beginPath();
+            ctx.moveTo(centerX - towerWidthTop/2, centerY);
+            ctx.lineTo(centerX + towerWidthTop/2, centerY);
+            ctx.lineTo(centerX + towerWidthBottom/2, canvas.height);
+            ctx.lineTo(centerX - towerWidthBottom/2, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // --- 3. 繪製旋轉的扇葉 ---
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(state.angle);
+
+            // 扇葉樣式
+            const bladeColor = '#f1f5f9'; // slate-100
+            ctx.fillStyle = bladeColor;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 10;
+
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                // 繪製單個扇葉 (類似機翼形狀)
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(hubRadius, 0, hubRadius, -hubRadius/2);
+                ctx.lineTo(visualRadius, -hubRadius/4); // 尖端
+                ctx.lineTo(visualRadius, hubRadius/4);  // 尖端
+                ctx.quadraticCurveTo(hubRadius, hubRadius/2, 0, 0);
+                ctx.fill();
+                
+                // 旋轉 120 度
+                ctx.rotate((2 * Math.PI) / 3);
+            }
+
+            // 恢復陰影設定
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+            // --- 4. 繪製中心軸 (Hub) ---
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, hubRadius, 0, Math.PI * 2);
+            const gradHub = ctx.createRadialGradient(centerX, centerY, 2, centerX, centerY, hubRadius);
+            gradHub.addColorStop(0, '#e2e8f0');
+            gradHub.addColorStop(1, '#94a3b8');
+            ctx.fillStyle = gradHub;
+            ctx.fill();
+
+            // --- 更新旋轉角度 ---
+            // 轉速與風速成正比 (這只是一個視覺近似，真實物理更複雜)
+            // 當風速為0時不轉
+            if(state.v > 0) {
+                // 簡單模擬：角速度 = 風速 * 常數 / 半徑 (半徑大轉得慢)
+                // 為了視覺效果，加一個基礎調整值
+                const angularVelocity = (state.v * 0.05) / (Math.sqrt(state.r) * 0.3);
+                state.angle += angularVelocity;
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        // --- 事件監聽 ---
+        Object.values(inputs).forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+
+        // 啟動
+        calculate();
+        draw();
+
+    </script>
+</body>
+</html>

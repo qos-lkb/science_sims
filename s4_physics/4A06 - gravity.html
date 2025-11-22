@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通用自由落體實驗室 (Free Fall Lab)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 隱藏滾動條但保持功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-slate-800 h-screen flex flex-col p-4 overflow-hidden">
+
+    <!-- 頂部標題與摘要 -->
+    <header class="bg-white p-4 rounded-xl shadow-sm mb-4 flex justify-between items-center shrink-0">
+        <div>
+            <h1 class="text-2xl font-bold flex items-center gap-2 text-slate-800">
+                <!-- Box Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                通用自由落體實驗室
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">
+                探究物體質量、形狀與空氣阻力對降落速度的影響 ($F_{net} = ma$)
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <div id="env-badge" class="px-3 py-1 rounded text-sm font-bold flex items-center gap-2 bg-blue-100 text-blue-700">
+                環境：標準大氣 (Air)
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 gap-4 overflow-hidden h-full">
+        
+        <!-- 左側控制面板 -->
+        <div class="w-80 bg-white rounded-xl shadow-sm p-5 flex flex-col gap-6 overflow-y-auto shrink-0">
+            
+            <!-- 1. 物體選擇 -->
+            <div>
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">1. 選擇實驗對象</h3>
+                <div id="preset-container" class="grid grid-cols-2 gap-2">
+                    <!-- Presets will be injected here by JS -->
+                </div>
+            </div>
+
+            <!-- 2. 環境設定 -->
+            <div>
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">2. 環境與高度</h3>
+                
+                <div class="mb-4">
+                    <label class="flex items-center justify-between cursor-pointer p-3 border rounded-lg hover:bg-slate-50 transition-colors">
+                        <span class="flex items-center gap-2 font-medium text-sm">
+                            <!-- Wind Icon -->
+                            <svg id="wind-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path><path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path><path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path></svg>
+                            開啟空氣阻力
+                        </span>
+                        <input type="checkbox" id="air-resistance-toggle" class="accent-blue-600 w-5 h-5" checked>
+                    </label>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span>投放高度 (m)</span>
+                        <span id="height-display" class="font-mono font-bold">50m</span>
+                    </div>
+                    <input type="range" id="height-slider" min="10" max="200" step="10" value="50" class="w-full accent-blue-600">
+                </div>
+            </div>
+
+            <!-- 3. 控制按鈕 -->
+            <div class="flex gap-2 mt-auto pt-4 border-t">
+                <button id="start-btn" class="flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-colors">
+                    <!-- Play Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span id="start-btn-text">開始投放</span>
+                </button>
+                
+                <button id="reset-btn" class="px-4 py-3 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                    <!-- RotateCcw Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"></path><path d="M3 3v9h9"></path></svg>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- 中間：視覺模擬 -->
+        <div class="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 relative overflow-hidden flex flex-col min-w-0">
+            <div class="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow-sm border border-slate-100 text-xs">
+                <div class="font-bold text-slate-700 mb-1">物體參數</div>
+                <div class="text-slate-500">阻力係數 Cd: <span id="param-cd">0.47</span></div>
+                <div class="text-slate-500">截面積 A: <span id="param-area">0.0088</span> m²</div>
+            </div>
+            <canvas id="scene-canvas" class="w-full h-full object-cover block"></canvas>
+        </div>
+
+        <!-- 右側：數據與圖表 -->
+        <div class="w-72 flex flex-col gap-4 shrink-0">
+            <!-- 儀表板 -->
+            <div class="bg-slate-800 rounded-xl p-4 text-white shadow-lg">
+                <h3 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                    <!-- Zap Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    實時數據
+                </h3>
+                <div class="space-y-3 font-mono text-sm">
+                    <div class="flex justify-between border-b border-slate-700 pb-1">
+                        <span class="text-slate-400">速度 v</span>
+                        <span id="val-v" class="text-blue-400">0.00 m/s</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-700 pb-1">
+                        <span class="text-slate-400">高度 h</span>
+                        <span id="val-h">50.0 m</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-700 pb-1">
+                        <span class="text-slate-400">加速度 a</span>
+                        <span id="val-a" class="text-green-400">9.81 m/s²</span>
+                    </div>
+                    <div class="pt-2">
+                        <div class="text-xs text-slate-500 mb-1">能量轉換 (Energy)</div>
+                        <div class="flex gap-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div id="bar-pe" class="bg-amber-400 h-full transition-all duration-75" style="width: 100%"></div>
+                            <div id="bar-ke" class="bg-blue-500 h-full transition-all duration-75" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] mt-1 text-slate-400">
+                            <span class="text-amber-400">PE (位能)</span>
+                            <span class="text-blue-400">KE (動能)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 p-2 relative min-h-[200px]">
+                <div class="absolute top-2 left-3 text-xs font-bold text-slate-500 flex items-center gap-1">
+                    <!-- BarChart2 Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    v-t 圖
+                </div>
+                <canvas id="graph-canvas" class="w-full h-full block"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    // 使用立即執行函式 (IIFE) 來避免變數重複宣告錯誤
+    (function() {
+        // --- 物理常數 ---
+        const G = 9.81;
+        const AIR_DENSITY = 1.225; // kg/m^3
+
+        // --- 預設物體參數庫 ---
+        const PRESETS = {
+            ironBall: {
+                name: "實心鐵球",
+                mass: 5.0,
+                radius: 0.053,
+                cd: 0.47,
+                color: "#4b5563"
+            },
+            pingPong: {
+                name: "乒乓球",
+                mass: 0.0027,
+                radius: 0.02,
+                cd: 0.47,
+                color: "#fbbf24"
+            },
+            raindrop: {
+                name: "大雨滴",
+                mass: 0.000034,
+                radius: 0.002,
+                cd: 0.3,
+                color: "#3b82f6"
+            },
+            cube: {
+                name: "木箱",
+                mass: 10.0,
+                radius: 0.2,
+                cd: 1.05,
+                color: "#854d0e"
+            }
+        };
+
+        // --- 狀態變數 ---
+        let state = {
+            selectedPreset: 'ironBall',
+            height: 50,
+            isVacuum: false,
+            isRunning: false,
+            isFinished: false,
+            // 物理狀態
+            y: 50,
+            v: 0,
+            a: 9.81,
+            t: 0,
+            history: [] // [{t, v}, ...]
+        };
+
+        // --- 初始化 ---
+        function init() {
+            const els = {
+                sceneCanvas: document.getElementById('scene-canvas'),
+                graphCanvas: document.getElementById('graph-canvas'),
+                presetContainer: document.getElementById('preset-container'),
+                airToggle: document.getElementById('air-resistance-toggle'),
+                envBadge: document.getElementById('env-badge'),
+                windIcon: document.getElementById('wind-icon'),
+                heightSlider: document.getElementById('height-slider'),
+                heightDisplay: document.getElementById('height-display'),
+                startBtn: document.getElementById('start-btn'),
+                startBtnText: document.getElementById('start-btn-text'),
+                resetBtn: document.getElementById('reset-btn'),
+                // 參數顯示
+                paramCd: document.getElementById('param-cd'),
+                paramArea: document.getElementById('param-area'),
+                // 實時數據
+                valV: document.getElementById('val-v'),
+                valH: document.getElementById('val-h'),
+                valA: document.getElementById('val-a'),
+                barPe: document.getElementById('bar-pe'),
+                barKe: document.getElementById('bar-ke')
+            };
+
+            // 1. 生成預設按鈕
+            els.presetContainer.innerHTML = '';
+            Object.entries(PRESETS).forEach(([key, val]) => {
+                const btn = document.createElement('button');
+                // 這裡一定要加上 preset-btn class，否則 updatePresetUI 會找不到按鈕
+                btn.className = `p-3 rounded-lg border text-left transition-all preset-btn`;
+                btn.dataset.key = key;
+                btn.innerHTML = `
+                    <div class="font-bold text-sm pointer-events-none">${val.name}</div>
+                    <div class="text-xs text-slate-500 mt-1 pointer-events-none">${val.mass} kg</div>
+                `;
+                btn.onclick = () => {
+                    if (!state.isRunning) {
+                        state.selectedPreset = key;
+                        updatePresetUI(els);
+                        resetSim(els);
+                    }
+                };
+                els.presetContainer.appendChild(btn);
+            });
+
+            // 2. 事件監聽
+            els.airToggle.onchange = (e) => {
+                if(!state.isRunning) {
+                    state.isVacuum = !e.target.checked;
+                    updateEnvUI(els);
+                    resetSim(els);
+                } else {
+                    e.target.checked = !state.isVacuum; 
+                }
+            };
+
+            els.heightSlider.oninput = (e) => {
+                if(!state.isRunning) {
+                    state.height = Number(e.target.value);
+                    els.heightDisplay.innerText = `${state.height}m`;
+                    resetSim(els);
+                }
+            };
+
+            els.startBtn.onclick = () => toggleSimulation(els);
+            els.resetBtn.onclick = () => resetSim(els);
+            
+            window.onresize = () => {
+                resizeCanvas(els.sceneCanvas);
+                resizeCanvas(els.graphCanvas);
+                drawScene(els);
+                drawGraph(els);
+            };
+
+            // 初始設定
+            resizeCanvas(els.sceneCanvas);
+            resizeCanvas(els.graphCanvas);
+            updatePresetUI(els);
+            updateEnvUI(els);
+            resetSim(els);
+            
+            // 循環
+            const loop = () => {
+                if (state.isRunning) {
+                    updatePhysics(els);
+                }
+                drawScene(els);
+                drawGraph(els);
+                requestAnimationFrame(loop);
+            };
+            requestAnimationFrame(loop);
+        }
+
+        function resizeCanvas(canvas) {
+            if (!canvas) return;
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+
+        function updatePresetUI(els) {
+            // 關鍵修正：確保在更新 class 時，保留 'preset-btn' 這個 class
+            // 否則下次 document.querySelectorAll('.preset-btn') 會找不到這些元素
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                if (btn.dataset.key === state.selectedPreset) {
+                    btn.className = `p-3 rounded-lg border text-left transition-all preset-btn border-blue-500 bg-blue-50 ring-1 ring-blue-500`;
+                } else {
+                    btn.className = `p-3 rounded-lg border text-left transition-all preset-btn border-slate-200 hover:bg-slate-50 ${state.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`;
+                }
+            });
+
+            // 更新參數顯示
+            const obj = PRESETS[state.selectedPreset];
+            els.paramCd.innerText = obj.cd;
+            // 截面積計算：木箱(正方形)使用 radius*2 為邊長，球體使用圓面積
+            let area;
+            if (state.selectedPreset === 'cube') {
+                // 假設 radius 是半邊長
+                area = (obj.radius * 2) * (obj.radius * 2);
+            } else {
+                area = Math.PI * obj.radius * obj.radius;
+            }
+            els.paramArea.innerText = area.toFixed(4);
+        }
+
+        function updateEnvUI(els) {
+            if (state.isVacuum) {
+                els.envBadge.className = "px-3 py-1 rounded text-sm font-bold flex items-center gap-2 bg-gray-800 text-white";
+                els.envBadge.innerText = "環境：真空 (Vacuum)";
+                els.windIcon.classList.add("text-slate-400");
+                els.windIcon.classList.remove("text-blue-500");
+            } else {
+                els.envBadge.className = "px-3 py-1 rounded text-sm font-bold flex items-center gap-2 bg-blue-100 text-blue-700";
+                els.envBadge.innerText = "環境：標準大氣 (Air)";
+                els.windIcon.classList.remove("text-slate-400");
+                els.windIcon.classList.add("text-blue-500");
+            }
+        }
+
+        function updateControlsUI(els) {
+            if (state.isRunning) {
+                els.startBtn.className = "flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 transition-colors";
+                els.startBtn.innerHTML = "暫停";
+                els.startBtn.disabled = false;
+            } else {
+                if (state.isFinished) {
+                     els.startBtn.className = "flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 bg-slate-400 cursor-not-allowed";
+                     els.startBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 開始投放`;
+                     els.startBtn.disabled = true;
+                } else {
+                    els.startBtn.className = "flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-colors";
+                    els.startBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 開始投放`;
+                    els.startBtn.disabled = false;
+                }
+            }
+            els.airToggle.disabled = state.isRunning;
+            els.heightSlider.disabled = state.isRunning;
+            updatePresetUI(els);
+        }
+
+        function resetSim(els) {
+            state.isRunning = false;
+            state.isFinished = false;
+            state.y = state.height;
+            state.v = 0;
+            state.a = G;
+            state.t = 0;
+            state.history = [];
+            
+            updateControlsUI(els);
+            updateDataUI(els);
+            drawScene(els);
+            drawGraph(els);
+        }
+
+        function toggleSimulation(els) {
+            if (state.isFinished) return;
+            state.isRunning = !state.isRunning;
+            updateControlsUI(els);
+        }
+
+        // --- 物理核心 ---
+        function updatePhysics(els) {
+            const obj = PRESETS[state.selectedPreset];
+            const dt = 0.016;
+
+            if (state.y <= 0) {
+                state.y = 0;
+                state.v = 0;
+                state.a = 0;
+                state.isRunning = false;
+                state.isFinished = true;
+                updateControlsUI(els);
+                updateDataUI(els);
+                return;
+            }
+
+            // 1. 計算力
+            const Fg = obj.mass * G;
+            let Fd = 0;
+
+            if (!state.isVacuum) {
+                // 計算截面積
+                let area;
+                if (state.selectedPreset === 'cube') {
+                    area = (obj.radius * 2) * (obj.radius * 2);
+                } else {
+                    area = Math.PI * obj.radius * obj.radius;
+                }
+                Fd = 0.5 * AIR_DENSITY * (state.v * state.v) * obj.cd * area;
+            }
+
+            // 2. F = ma
+            const Fnet = Fg - Fd;
+            const acc = Fnet / obj.mass;
+
+            // 3. Euler Integration
+            state.v += acc * dt;
+            state.y -= state.v * dt;
+            state.t += dt;
+            state.a = acc;
+
+            state.history.push({ t: state.t, v: state.v });
+            if (state.history.length > 300) state.history.shift();
+
+            updateDataUI(els);
+        }
+
+        function updateDataUI(els) {
+            const obj = PRESETS[state.selectedPreset];
+            
+            const pe = obj.mass * G * state.y;
+            const ke = 0.5 * obj.mass * state.v * state.v;
+            const totalE = obj.mass * G * state.height;
+
+            els.valV.innerText = state.v.toFixed(2) + " m/s";
+            els.valH.innerText = state.y.toFixed(1) + " m";
+            els.valA.innerText = state.a.toFixed(2) + " m/s²";
+            els.valA.className = state.a < 0 ? "text-red-400" : "text-green-400";
+
+            const pePct = totalE > 0 ? Math.max(0, (pe / totalE) * 100) : 0;
+            const kePct = totalE > 0 ? Math.max(0, (ke / totalE) * 100) : 0;
+
+            els.barPe.style.width = `${pePct}%`;
+            els.barKe.style.width = `${kePct}%`;
+        }
+
+        // --- 繪圖邏輯 ---
+        function drawScene(els) {
+            const ctx = els.sceneCanvas.getContext('2d');
+            const w = els.sceneCanvas.width;
+            const h = els.sceneCanvas.height;
+            const obj = PRESETS[state.selectedPreset];
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. 背景
+            if (state.isVacuum) {
+                ctx.fillStyle = "#111827";
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = "#FFF";
+                for(let i=0; i<20; i++) {
+                    const x = (i * 137) % w;
+                    const y = (i * 293) % h;
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            } else {
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, "#bfdbfe");
+                grad.addColorStop(1, "#eff6ff");
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            }
+
+            // 2. 地面
+            ctx.fillStyle = "#059669";
+            ctx.fillRect(0, h - 20, w, 20);
+
+            // 3. 標尺
+            ctx.fillStyle = state.isVacuum ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
+            ctx.font = "10px Arial";
+            const scale = state.height > 0 ? (h - 40) / state.height : 1; 
+            const step = Math.max(1, state.height/10);
+            for (let i = 0; i <= state.height; i += step) {
+                const y = h - 20 - (i * scale);
+                ctx.fillRect(40, y, 10, 1);
+                ctx.fillText(`${Math.round(i)}m`, 10, y + 4);
+            }
+
+            // 4. 物體
+            const drawY = h - 20 - (state.y * scale);
+            const centerX = w / 2;
+
+            // 陰影
+            const shadowScale = state.height > 0 ? Math.max(0, 1 - (state.y / state.height)) : 1;
+            ctx.fillStyle = "rgba(0,0,0,0.2)";
+            ctx.beginPath();
+            ctx.ellipse(centerX, h - 10, 10 * shadowScale + 5, 3 * shadowScale + 1, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 本體
+            ctx.beginPath();
+            const visualRadius = Math.max(10, obj.radius * 100);
+
+            ctx.fillStyle = obj.color;
+            ctx.strokeStyle = state.isVacuum ? "#fff" : "#333";
+            ctx.lineWidth = 2;
+
+            // 修正：如果選擇的是 'cube'，繪製正方形
+            if (state.selectedPreset === 'cube') {
+                const side = visualRadius * 2;
+                // 正方形左上角座標 (centerX - visualRadius, centerY - visualRadius)
+                // 注意 drawY 是物體底部的 y 座標，所以中心點 y 是 drawY - visualRadius
+                const topY = drawY - 2 * visualRadius;
+                ctx.fillRect(centerX - visualRadius, topY, side, side);
+                ctx.strokeRect(centerX - visualRadius, topY, side, side);
+            } else {
+                // 繪製圓形 (其他物體)
+                ctx.arc(centerX, drawY - visualRadius, visualRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // 速度向量
+            if (state.v > 0.1) {
+                const vLen = Math.min(state.v * 2, 50);
+                ctx.beginPath();
+                ctx.moveTo(centerX, drawY);
+                ctx.lineTo(centerX, drawY + vLen);
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                // 箭頭
+                ctx.beginPath();
+                ctx.moveTo(centerX - 5, drawY + vLen - 5);
+                ctx.lineTo(centerX, drawY + vLen);
+                ctx.lineTo(centerX + 5, drawY + vLen - 5);
+                ctx.stroke();
+            }
+        }
+
+        function drawGraph(els) {
+            const ctx = els.graphCanvas.getContext('2d');
+            const w = els.graphCanvas.width;
+            const h = els.graphCanvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 軸線
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(30, 10);
+            ctx.lineTo(30, h - 20);
+            ctx.lineTo(w - 10, h - 20);
+            ctx.stroke();
+
+            ctx.fillStyle = "#64748b";
+            ctx.font = "10px Arial";
+            ctx.fillText("v", 10, 15);
+            ctx.fillText("t", w - 10, h - 5);
+
+            if (state.history.length < 2) return;
+
+            const maxV = state.isVacuum ? Math.sqrt(2 * G * state.height) : 50; 
+            const maxT = Math.sqrt(2 * state.height / G) * 1.5;
+
+            ctx.beginPath();
+            state.history.forEach((p, i) => {
+                const x = 30 + (p.t / maxT) * (w - 40);
+                const y = (h - 20) - (p.v / maxV) * (h - 40);
+                
+                if (x < w && y > 0) {
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+            });
+            ctx.strokeStyle = "#3b82f6";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            if (!state.isVacuum) {
+                const obj = PRESETS[state.selectedPreset];
+                // 計算終端速度的截面積也需要區分形狀
+                let area;
+                if (state.selectedPreset === 'cube') {
+                    area = (obj.radius * 2) * (obj.radius * 2);
+                } else {
+                    area = Math.PI * obj.radius * obj.radius;
+                }
+
+                const vt = Math.sqrt((2 * obj.mass * G) / (AIR_DENSITY * obj.cd * area));
+                
+                const yVt = (h - 20) - (vt / maxV) * (h - 40);
+                if (yVt > 0) {
+                    ctx.beginPath();
+                    ctx.setLineDash([5, 5]);
+                    ctx.moveTo(30, yVt);
+                    ctx.lineTo(w, yVt);
+                    ctx.strokeStyle = "#ef4444";
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = "#ef4444";
+                    ctx.fillText(`Vt ≈ ${vt.toFixed(1)}`, w - 60, yVt - 5);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })(); 
+    </script>
+</body>
+</html>

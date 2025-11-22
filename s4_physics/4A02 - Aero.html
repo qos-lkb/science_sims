@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroSim: 2D Wind Tunnel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        
+        /* Custom UI Styling */
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0, 0.4);
+        }
+        
+        .slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #38bdf8;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #38bdf8;
+        }
+
+        .stat-value {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay -->
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-10">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-start w-full">
+            
+            <!-- Left Side: Controls -->
+            <div class="flex flex-col items-start">
+                <!-- Minimized Open Button (Initially Hidden) -->
+                <button id="open-panel-btn" onclick="togglePanel()" class="hud-panel px-4 py-2 rounded-lg pointer-events-auto text-sky-400 font-bold text-xs uppercase hover:bg-slate-800 transition hidden border border-slate-700 mb-2 shadow-lg flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Open Settings
+                </button>
+
+                <div id="ui-panel" class="hud-panel p-4 rounded-lg pointer-events-auto max-w-xs w-full relative transition-all">
+                    <!-- Close/Minimize Button -->
+                    <button onclick="togglePanel()" class="absolute top-3 right-3 text-slate-500 hover:text-sky-400 transition pointer-events-auto" title="Minimize Panel">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <h1 class="text-xl font-bold text-sky-400 tracking-wider uppercase mb-1">AeroSim <span class="text-xs text-slate-400 font-normal">2D</span></h1>
+                    <p class="text-xs text-slate-400 mb-4">Laminar Flow Visualizer</p>
+                    
+                    <!-- Controls -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs text-sky-200 uppercase font-bold block mb-2">Wind Speed (Mach <span id="mach-display">0.15</span>)</label>
+                            <input type="range" id="speed-slider" min="0.1" max="2.0" step="0.1" value="0.5" class="slider-thumb pointer-events-auto">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-sky-200 uppercase font-bold block mb-2">Vehicle Type</label>
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <button onclick="setCarType('sports')" class="bg-slate-700 hover:bg-sky-600 text-white text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600">Sports</button>
+                                <button onclick="setCarType('sedan')" class="bg-slate-700 hover:bg-sky-600 text-white text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600">Sedan</button>
+                                <button onclick="setCarType('truck')" class="bg-slate-700 hover:bg-sky-600 text-white text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600">Truck</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="setCarType('f1')" class="bg-slate-800 hover:bg-purple-600 text-purple-200 text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600 font-bold">F1</button>
+                                <button onclick="setCarType('gt')" class="bg-slate-800 hover:bg-orange-600 text-orange-200 text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600 font-bold">GT</button>
+                                <button onclick="setCarType('lmp')" class="bg-slate-800 hover:bg-teal-600 text-teal-200 text-xs py-2 px-1 rounded transition pointer-events-auto border border-slate-600 font-bold">LMP</button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 mt-4">
+                             <input type="checkbox" id="streamlines-toggle" checked class="pointer-events-auto accent-sky-500">
+                             <label for="streamlines-toggle" class="text-xs text-slate-300 pointer-events-auto cursor-pointer">Show Particles</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Stats -->
+            <div class="hud-panel p-4 rounded-lg pointer-events-auto w-48">
+                <h2 class="text-xs font-bold text-slate-400 uppercase border-b border-slate-600 pb-2 mb-3">Live Telemetry</h2>
+                
+                <div class="space-y-3">
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase">Drag Coefficient (Cd)</div>
+                        <div class="text-xl font-mono text-sky-400 stat-value" id="cd-value">0.28</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase">Drag Force</div>
+                        <div class="text-xl font-mono text-red-400 stat-value"><span id="drag-force">1240</span> N</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase">Downforce</div>
+                        <div class="text-xl font-mono text-emerald-400 stat-value"><span id="downforce">850</span> N</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- State ---
+        let width, height;
+        let particles = [];
+        let windSpeed = 0.5;
+        let carType = 'sports';
+        
+        // Define detailed car shapes
+        // Path: The "Aerodynamic Envelope" for physics (top line)
+        // Details: Array of polygons to draw for visual detail
+        // Wheels: Array of wheel positions
+        
+        const COLORS = {
+            body: '#64748b', // Slate 500
+            darkBody: '#475569', // Slate 600
+            window: '#1e293b', // Slate 800
+            wing: '#334155', // Slate 700
+            highlight: '#94a3b8'
+        };
+
+        const carShapes = {
+            sports: {
+                width: 260, height: 70, drag: 0.28, downforceFactor: 1.5,
+                path: [ [0, 70], [10, 65], [30, 55], [80, 45], [140, 25], [200, 25], [240, 45], [260, 55], [260, 70] ],
+                details: [
+                    { c: COLORS.body, p: [[0,70], [10,65], [30,55], [80,45], [140,25], [200,25], [240,45], [260,55], [260,70]] }, // Main
+                    { c: COLORS.window, p: [[90,45], [135,28], [190,28], [220,45]] }, // Cabin
+                    { c: COLORS.highlight, p: [[10,65], [30,58], [30,65]] } // Headlight area
+                ],
+                wheels: [{x: 45, r: 20}, {x: 215, r: 21}]
+            },
+            sedan: {
+                width: 260, height: 85, drag: 0.34, downforceFactor: 0.5,
+                path: [ [0, 85], [10, 60], [60, 55], [100, 20], [190, 20], [230, 55], [250, 65], [260, 85] ],
+                details: [
+                    { c: COLORS.body, p: [[0,85], [10,60], [60,55], [100,20], [190,20], [230,55], [260,60], [260,85]] },
+                    { c: COLORS.window, p: [[105,25], [145,25], [145,50], [75,53]] }, // Front Window
+                    { c: COLORS.window, p: [[150,25], [185,25], [215,52], [150,50]] } // Rear Window
+                ],
+                wheels: [{x: 45, r: 19}, {x: 215, r: 19}]
+            },
+            truck: {
+                width: 280, height: 100, drag: 0.55, downforceFactor: -0.5,
+                path: [ [0, 100], [10, 60], [50, 60], [60, 10], [130, 10], [130, 60], [280, 60], [280, 100] ],
+                details: [
+                    { c: COLORS.body, p: [[0,100], [10,60], [60,60], [60,100]] }, // Front bumper
+                    { c: COLORS.darkBody, p: [[60,100], [60,10], [130,10], [130,100]] }, // Cab
+                    { c: COLORS.body, p: [[135,60], [280,60], [280,90], [135,90]] }, // Bed
+                    { c: COLORS.window, p: [[70,15], [120,15], [120,50], [70,50]] } // Window
+                ],
+                wheels: [{x: 50, r: 24}, {x: 230, r: 24}]
+            },
+            f1: {
+                width: 300, height: 60, drag: 0.95, downforceFactor: 5.5,
+                path: [ [0, 50], [40, 50], [50, 35], [110, 35], [140, 15], [160, 15], [200, 30], [260, 30], [260, 0], [300, 0], [300, 60] ],
+                details: [
+                    { c: COLORS.darkBody, p: [[0,55], [40,55], [40,45], [0,45]] }, // Front Wing Main
+                    { c: COLORS.wing, p: [[5,45], [35,45], [35,35], [15,35]] }, // Front Wing Flap
+                    { c: COLORS.body, p: [[45,50], [260,50], [240,30], [160,15], [140,15], [110,35], [45,35]] }, // Body & Engine Cover
+                    { c: '#000', p: [[120,35], [140,20], [155,20]] }, // Halo/Cockpit
+                    { c: COLORS.darkBody, p: [[260,50], [260,0], [300,0], [300,50]] }, // Rear Wing Endplate
+                    { c: COLORS.wing, p: [[265,5], [295,5], [295,20], [265,20]] } // Rear Wing Main
+                ],
+                wheels: [{x: 60, r: 22}, {x: 240, r: 22}] // F1 wheels are large
+            },
+            gt: {
+                width: 280, height: 75, drag: 0.42, downforceFactor: 3.0,
+                path: [ [0, 75], [0, 70], [20, 55], [70, 50], [120, 20], [190, 20], [230, 40], [260, 40], [260, 10], [280, 10], [280, 75] ],
+                details: [
+                    { c: '#000', p: [[-10,75], [10,75], [10,72], [-10,72]] }, // Splitter
+                    { c: COLORS.body, p: [[0,75], [10,60], [70,55], [120,20], [190,20], [240,50], [270,55], [270,75]] }, // Main
+                    { c: COLORS.window, p: [[125,25], [185,25], [220,45], [80,52]] }, // Cabin
+                    { c: COLORS.darkBody, p: [[250,50], [260,10], [280,10], [270,55]] }, // Wing Strut/Endplate
+                    { c: COLORS.wing, p: [[255,10], [285,5], [285,15], [255,15]] } // Wing Element
+                ],
+                wheels: [{x: 55, r: 20}, {x: 225, r: 21}]
+            },
+            lmp: {
+                width: 290, height: 60, drag: 0.35, downforceFactor: 4.0,
+                path: [ [0, 60], [30, 40], [80, 35], [110, 10], [160, 10], [180, 25], [290, 25], [290, 60] ],
+                details: [
+                    { c: COLORS.body, p: [[0,60], [30,40], [80,35], [110,10], [160,10], [200,25], [290,30], [290,60]] }, // Body
+                    { c: COLORS.window, p: [[115,12], [155,12], [170,25], [90,32]] }, // Bubble Canopy
+                    { c: COLORS.darkBody, p: [[160,12], [160,5], [280,25], [200,25]] }, // Shark Fin
+                    { c: COLORS.wing, p: [[270,25], [295,25], [295,60], [270,60]] } // Rear diffuser area / wing
+                ],
+                wheels: [{x: 60, r: 19}, {x: 230, r: 20}]
+            }
+        };
+
+        let currentCar = carShapes.sports;
+
+        // --- Setup ---
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            initParticles();
+        }
+        window.addEventListener('resize', resize);
+
+        function initParticles() {
+            particles = [];
+            const count = 800;
+            for(let i=0; i<count; i++) {
+                particles.push(createParticle(true));
+            }
+        }
+
+        function createParticle(randomX = false) {
+            return {
+                x: randomX ? Math.random() * width : -10,
+                y: Math.random() * height,
+                vx: (Math.random() * 2 + 10) * windSpeed,
+                vy: 0,
+                size: Math.random() * 2 + 1,
+                color: '#38bdf8',
+                history: [] // Trail
+            };
+        }
+
+        // --- Physics Logic ---
+        function update() {
+            const cx = width / 2 - currentCar.width / 2;
+            const cy = height / 2 + 50; // Ground level offset
+            
+            // Car bounding box for simple checks
+            const carLeft = cx - 20; // Buffer
+            const carRight = cx + currentCar.width + 50;
+
+            particles.forEach(p => {
+                // Base movement
+                let speedMult = windSpeed * 15;
+                p.vx = speedMult;
+                
+                // Reset Color
+                p.color = 'rgba(56, 189, 248, 0.6)'; // Sky blue
+
+                // Interaction Zone
+                if (p.x > carLeft && p.x < carRight) {
+                    
+                    let relX = p.x - cx;
+                    let surfaceY = cy; // Default to ground
+
+                    // Aerodynamic Profile Check
+                    if (relX >= -20 && relX <= currentCar.width + 20) {
+                        // Find polygon segment in the 'path' array
+                        for(let i=0; i < currentCar.path.length - 1; i++) {
+                            let p1 = currentCar.path[i];
+                            let p2 = currentCar.path[i+1];
+                            
+                            if (relX >= p1[0] && relX <= p2[0]) {
+                                // Interpolate Y
+                                let t = (relX - p1[0]) / (p2[0] - p1[0]);
+                                let localY = p1[1] * (1-t) + p2[1] * t; // Depth from top
+                                surfaceY = cy - (currentCar.height - localY); // Actual Y on screen
+                                break;
+                            }
+                        }
+                    }
+
+                    // Collision/Deflection Logic
+                    if (p.y > surfaceY - 15 && p.y < cy) {
+                        let severity = (surfaceY - p.y);
+                        p.vy -= 1.5 * windSpeed; 
+                        p.vx *= 0.8;
+                        p.color = 'rgba(248, 113, 113, 0.9)'; // Pressure Red
+                        if(p.y > surfaceY) p.y = surfaceY - 2;
+                    }
+                    
+                    // Over the top (Bernoulli/Flow)
+                    if (p.y < surfaceY && p.y > surfaceY - 60) {
+                         p.vx *= 1.1; // Speed up
+                         p.color = 'rgba(74, 222, 128, 0.8)'; // Speed Green
+                    }
+                }
+                
+                // Turbulence behind car
+                if (p.x > cx + currentCar.width && p.x < cx + currentCar.width + 250) {
+                    // Height check relative to car height
+                    if (p.y > cy - currentCar.height && p.y < cy) {
+                        p.vy += (Math.random() - 0.5) * 3 * windSpeed; // More randomness
+                        p.color = 'rgba(255, 255, 255, 0.3)'; // White smoke
+                    }
+                }
+
+                // Floor collision
+                if (p.y > cy) {
+                    p.y = cy;
+                    p.vy = 0;
+                }
+
+                // Apply velocity
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                // Damping
+                p.vy *= 0.9;
+
+                // Reset if off screen
+                if (p.x > width) {
+                    Object.assign(p, createParticle());
+                }
+            });
+            
+            // Telemetry Math
+            const v = windSpeed * 100;
+            const force = 0.5 * 1.225 * (v*v/1000) * currentCar.drag * (currentCar.height * currentCar.width / 1000);
+            let downforce = (v * v / 800) * currentCar.downforceFactor;
+
+            document.getElementById('drag-force').innerText = Math.round(force);
+            document.getElementById('downforce').innerText = Math.round(downforce);
+        }
+
+        // --- Rendering ---
+        function draw() {
+            // Clear
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+            ctx.fillRect(0, 0, width, height);
+
+            const cx = width / 2 - currentCar.width / 2;
+            const cy = height / 2 + 50;
+
+            // Draw Floor
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, cy);
+            ctx.lineTo(width, cy);
+            ctx.stroke();
+            
+            // Draw Grid ticks
+            ctx.fillStyle = '#1e293b';
+            for(let i=0; i<width; i+=50) {
+                ctx.fillRect(i, cy, 2, 10);
+            }
+
+            // --- Draw Detailed Car ---
+            ctx.save();
+            ctx.translate(cx, cy - currentCar.height);
+            
+            // 1. Draw Body Parts
+            if(currentCar.details) {
+                currentCar.details.forEach(part => {
+                    ctx.fillStyle = part.c;
+                    ctx.strokeStyle = '#334155'; // slight outline
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(part.p[0][0], part.p[0][1]);
+                    for(let i=1; i<part.p.length; i++) {
+                        ctx.lineTo(part.p[i][0], part.p[i][1]);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                });
+            }
+
+            // 2. Draw Wheels
+            if(currentCar.wheels) {
+                currentCar.wheels.forEach(w => {
+                    // Tire
+                    ctx.fillStyle = '#0f172a';
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(w.x, currentCar.height - w.r/2 + 2, w.r, 0, Math.PI*2); 
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Rim
+                    ctx.fillStyle = '#475569';
+                    ctx.beginPath();
+                    ctx.arc(w.x, currentCar.height - w.r/2 + 2, w.r * 0.6, 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    // Center cap
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(w.x, currentCar.height - w.r/2 + 2, 3, 0, Math.PI*2);
+                    ctx.fill();
+                });
+            }
+
+            ctx.restore();
+
+            // Draw Particles
+            if (document.getElementById('streamlines-toggle').checked) {
+                particles.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    let len = Math.min(p.vx * 1.5, 40);
+                    ctx.rect(p.x, p.y, len, p.size);
+                    ctx.fill();
+                });
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // --- Controls ---
+        function setCarType(type) {
+            currentCar = carShapes[type];
+            carType = type;
+            document.getElementById('cd-value').innerText = currentCar.drag;
+        }
+        
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            windSpeed = parseFloat(e.target.value);
+            document.getElementById('mach-display').innerText = windSpeed.toFixed(2);
+        });
+
+        function togglePanel() {
+            const panel = document.getElementById('ui-panel');
+            const btn = document.getElementById('open-panel-btn');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                btn.style.display = 'none';
+            } else {
+                panel.style.display = 'none';
+                btn.style.display = 'flex';
+            }
+        }
+
+        // Start
+        resize();
+        loop();
+
+    </script>
+</body>
+</html>

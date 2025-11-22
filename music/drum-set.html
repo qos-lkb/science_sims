@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>虛擬爵士鼓教學 - Virtual Drum Kit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #1a1a1a; /* Dark floor */
+            color: #eee;
+            overflow: hidden;
+            touch-action: none; /* Prevent pull-to-refresh on mobile */
+            user-select: none;
+        }
+
+        /* Stage Area */
+        #stage {
+            position: relative;
+            width: 100%;
+            height: 70vh;
+            max-width: 800px;
+            margin: 0 auto;
+            background: radial-gradient(circle at center, #333 0%, #111 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* Drum Common Styles */
+        .instrument {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.05s ease, filter 0.1s;
+            box-shadow: 5px 10px 15px rgba(0,0,0,0.4);
+            z-index: 10;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .instrument:active, .instrument.active {
+            transform: scale(0.95) translate(2px, 2px);
+            filter: brightness(1.2);
+        }
+
+        /* Labels */
+        .label {
+            font-size: 12px;
+            font-weight: bold;
+            color: rgba(255,255,255,0.9);
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .key-hint {
+            font-size: 10px;
+            color: #fbbf24; /* Amber */
+            margin-top: 2px;
+            border: 1px solid rgba(251, 191, 36, 0.5);
+            padding: 0 4px;
+            border-radius: 3px;
+        }
+
+        /* Specific Skins */
+        .drum-skin {
+            background: radial-gradient(circle at 30% 30%, #f0f0f0, #d1d5db 60%, #9ca3af 95%);
+            border: 6px solid #666; /* Rim */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2), 5px 10px 15px rgba(0,0,0,0.4);
+        }
+
+        .cymbal-skin {
+            background: radial-gradient(circle, #fde047 0%, #eab308 40%, #a16207 100%); /* Gold */
+            border: 2px solid #854d0e;
+            background-image: repeating-radial-gradient(#eab308 0, #eab308 2px, #ca8a04 3px, #ca8a04 4px);
+        }
+        
+        .hihat-skin {
+            background: radial-gradient(circle, #e5e7eb 0%, #9ca3af 40%, #4b5563 100%); /* Silver */
+            background-image: repeating-radial-gradient(#d1d5db 0, #d1d5db 2px, #9ca3af 3px, #9ca3af 4px);
+        }
+
+        /* Positioning (Percentages for responsiveness) */
+        /* Center based on their visual center */
+        
+        /* KICK (Bass Drum) */
+        #kick {
+            width: 22%;
+            padding-top: 22%; /* Aspect Ratio 1:1 */
+            bottom: 5%;
+            left: 39%;
+            border: 8px solid #7f1d1d; /* Red Wood Hoop */
+            z-index: 5;
+        }
+
+        /* SNARE */
+        #snare {
+            width: 17%;
+            padding-top: 17%;
+            bottom: 15%;
+            left: 20%;
+            z-index: 20;
+        }
+
+        /* HIGH TOM (Tom 1) */
+        #tom1 {
+            width: 15%;
+            padding-top: 15%;
+            top: 20%;
+            left: 35%;
+            z-index: 15;
+        }
+
+        /* MID TOM (Tom 2) */
+        #tom2 {
+            width: 16%;
+            padding-top: 16%;
+            top: 20%;
+            right: 30%;
+            z-index: 15;
+        }
+
+        /* FLOOR TOM */
+        #floor {
+            width: 20%;
+            padding-top: 20%;
+            bottom: 10%;
+            right: 15%;
+            z-index: 10;
+        }
+
+        /* HI-HAT */
+        #hihat {
+            width: 16%;
+            padding-top: 16%;
+            bottom: 25%;
+            left: 5%;
+            z-index: 25;
+        }
+
+        /* CRASH CYMBAL */
+        #crash {
+            width: 20%;
+            padding-top: 20%;
+            top: 5%;
+            left: 10%;
+            z-index: 30;
+        }
+
+        /* RIDE CYMBAL */
+        #ride {
+            width: 22%;
+            padding-top: 22%;
+            top: 5%;
+            right: 5%;
+            z-index: 28;
+        }
+        
+        /* Content Centering Hack */
+        .inner-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            pointer-events: none;
+        }
+
+        /* Drum Sticks Animation (Optional visual flair) */
+        .ripple {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            animation: rippleEffect 0.4s linear;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes rippleEffect {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .pedal {
+            width: 40px;
+            height: 60px;
+            background: #444;
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            border: 2px solid #888;
+        }
+
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Header / Instructions -->
+    <header class="p-4 bg-gray-900 text-center shrink-0">
+        <h1 class="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">🥁 虛擬爵士鼓教室</h1>
+        <p class="text-gray-400 text-sm md:text-base">點擊畫面鼓組，或使用鍵盤演奏</p>
+        <div id="start-overlay" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+            <button id="start-btn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-4 px-8 rounded-full text-xl shadow-lg transform transition hover:scale-105">
+                點擊這裡開始上課<br><span class="text-sm font-normal">(啟動音效引擎)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Drum Area -->
+    <main class="flex-grow flex items-center justify-center p-2 md:p-4 relative bg-gray-800">
+        <div id="stage">
+            <!-- Crash Cymbal -->
+            <div id="crash" class="instrument cymbal-skin" data-key="e" data-sound="crash">
+                <div class="inner-content">
+                    <div class="label">Crash<br>碎音鈸</div>
+                    <div class="key-hint">E</div>
+                </div>
+            </div>
+
+            <!-- Ride Cymbal -->
+            <div id="ride" class="instrument cymbal-skin" data-key="i" data-sound="ride">
+                <div class="inner-content">
+                    <div class="label">Ride<br>疊音鈸</div>
+                    <div class="key-hint">I</div>
+                </div>
+            </div>
+
+            <!-- Hi-Hat -->
+            <div id="hihat" class="instrument hihat-skin" data-key="q" data-sound="hihat">
+                <div class="inner-content">
+                    <div class="label">Hi-Hat<br>腳踏鈸</div>
+                    <div class="key-hint">Q</div>
+                </div>
+            </div>
+
+            <!-- Tom 1 -->
+            <div id="tom1" class="instrument drum-skin" data-key="r" data-sound="tom1">
+                <div class="inner-content">
+                    <div class="label">High Tom<br>第一中鼓</div>
+                    <div class="key-hint">R</div>
+                </div>
+            </div>
+
+            <!-- Tom 2 -->
+            <div id="tom2" class="instrument drum-skin" data-key="u" data-sound="tom2">
+                <div class="inner-content">
+                    <div class="label">Mid Tom<br>第二中鼓</div>
+                    <div class="key-hint">U</div>
+                </div>
+            </div>
+
+            <!-- Snare -->
+            <div id="snare" class="instrument drum-skin" data-key="s" data-sound="snare">
+                <div class="inner-content">
+                    <div class="label">Snare<br>小鼓</div>
+                    <div class="key-hint">S / D</div>
+                </div>
+            </div>
+
+            <!-- Floor Tom -->
+            <div id="floor" class="instrument drum-skin" data-key="j" data-sound="floor">
+                <div class="inner-content">
+                    <div class="label">Floor Tom<br>落地鼓</div>
+                    <div class="key-hint">J</div>
+                </div>
+            </div>
+
+            <!-- Kick Drum -->
+            <div id="kick" class="instrument drum-skin" data-key=" " data-sound="kick" style="border-color: #4a0404;">
+                <div class="inner-content">
+                    <div class="label">Kick<br>大鼓</div>
+                    <div class="key-hint">Space</div>
+                </div>
+                <div class="pedal"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="p-2 text-center text-xs text-gray-600">
+        Web Audio API Generated Sounds | No External Files Required
+    </footer>
+
+    <script>
+        // --- Audio Synthesis Engine (Music Teacher's Secret Sauce) ---
+        // We generate sounds using oscillators and noise buffers to avoid loading times.
+        
+        let audioCtx;
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        // Initialize Audio Context on user interaction
+        startBtn.addEventListener('click', () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startOverlay.classList.add('hidden');
+            // Unlock audio on iOS
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        });
+
+        // Helper: Create Noise Buffer (for Snares and Cymbals)
+        function createNoiseBuffer() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 2; // 2 seconds buffer
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            return buffer;
+        }
+
+        let noiseBuffer;
+
+        // Sound Synthesis Functions
+        const sounds = {
+            kick: () => {
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+                
+                gain.gain.setValueAtTime(1, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.5);
+            },
+            snare: () => {
+                const t = audioCtx.currentTime;
+                
+                // Tone (the body of the drum)
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(250, t);
+                oscGain.gain.setValueAtTime(0.5, t);
+                oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+                osc.connect(oscGain);
+                oscGain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+
+                // Noise (the snares)
+                if(!noiseBuffer) noiseBuffer = createNoiseBuffer();
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                const noiseFilter = audioCtx.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 1000;
+                const noiseGain = audioCtx.createGain();
+                noiseGain.gain.setValueAtTime(0.8, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3); // Short crisp decay
+
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(audioCtx.destination);
+                noise.start(t);
+                noise.stop(t + 0.3);
+            },
+            hihat: () => {
+                const t = audioCtx.currentTime;
+                
+                // Metallic noise
+                if(!noiseBuffer) noiseBuffer = createNoiseBuffer();
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 8000; // High freq for "chick" sound
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.6, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1); // Very short
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start(t);
+                noise.stop(t + 0.1);
+            },
+            tom1: () => playTom(200),
+            tom2: () => playTom(150),
+            floor: () => playTom(100),
+            crash: () => playCymbal(1.5), // Long decay
+            ride: () => playCymbal(1.0, true) // Slightly shorter, more defined
+        };
+
+        function playTom(freq) {
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.frequency.setValueAtTime(freq, t);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.5, t + 0.4); // Pitch bend down
+
+            gain.gain.setValueAtTime(0.7, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + 0.4);
+        }
+
+        function playCymbal(duration, isRide = false) {
+            const t = audioCtx.currentTime;
+            if(!noiseBuffer) noiseBuffer = createNoiseBuffer();
+            
+            // Fundamental tone (optional for ride to give it "ping")
+            if (isRide) {
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = 500;
+                oscGain.gain.setValueAtTime(0.1, t);
+                oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                osc.connect(oscGain);
+                oscGain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.3);
+            }
+
+            // Noise wash
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = isRide ? 'bandpass' : 'highpass';
+            filter.frequency.value = isRide ? 6000 : 2000;
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.8, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start(t);
+            noise.stop(t + duration);
+        }
+
+        // --- Interaction Logic ---
+
+        function triggerDrum(elementId) {
+            if (!audioCtx || audioCtx.state === 'suspended') {
+                // Try to resume if overlay was missed (rare)
+                if(audioCtx) audioCtx.resume();
+            }
+
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            // Visual Feedback
+            el.classList.add('active');
+            
+            // Add Ripple
+            const ripple = document.createElement('div');
+            ripple.classList.add('ripple');
+            el.appendChild(ripple);
+            
+            setTimeout(() => {
+                el.classList.remove('active');
+                ripple.remove();
+            }, 100);
+
+            // Audio Feedback
+            const soundType = el.dataset.sound;
+            if (sounds[soundType]) {
+                sounds[soundType]();
+            }
+        }
+
+        // Mouse/Touch Events
+        const instruments = document.querySelectorAll('.instrument');
+        instruments.forEach(inst => {
+            // Prevent default touch actions to allow rapid drumming without scrolling
+            inst.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                triggerDrum(inst.id);
+            }, { passive: false });
+
+            inst.addEventListener('mousedown', (e) => {
+                triggerDrum(inst.id);
+            });
+        });
+
+        // Keyboard Support
+        const keyMap = {
+            ' ': 'kick',
+            'q': 'hihat',
+            'w': 'hihat',
+            'e': 'crash',
+            'r': 'tom1',
+            't': 'tom1',
+            'y': 'tom2',
+            'u': 'tom2',
+            'i': 'ride',
+            's': 'snare',
+            'd': 'snare',
+            'g': 'floor',
+            'h': 'floor',
+            'j': 'floor'
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (audioCtx && !e.repeat) {
+                const key = e.key.toLowerCase();
+                if (keyMap[key]) {
+                    triggerDrum(keyMap[key]);
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstroPhysics Lab: Stellar Dynamics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --hud-primary: #0ea5e9; /* Sky 500 */
+            --hud-warning: #eab308; /* Yellow 500 */
+            --hud-danger: #ef4444;  /* Red 500 */
+            --glass-bg: rgba(7, 10, 20, 0.85);
+        }
+
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; color: white; }
+        
+        #viewport { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* HUD Architecture */
+        .hud-font { font-family: 'Share Tech Mono', monospace; }
+        
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        /* Decorator Lines */
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--hud-primary), transparent);
+            opacity: 0.5;
+        }
+
+        /* Range Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #334155; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%;
+            background: var(--hud-primary); margin-top: -6px; box-shadow: 0 0 10px var(--hud-primary);
+        }
+
+        /* Safety Button Switch */
+        .safety-switch-container {
+            position: relative; width: 100%; height: 50px; overflow: hidden;
+            border: 1px solid #333; background: #111;
+        }
+        
+        /* The Red Cover */
+        .safety-cover {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(45deg, #2a0a0a, #2a0a0a 10px, #3f0f0f 10px, #3f0f0f 20px);
+            border: 1px solid #ef4444; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: #ef4444; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10;
+        }
+        .safety-cover:hover { background: rgba(239, 68, 68, 0.2); }
+        .safety-cover.open { transform: translateY(-100%); }
+
+        /* The Actual Button */
+        .btn-destruct {
+            width: 100%; height: 100%; background: #ef4444; color: white; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer;
+            transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-destruct:hover { background: #dc2626; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .btn-destruct:active { transform: scale(0.98); }
+
+        /* Whiteout Effect */
+        #whiteout-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: white; opacity: 0; pointer-events: none; z-index: 100;
+            transition: opacity 3s ease-in;
+        }
+        .screen-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+        /* Blinking Status */
+        @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status-critical { color: var(--hud-danger); animation: blink-red 1s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="viewport"></div>
+    <div id="whiteout-overlay"></div>
+
+    <!-- TOP LEFT: Header -->
+    <div class="absolute top-0 left-0 p-6 z-20 pointer-events-none">
+        <div class="panel p-4 rounded-sm pointer-events-auto w-64">
+            <h1 class="text-xl font-bold text-sky-400 tracking-widest uppercase border-b border-gray-700 pb-2 mb-2">Astro<span class="text-white">Lab</span> v2.4</h1>
+            <div class="flex justify-between items-center text-xs hud-font text-gray-400">
+                <span>SYSTEM:</span>
+                <span id="sys-status" class="text-green-400 tracking-wider">NOMINAL</span>
+            </div>
+            <div class="flex justify-between items-center text-xs hud-font text-gray-400 mt-1">
+                <span>PHYSICS:</span>
+                <span class="text-sky-400">KEPLERIAN</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="absolute bottom-0 w-full p-6 z-20 flex flex-col md:flex-row justify-between items-end pointer-events-none gap-4">
+        
+        <!-- Physics Controls -->
+        <div class="panel p-5 rounded-sm pointer-events-auto w-full md:w-96">
+            <div class="mb-5">
+                <div class="flex justify-between mb-2">
+                    <label class="text-xs font-bold text-sky-400 uppercase tracking-wider">Simulation Speed</label>
+                    <span id="speed-display" class="text-xs hud-font text-white bg-gray-800 px-2 rounded">1.0x</span>
+                </div>
+                <input type="range" id="time-slider" min="0" max="3" step="0.1" value="1">
+            </div>
+
+            <div>
+                <div class="flex justify-between mb-2">
+                    <label class="text-xs font-bold text-yellow-400 uppercase tracking-wider">Stellar Core Temp</label>
+                    <span id="temp-display" class="text-xs hud-font text-white bg-gray-800 px-2 rounded">5,778 K</span>
+                </div>
+                <input type="range" id="temp-slider" min="3000" max="25000" step="100" value="5778">
+                <div class="w-full h-1 mt-2 rounded-full bg-gradient-to-r from-orange-600 via-yellow-200 to-blue-400 opacity-50"></div>
+            </div>
+        </div>
+
+        <!-- OMEGA PROTOCOL (Destruction) -->
+        <div class="panel p-1 rounded-sm pointer-events-auto w-full md:w-64 border-l-4 border-red-600">
+            <div class="bg-black/40 p-4">
+                <h3 class="text-red-500 text-xs font-bold uppercase tracking-[0.2em] mb-3 text-center">Omega Protocol</h3>
+                
+                <!-- Safety Interlock Mechanism -->
+                <div class="safety-switch-container rounded mb-2">
+                    <!-- The Cover -->
+                    <div id="safety-cover" class="safety-cover" onclick="this.classList.toggle('open')">
+                        <span class="pointer-events-none">/// Safety Locked ///</span>
+                    </div>
+                    <!-- The Trigger -->
+                    <button id="btn-destruct" class="btn-destruct">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.477.859h4z" /></svg>
+                        Initiate
+                    </button>
+                </div>
+                
+                <button id="btn-reset" class="w-full py-2 text-[10px] uppercase text-gray-500 hover:text-white hover:bg-gray-800 transition hidden">
+                    System Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ENGINE CORE & CONFIGURATION ---
+        const CONFIG = {
+            starSize: 20,
+            auScale: 40, // 1 AU in world units
+            camDistance: 250
+        };
+
+        // Three.js Basics
+        const container = document.getElementById('viewport');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001); // Deep space fog
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 120, CONFIG.camDistance);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for performance
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxDistance = 800;
+        controls.minDistance = 50;
+
+        // --- 2. ASSET GENERATION (Procedural) ---
+        // Helper to make textures in memory to keep file single-source
+        function createTexture(type, colorHex) {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const color = new THREE.Color(colorHex);
+
+            // Base
+            ctx.fillStyle = `rgb(${color.r*255}, ${color.g*255}, ${color.b*255})`;
+            ctx.fillRect(0, 0, size, size);
+
+            // Noise/Details
+            ctx.globalCompositeOperation = 'overlay';
+            for(let i=0; i<100; i++) {
+                ctx.beginPath();
+                ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.2})`;
+                ctx.arc(Math.random()*size, Math.random()*size, Math.random()*10, 0, Math.PI*2);
+                ctx.fill();
+            }
+            
+            if(type === 'gas') {
+                // Bands
+                ctx.globalCompositeOperation = 'multiply';
+                for(let i=0; i<size; i+=20) {
+                    ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.3})`;
+                    ctx.fillRect(0, i, size, Math.random()*15);
+                }
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createGlowSprite(colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(32,32,0,32,32,32);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.4, colorHex); // Inner color
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,64,64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 3. SCENE OBJECTS ---
+
+        // A. The Star (Sun)
+        const sunGroup = new THREE.Group();
+        scene.add(sunGroup);
+
+        const sunGeo = new THREE.SphereGeometry(CONFIG.starSize, 64, 64);
+        const sunMat = new THREE.MeshStandardMaterial({ 
+            emissive: 0xffaa00, 
+            emissiveIntensity: 1.5,
+            color: 0x000000,
+            roughness: 1
+        });
+        const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+        sunGroup.add(sunMesh);
+
+        const sunLight = new THREE.PointLight(0xffaa00, 2, 1000);
+        sunLight.position.set(0,0,0);
+        sunLight.castShadow = true;
+        sunLight.shadow.bias = -0.0001;
+        sunGroup.add(sunLight);
+
+        // Glow Effect
+        const glowMat = new THREE.SpriteMaterial({ 
+            map: createGlowSprite('rgba(255,170,0,0.6)'), 
+            color: 0xffaa00, 
+            transparent: true, 
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const sunGlow = new THREE.Sprite(glowMat);
+        sunGlow.scale.set(CONFIG.starSize*5, CONFIG.starSize*5, 1);
+        sunGroup.add(sunGlow);
+
+        // Supernova Shockwave (Hidden initially)
+        const shockGeo = new THREE.SphereGeometry(1, 64, 64);
+        const shockMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.BackSide });
+        const shockwave = new THREE.Mesh(shockGeo, shockMat);
+        shockwave.visible = false;
+        scene.add(shockwave);
+
+        // B. Planets
+        const PLANET_DATA = [
+            { name: "Mercury", r: 1.2, dist: 0.4, speed: 2.5, color: 0x8c8c8c, type: 'rock' },
+            { name: "Venus", r: 2.2, dist: 0.7, speed: 1.8, color: 0xe3bb76, type: 'gas' }, // Thick atmo visual
+            { name: "Earth", r: 2.3, dist: 1.0, speed: 1.4, color: 0x2233ff, type: 'rock' },
+            { name: "Mars", r: 1.6, dist: 1.5, speed: 1.1, color: 0xdd4522, type: 'rock' },
+            { name: "Jupiter", r: 6.0, dist: 2.8, speed: 0.7, color: 0xd9cdb2, type: 'gas' },
+            { name: "Saturn", r: 5.0, dist: 4.5, speed: 0.5, color: 0xf0d698, type: 'gas', rings: true }
+        ];
+
+        const planets = [];
+
+        PLANET_DATA.forEach(data => {
+            const pGroup = new THREE.Group();
+            
+            // Orbit path visualization
+            const orbitRadius = data.dist * CONFIG.auScale;
+            const curve = new THREE.EllipseCurve(0, 0, orbitRadius, orbitRadius, 0, 2*Math.PI, false, 0);
+            const points = curve.getPoints(128);
+            const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const orbitMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1 });
+            const orbitLine = new THREE.Line(orbitGeo, orbitMat);
+            orbitLine.rotation.x = Math.PI / 2;
+            scene.add(orbitLine);
+
+            // Planet Mesh
+            const geo = new THREE.SphereGeometry(data.r, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ 
+                map: createTexture(data.type, data.color),
+                roughness: 0.8
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Rings for Saturn
+            if(data.rings) {
+                const ringGeo = new THREE.RingGeometry(data.r*1.4, data.r*2.2, 64);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI/2;
+                mesh.add(ring);
+            }
+
+            pGroup.add(mesh);
+            scene.add(pGroup);
+
+            planets.push({
+                mesh: mesh,
+                group: pGroup,
+                orbitLine: orbitLine,
+                data: data,
+                angle: Math.random() * Math.PI * 2,
+                distance: orbitRadius,
+                active: true
+            });
+        });
+
+        // Stars Background
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for(let i=0; i<3000; i++) {
+            starPos.push((Math.random()-0.5)*2000, (Math.random()-0.5)*2000, (Math.random()-0.5)*2000);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.8, sizeAttenuation: true });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // Explosion Particles Pool
+        const particles = [];
+        function spawnExplosion(pos, colorHex) {
+            for(let i=0; i<30; i++) {
+                const geo = new THREE.TetrahedronGeometry(Math.random()*0.8);
+                const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos);
+                // Random outward velocity
+                p.userData.vel = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*4);
+                p.userData.rot = new THREE.Vector3(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
+                p.userData.life = 1.0;
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        // --- 4. LOGIC & STATE MANAGEMENT ---
+        
+        let TIME_SCALE = 1.0;
+        let SYSTEM_STATE = 'STABLE'; // STABLE, COLLAPSING, EXPANDING, DEAD
+        let SHOCKWAVE_RADIUS = 0;
+        let EXPANSION_SPEED = 0;
+
+        // UI Hooks
+        const elSpeed = document.getElementById('time-slider');
+        const elTemp = document.getElementById('temp-slider');
+        const elStatus = document.getElementById('sys-status');
+        const elDestruct = document.getElementById('btn-destruct');
+        const elReset = document.getElementById('btn-reset');
+        const elCover = document.getElementById('safety-cover');
+
+        elSpeed.addEventListener('input', (e) => {
+            TIME_SCALE = parseFloat(e.target.value);
+            document.getElementById('speed-display').innerText = TIME_SCALE.toFixed(1) + 'x';
+        });
+
+        elTemp.addEventListener('input', (e) => {
+            if(SYSTEM_STATE !== 'STABLE') return;
+            const k = parseInt(e.target.value);
+            document.getElementById('temp-display').innerText = k.toLocaleString() + ' K';
+            
+            // Update Visuals based on Temp
+            const hue = 0.1 - ((k-3000)/30000); // Shift from Orange -> Blue
+            const color = new THREE.Color().setHSL(Math.max(0.55, Math.min(0.1, hue)), 1, 0.5);
+            
+            // Actually better to use RGB interpolation for stars
+            let r, g, b;
+            if (k < 6000) { r=1; g=(k-3000)/3000 * 0.8; b=0.2; }
+            else { r=0.8; g=0.9; b=1; }
+            
+            const finalColor = new THREE.Color(r,g,b);
+            sunMat.emissive.copy(finalColor);
+            sunLight.color.copy(finalColor);
+            glowMat.color.copy(finalColor);
+        });
+
+        elDestruct.addEventListener('click', initiateOmega);
+        elReset.addEventListener('click', () => location.reload());
+
+        function initiateOmega() {
+            if(SYSTEM_STATE !== 'STABLE') return;
+            
+            SYSTEM_STATE = 'COLLAPSING';
+            elStatus.innerText = "CRITICAL FAILURE";
+            elStatus.className = "hud-font text-xs tracking-wider status-critical";
+            elDestruct.disabled = true;
+            elDestruct.innerHTML = "WARNING";
+            elReset.classList.remove('hidden');
+
+            // 1. Collapse Phase (Gravity wins)
+            let collapseTime = 0;
+            const collapseDuration = 120; // frames
+
+            const collapseInt = setInterval(() => {
+                collapseTime++;
+                const scale = 1 - (collapseTime/collapseDuration)*0.5; // Shrink to 50%
+                sunGroup.scale.setScalar(scale);
+                
+                // Red shift warning
+                if(collapseTime % 10 === 0) {
+                    sunMat.emissive.setHex(0xff0000);
+                    sunLight.color.setHex(0xff0000);
+                } else {
+                    sunMat.emissive.setHex(0x000000); // Flicker
+                }
+
+                if(collapseTime >= collapseDuration) {
+                    clearInterval(collapseInt);
+                    startSupernova();
+                }
+            }, 16);
+        }
+
+        function startSupernova() {
+            SYSTEM_STATE = 'EXPANDING';
+            SHOCKWAVE_RADIUS = CONFIG.starSize * 0.5;
+            EXPANSION_SPEED = 2; // Initial speed
+            
+            // Visuals
+            sunGroup.visible = false; // Hide original sun
+            shockwave.visible = true;
+            shockwave.position.copy(sunGroup.position);
+            
+            // Big flash
+            const flashLight = new THREE.PointLight(0xffffff, 20, 5000);
+            scene.add(flashLight);
+        }
+
+        // --- 5. MAIN LOOP ---
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const delta = clock.getDelta();
+
+            // A. Orbital Mechanics
+            if(SYSTEM_STATE !== 'DEAD') {
+                planets.forEach(p => {
+                    if(!p.active) return;
+                    
+                    // Kepler approximation
+                    p.angle += (p.data.speed * 0.005 * TIME_SCALE);
+                    p.group.position.x = Math.cos(p.angle) * p.distance;
+                    p.group.position.z = Math.sin(p.angle) * p.distance;
+                    p.mesh.rotation.y += 0.01 * TIME_SCALE;
+                });
+            }
+
+            // B. Supernova Logic
+            if(SYSTEM_STATE === 'EXPANDING') {
+                // Expand shockwave
+                SHOCKWAVE_RADIUS += EXPANSION_SPEED;
+                EXPANSION_SPEED *= 1.02; // Accelerate
+                
+                shockwave.scale.setScalar(SHOCKWAVE_RADIUS);
+                
+                // Collision Logic
+                planets.forEach(p => {
+                    if(!p.active) return;
+                    
+                    const dist = p.group.position.length();
+                    if(SHOCKWAVE_RADIUS >= dist) {
+                        // Destroy Planet
+                        spawnExplosion(p.group.position, p.data.color);
+                        p.group.visible = false;
+                        p.orbitLine.visible = false;
+                        p.active = false;
+                        
+                        // Screen shake feedback
+                        container.classList.add('screen-shake');
+                        setTimeout(() => container.classList.remove('screen-shake'), 200);
+                    }
+                });
+
+                // Camera Collision (Whiteout)
+                const camDist = camera.position.length();
+                if(SHOCKWAVE_RADIUS >= camDist - 20) {
+                    document.getElementById('whiteout-overlay').style.opacity = 1;
+                    SYSTEM_STATE = 'DEAD';
+                }
+            }
+
+            // C. Particle Physics
+            for(let i=particles.length-1; i>=0; i--) {
+                const p = particles[i];
+                p.position.add(p.userData.vel);
+                p.rotation.x += p.userData.rot.x;
+                p.userData.life -= 0.02;
+                p.scale.setScalar(p.userData.life);
+                
+                if(p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstroPhysics Lab: Stellar Dynamics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --hud-primary: #0ea5e9; /* Sky 500 */
+            --hud-warning: #eab308; /* Yellow 500 */
+            --hud-danger: #ef4444;  /* Red 500 */
+            --glass-bg: rgba(7, 10, 20, 0.85);
+        }
+
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; color: white; }
+        
+        #viewport { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* HUD Architecture */
+        .hud-font { font-family: 'Share Tech Mono', monospace; }
+        
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        /* Decorator Lines */
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--hud-primary), transparent);
+            opacity: 0.5;
+        }
+
+        /* Range Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #334155; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%;
+            background: var(--hud-primary); margin-top: -6px; box-shadow: 0 0 10px var(--hud-primary);
+        }
+
+        /* Safety Button Switch */
+        .safety-switch-container {
+            position: relative; width: 100%; height: 50px; overflow: hidden;
+            border: 1px solid #333; background: #111;
+        }
+        
+        /* The Red Cover */
+        .safety-cover {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(45deg, #2a0a0a, #2a0a0a 10px, #3f0f0f 10px, #3f0f0f 20px);
+            border: 1px solid #ef4444; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: #ef4444; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10;
+        }
+        .safety-cover:hover { background: rgba(239, 68, 68, 0.2); }
+        .safety-cover.open { transform: translateY(-100%); }
+
+        /* The Actual Button */
+        .btn-destruct {
+            width: 100%; height: 100%; background: #ef4444; color: white; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer;
+            transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-destruct:hover { background: #dc2626; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .btn-destruct:active { transform: scale(0.98); }
+
+        /* Whiteout Effect */
+        #whiteout-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: white; opacity: 0; pointer-events: none; z-index: 100;
+            transition: opacity 3s ease-in;
+        }
+        .screen-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+        /* Blinking Status */
+        @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status-critical { color: var(--hud-danger); animation: blink-red 1s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="viewport"></div>
+    <div id="whiteout-overlay"></div>
+
+    <!-- TOP LEFT: Header -->
+    <div class="absolute top-0 left-0 p-6 z-20 pointer-events-none">
+        <div class="panel p-4 rounded-sm pointer-events-auto w-64">
+            <h1 class="text-xl font-bold text-sky-400 tracking-widest uppercase border-b border-gray-700 pb-2 mb-2">Astro<span class="text-white">Lab</span> v2.4</h1>
+            <div class="flex justify-between items-center text-xs hud-font text-gray-400">
+                <span>SYSTEM:</span>
+                <span id="sys-status" class="text-green-400 tracking-wider">NOMINAL</span>
+            </div>
+            <div class="flex justify-between items-center text-xs hud-font text-gray-400 mt-1">
+                <span>PHYSICS:</span>
+                <span class="text-sky-400">KEPLERIAN</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="absolute bottom-0 w-full p-6 z-20 flex flex-col md:flex-row justify-between items-end pointer-events-none gap-4">
+        
+        <!-- Physics Controls -->
+        <div class="panel p-5 rounded-sm pointer-events-auto w-full md:w-96">
+            <div class="mb-5">
+                <div class="flex justify-between mb-2">
+                    <label class="text-xs font-bold text-sky-400 uppercase tracking-wider">Simulation Speed</label>
+                    <span id="speed-display" class="text-xs hud-font text-white bg-gray-800 px-2 rounded">1.0x</span>
+                </div>
+                <input type="range" id="time-slider" min="0" max="3" step="0.1" value="1">
+            </div>
+
+            <div>
+                <div class="flex justify-between mb-2">
+                    <label class="text-xs font-bold text-yellow-400 uppercase tracking-wider">Stellar Core Temp</label>
+                    <span id="temp-display" class="text-xs hud-font text-white bg-gray-800 px-2 rounded">5,778 K</span>
+                </div>
+                <input type="range" id="temp-slider" min="3000" max="25000" step="100" value="5778">
+                <div class="w-full h-1 mt-2 rounded-full bg-gradient-to-r from-orange-600 via-yellow-200 to-blue-400 opacity-50"></div>
+            </div>
+        </div>
+
+        <!-- OMEGA PROTOCOL (Destruction) -->
+        <div class="panel p-1 rounded-sm pointer-events-auto w-full md:w-64 border-l-4 border-red-600">
+            <div class="bg-black/40 p-4">
+                <h3 class="text-red-500 text-xs font-bold uppercase tracking-[0.2em] mb-3 text-center">Omega Protocol</h3>
+                
+                <!-- Safety Interlock Mechanism -->
+                <div class="safety-switch-container rounded mb-2">
+                    <!-- The Cover -->
+                    <div id="safety-cover" class="safety-cover" onclick="this.classList.toggle('open')">
+                        <span class="pointer-events-none">/// Safety Locked ///</span>
+                    </div>
+                    <!-- The Trigger -->
+                    <button id="btn-destruct" class="btn-destruct">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.477.859h4z" /></svg>
+                        Initiate
+                    </button>
+                </div>
+                
+                <button id="btn-reset" class="w-full py-2 text-[10px] uppercase text-gray-500 hover:text-white hover:bg-gray-800 transition hidden">
+                    System Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ENGINE CORE & CONFIGURATION ---
+        const CONFIG = {
+            starSize: 20,
+            auScale: 40, // 1 AU in world units
+            camDistance: 250
+        };
+
+        // Three.js Basics
+        const container = document.getElementById('viewport');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001); // Deep space fog
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 120, CONFIG.camDistance);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for performance
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxDistance = 800;
+        controls.minDistance = 50;
+
+        // --- 2. ASSET GENERATION (Procedural) ---
+        // Helper to make textures in memory to keep file single-source
+        function createTexture(type, colorHex) {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const color = new THREE.Color(colorHex);
+
+            // Base
+            ctx.fillStyle = `rgb(${color.r*255}, ${color.g*255}, ${color.b*255})`;
+            ctx.fillRect(0, 0, size, size);
+
+            // Noise/Details
+            ctx.globalCompositeOperation = 'overlay';
+            for(let i=0; i<100; i++) {
+                ctx.beginPath();
+                ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.2})`;
+                ctx.arc(Math.random()*size, Math.random()*size, Math.random()*10, 0, Math.PI*2);
+                ctx.fill();
+            }
+            
+            if(type === 'gas') {
+                // Bands
+                ctx.globalCompositeOperation = 'multiply';
+                for(let i=0; i<size; i+=20) {
+                    ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.3})`;
+                    ctx.fillRect(0, i, size, Math.random()*15);
+                }
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createGlowSprite(colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(32,32,0,32,32,32);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.4, colorHex); // Inner color
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,64,64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 3. SCENE OBJECTS ---
+
+        // A. The Star (Sun)
+        const sunGroup = new THREE.Group();
+        scene.add(sunGroup);
+
+        const sunGeo = new THREE.SphereGeometry(CONFIG.starSize, 64, 64);
+        const sunMat = new THREE.MeshStandardMaterial({ 
+            emissive: 0xffaa00, 
+            emissiveIntensity: 1.5,
+            color: 0x000000,
+            roughness: 1
+        });
+        const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+        sunGroup.add(sunMesh);
+
+        const sunLight = new THREE.PointLight(0xffaa00, 2, 1000);
+        sunLight.position.set(0,0,0);
+        sunLight.castShadow = true;
+        sunLight.shadow.bias = -0.0001;
+        sunGroup.add(sunLight);
+
+        // Glow Effect
+        const glowMat = new THREE.SpriteMaterial({ 
+            map: createGlowSprite('rgba(255,170,0,0.6)'), 
+            color: 0xffaa00, 
+            transparent: true, 
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const sunGlow = new THREE.Sprite(glowMat);
+        sunGlow.scale.set(CONFIG.starSize*5, CONFIG.starSize*5, 1);
+        sunGroup.add(sunGlow);
+
+        // Supernova Shockwave (Hidden initially)
+        const shockGeo = new THREE.SphereGeometry(1, 64, 64);
+        const shockMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.BackSide });
+        const shockwave = new THREE.Mesh(shockGeo, shockMat);
+        shockwave.visible = false;
+        scene.add(shockwave);
+
+        // B. Planets
+        const PLANET_DATA = [
+            { name: "Mercury", r: 1.2, dist: 0.4, speed: 2.5, color: 0x8c8c8c, type: 'rock' },
+            { name: "Venus", r: 2.2, dist: 0.7, speed: 1.8, color: 0xe3bb76, type: 'gas' }, // Thick atmo visual
+            { name: "Earth", r: 2.3, dist: 1.0, speed: 1.4, color: 0x2233ff, type: 'rock' },
+            { name: "Mars", r: 1.6, dist: 1.5, speed: 1.1, color: 0xdd4522, type: 'rock' },
+            { name: "Jupiter", r: 6.0, dist: 2.8, speed: 0.7, color: 0xd9cdb2, type: 'gas' },
+            { name: "Saturn", r: 5.0, dist: 4.5, speed: 0.5, color: 0xf0d698, type: 'gas', rings: true }
+        ];
+
+        const planets = [];
+
+        PLANET_DATA.forEach(data => {
+            const pGroup = new THREE.Group();
+            
+            // Orbit path visualization
+            const orbitRadius = data.dist * CONFIG.auScale;
+            const curve = new THREE.EllipseCurve(0, 0, orbitRadius, orbitRadius, 0, 2*Math.PI, false, 0);
+            const points = curve.getPoints(128);
+            const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const orbitMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1 });
+            const orbitLine = new THREE.Line(orbitGeo, orbitMat);
+            orbitLine.rotation.x = Math.PI / 2;
+            scene.add(orbitLine);
+
+            // Planet Mesh
+            const geo = new THREE.SphereGeometry(data.r, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ 
+                map: createTexture(data.type, data.color),
+                roughness: 0.8
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Rings for Saturn
+            if(data.rings) {
+                const ringGeo = new THREE.RingGeometry(data.r*1.4, data.r*2.2, 64);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI/2;
+                mesh.add(ring);
+            }
+
+            pGroup.add(mesh);
+            scene.add(pGroup);
+
+            planets.push({
+                mesh: mesh,
+                group: pGroup,
+                orbitLine: orbitLine,
+                data: data,
+                angle: Math.random() * Math.PI * 2,
+                distance: orbitRadius,
+                active: true
+            });
+        });
+
+        // Stars Background
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for(let i=0; i<3000; i++) {
+            starPos.push((Math.random()-0.5)*2000, (Math.random()-0.5)*2000, (Math.random()-0.5)*2000);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.8, sizeAttenuation: true });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // Explosion Particles Pool
+        const particles = [];
+        function spawnExplosion(pos, colorHex) {
+            for(let i=0; i<30; i++) {
+                const geo = new THREE.TetrahedronGeometry(Math.random()*0.8);
+                const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos);
+                // Random outward velocity
+                p.userData.vel = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*4);
+                p.userData.rot = new THREE.Vector3(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
+                p.userData.life = 1.0;
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        // --- 4. LOGIC & STATE MANAGEMENT ---
+        
+        let TIME_SCALE = 1.0;
+        let SYSTEM_STATE = 'STABLE'; // STABLE, COLLAPSING, EXPANDING, DEAD
+        let SHOCKWAVE_RADIUS = 0;
+        let EXPANSION_SPEED = 0;
+
+        // UI Hooks
+        const elSpeed = document.getElementById('time-slider');
+        const elTemp = document.getElementById('temp-slider');
+        const elStatus = document.getElementById('sys-status');
+        const elDestruct = document.getElementById('btn-destruct');
+        const elReset = document.getElementById('btn-reset');
+        const elCover = document.getElementById('safety-cover');
+
+        elSpeed.addEventListener('input', (e) => {
+            TIME_SCALE = parseFloat(e.target.value);
+            document.getElementById('speed-display').innerText = TIME_SCALE.toFixed(1) + 'x';
+        });
+
+        elTemp.addEventListener('input', (e) => {
+            if(SYSTEM_STATE !== 'STABLE') return;
+            const k = parseInt(e.target.value);
+            document.getElementById('temp-display').innerText = k.toLocaleString() + ' K';
+            
+            // Update Visuals based on Temp
+            const hue = 0.1 - ((k-3000)/30000); // Shift from Orange -> Blue
+            const color = new THREE.Color().setHSL(Math.max(0.55, Math.min(0.1, hue)), 1, 0.5);
+            
+            // Actually better to use RGB interpolation for stars
+            let r, g, b;
+            if (k < 6000) { r=1; g=(k-3000)/3000 * 0.8; b=0.2; }
+            else { r=0.8; g=0.9; b=1; }
+            
+            const finalColor = new THREE.Color(r,g,b);
+            sunMat.emissive.copy(finalColor);
+            sunLight.color.copy(finalColor);
+            glowMat.color.copy(finalColor);
+        });
+
+        elDestruct.addEventListener('click', initiateOmega);
+        elReset.addEventListener('click', () => location.reload());
+
+        function initiateOmega() {
+            if(SYSTEM_STATE !== 'STABLE') return;
+            
+            SYSTEM_STATE = 'COLLAPSING';
+            elStatus.innerText = "CRITICAL FAILURE";
+            elStatus.className = "hud-font text-xs tracking-wider status-critical";
+            elDestruct.disabled = true;
+            elDestruct.innerHTML = "WARNING";
+            elReset.classList.remove('hidden');
+
+            // 1. Collapse Phase (Gravity wins)
+            let collapseTime = 0;
+            const collapseDuration = 120; // frames
+
+            const collapseInt = setInterval(() => {
+                collapseTime++;
+                const scale = 1 - (collapseTime/collapseDuration)*0.5; // Shrink to 50%
+                sunGroup.scale.setScalar(scale);
+                
+                // Red shift warning
+                if(collapseTime % 10 === 0) {
+                    sunMat.emissive.setHex(0xff0000);
+                    sunLight.color.setHex(0xff0000);
+                } else {
+                    sunMat.emissive.setHex(0x000000); // Flicker
+                }
+
+                if(collapseTime >= collapseDuration) {
+                    clearInterval(collapseInt);
+                    startSupernova();
+                }
+            }, 16);
+        }
+
+        function startSupernova() {
+            SYSTEM_STATE = 'EXPANDING';
+            SHOCKWAVE_RADIUS = CONFIG.starSize * 0.5;
+            EXPANSION_SPEED = 2; // Initial speed
+            
+            // Visuals
+            sunGroup.visible = false; // Hide original sun
+            shockwave.visible = true;
+            shockwave.position.copy(sunGroup.position);
+            
+            // Big flash
+            const flashLight = new THREE.PointLight(0xffffff, 20, 5000);
+            scene.add(flashLight);
+        }
+
+        // --- 5. MAIN LOOP ---
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const delta = clock.getDelta();
+
+            // A. Orbital Mechanics
+            if(SYSTEM_STATE !== 'DEAD') {
+                planets.forEach(p => {
+                    if(!p.active) return;
+                    
+                    // Kepler approximation
+                    p.angle += (p.data.speed * 0.005 * TIME_SCALE);
+                    p.group.position.x = Math.cos(p.angle) * p.distance;
+                    p.group.position.z = Math.sin(p.angle) * p.distance;
+                    p.mesh.rotation.y += 0.01 * TIME_SCALE;
+                });
+            }
+
+            // B. Supernova Logic
+            if(SYSTEM_STATE === 'EXPANDING') {
+                // Expand shockwave
+                SHOCKWAVE_RADIUS += EXPANSION_SPEED;
+                EXPANSION_SPEED *= 1.02; // Accelerate
+                
+                shockwave.scale.setScalar(SHOCKWAVE_RADIUS);
+                
+                // Collision Logic
+                planets.forEach(p => {
+                    if(!p.active) return;
+                    
+                    const dist = p.group.position.length();
+                    if(SHOCKWAVE_RADIUS >= dist) {
+                        // Destroy Planet
+                        spawnExplosion(p.group.position, p.data.color);
+                        p.group.visible = false;
+                        p.orbitLine.visible = false;
+                        p.active = false;
+                        
+                        // Screen shake feedback
+                        container.classList.add('screen-shake');
+                        setTimeout(() => container.classList.remove('screen-shake'), 200);
+                    }
+                });
+
+                // Camera Collision (Whiteout)
+                const camDist = camera.position.length();
+                if(SHOCKWAVE_RADIUS >= camDist - 20) {
+                    document.getElementById('whiteout-overlay').style.opacity = 1;
+                    SYSTEM_STATE = 'DEAD';
+                }
+            }
+
+            // C. Particle Physics
+            for(let i=particles.length-1; i>=0; i--) {
+                const p = particles[i];
+                p.position.add(p.userData.vel);
+                p.rotation.x += p.userData.rot.x;
+                p.userData.life -= 0.02;
+                p.scale.setScalar(p.userData.life);
+                
+                if(p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>

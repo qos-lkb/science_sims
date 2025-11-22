@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薄透鏡光學模擬</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* 確保 Canvas 響應式 */
+        #optics-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background-color: #1f2937; /* Dark background for better ray visibility */
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-6 text-yellow-300">
+            透鏡光學模擬器
+        </h1>
+
+        <!-- 控制面板 -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-xl mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- 焦距控制 -->
+            <div>
+                <label for="focalLength" class="block text-sm font-medium mb-1">
+                    焦距 (f): <span id="focalValue" class="font-semibold text-cyan-300">50</span> 像素 (px)
+                </label>
+                <input type="range" id="focalLength" min="20" max="150" value="50" step="5"
+                       class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- 物體位置控制 -->
+            <div>
+                <label for="objectDistance" class="block text-sm font-medium mb-1">
+                    物體距離 (d₀): <span id="objectDistValue" class="font-semibold text-cyan-300">150</span> 像素 (px)
+                </label>
+                <input type="range" id="objectDistance" min="40" max="250" value="150" step="5"
+                       class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- 物體高度控制 -->
+            <div>
+                <label for="objectHeight" class="block text-sm font-medium mb-1">
+                    物體高度 (h₀): <span id="objectHeightValue" class="font-semibold text-cyan-300">30</span> 像素 (px)
+                </label>
+                <input type="range" id="objectHeight" min="10" max="60" value="30" step="5"
+                       class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- 透鏡類型切換 -->
+            <div>
+                <label for="lensType" class="block text-sm font-medium mb-1">
+                    透鏡類型: <span id="lensTypeValue" class="font-semibold text-green-400">凸透鏡 (Converging)</span>
+                </label>
+                <button id="lensType" 
+                        class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition duration-200 shadow-md">
+                    切換透鏡類型
+                </button>
+            </div>
+        </div>
+        
+        <!-- 結果顯示區域 -->
+        <div id="results" class="bg-gray-800 p-4 rounded-lg shadow-xl mb-6 text-center">
+            <p class="text-lg">
+                像距 (dᵢ): <span id="imageDistance" class="font-bold text-yellow-400">--</span> px | 
+                像高 (hᵢ): <span id="imageHeight" class="font-bold text-yellow-400">--</span> px |
+                成像類型: <span id="imageType" class="font-bold text-yellow-400">--</span>
+            </p>
+        </div>
+
+        <!-- Canvas 區域 -->
+        <div class="relative aspect-video max-h-96 bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
+            <canvas id="optics-canvas"></canvas>
+        </div>
+        
+    </div>
+
+    <script>
+        // ----------------- 設定變數 -----------------
+        const canvas = document.getElementById('optics-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let FOCAL_LENGTH = 50; // 焦距 (f)
+        let OBJECT_DISTANCE = 150; // 物距 (do)
+        let OBJECT_HEIGHT = 30; // 物高 (ho)
+        let IS_CONVERGING = true; // 預設為凸透鏡 (Converging)
+        
+        let LENS_THICKNESS = 4; // 透鏡線條厚度
+        let MAX_RAY_LENGTH = 1000; // 繪製光線的最大長度
+        
+        // 取得控制項元素
+        const focalSlider = document.getElementById('focalLength');
+        const objectDistSlider = document.getElementById('objectDistance');
+        const objectHeightSlider = document.getElementById('objectHeight');
+        const lensTypeButton = document.getElementById('lensType');
+        
+        // 取得值顯示元素
+        const focalValue = document.getElementById('focalValue');
+        const objectDistValue = document.getElementById('objectDistValue');
+        const objectHeightValue = document.getElementById('objectHeightValue');
+        const lensTypeValue = document.getElementById('lensTypeValue');
+        
+        const imageDistanceDisplay = document.getElementById('imageDistance');
+        const imageHeightDisplay = document.getElementById('imageHeight');
+        const imageTypeDisplay = document.getElementById('imageType');
+
+        // ----------------- 輔助函式 -----------------
+
+        /**
+         * 繪製一個從 (x1, y1) 到 (x2, y2) 的箭頭線。
+         * @param {number} x1 起點 X
+         * @param {number} y1 起點 Y
+         * @param {number} x2 終點 X
+         * @param {number} y2 終點 Y
+         * @param {number} headSize 箭頭大小
+         */
+        function drawArrow(x1, y1, x2, y2, headSize) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // 繪製箭頭頭部
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.lineTo(x2 - headSize * Math.cos(angle - Math.PI / 6), y2 - headSize * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headSize * Math.cos(angle + Math.PI / 6), y2 - headSize * Math.sin(angle + Math.PI / 6));
+            ctx.stroke();
+        }
+
+        /**
+         * 繪製透鏡和主軸。
+         * @param {number} cx 中心 X 座標
+         * @param {number} cy 中心 Y 座標
+         * @param {number} h 透鏡高度
+         */
+        function drawLensAndAxis(cx, cy, h) {
+            // 主軸 (Principal Axis)
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 1;
+            drawArrow(0, cy, canvas.width, cy, 8); // 繪製主軸線，加上箭頭
+
+            // 透鏡 (Lens)
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = LENS_THICKNESS;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - h / 2);
+            ctx.lineTo(cx, cy + h / 2);
+            ctx.stroke();
+
+            // 標註焦點
+            const f = FOCAL_LENGTH * (IS_CONVERGING ? 1 : -1);
+            
+            // 近端焦點 F (左側)
+            ctx.fillStyle = IS_CONVERGING ? '#38bdf8' : '#f87171'; // 實焦點為藍，虛焦點為紅
+            ctx.beginPath();
+            ctx.arc(cx - f, cy, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillText(IS_CONVERGING ? "F" : "F'", cx - f + 8, cy - 8);
+
+            // 遠端焦點 F' (右側)
+            ctx.fillStyle = IS_CONVERGING ? '#38bdf8' : '#f87171';
+            ctx.beginPath();
+            ctx.arc(cx + f, cy, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillText(IS_CONVERGING ? "F'" : "F", cx + f + 8, cy - 8);
+
+            // 標註透鏡中心 O
+            ctx.fillStyle = '#fff';
+            ctx.fillText("O", cx + 5, cy + 15);
+        }
+
+        /**
+         * 繪製物體 (Object)。
+         * @param {number} cx 中心 X 座標 (透鏡中心)
+         * @param {number} cy 中心 Y 座標 (主軸)
+         * @param {number} do 物距
+         * @param {number} ho 物高
+         */
+        function drawObject(cx, cy, objectDist, ho) {
+            const ox = cx - objectDist;
+            const oy = cy - ho;
+
+            // 物體 (箭頭)
+            ctx.strokeStyle = '#fde047'; // 黃色
+            ctx.lineWidth = 2;
+            drawArrow(ox, cy, ox, oy, 10);
+            
+            // 標註物體
+            ctx.fillStyle = '#fde047';
+            ctx.fillText("物體 O", ox - 20, oy - 10);
+        }
+
+        /**
+         * 追蹤並繪製光線。
+         * @param {number} cx 中心 X 座標 (透鏡中心)
+         * @param {number} cy 中心 Y 座標 (主軸)
+         * @param {number} objectDist 物距
+         * @param {number} ho 物高
+         * @returns {object} 包含像距 di 和像高 hi
+         */
+        function traceRays(cx, cy, objectDist, ho) {
+            const ox = cx - objectDist; // 物體 X 座標
+            const oy = cy - ho; // 物體頂端 Y 座標
+            const f = FOCAL_LENGTH * (IS_CONVERGING ? 1 : -1); // 考慮透鏡類型，焦距 f 可正可負
+
+            // ----------------- 計算成像 -----------------
+            let di, hi; // 像距, 像高
+            
+            // 薄透鏡公式: 1/do + 1/di = 1/f
+            // => 1/di = 1/f - 1/do = (do - f) / (f * do)
+            // => di = (f * do) / (do - f)
+            di = (f * objectDist) / (objectDist - f);
+
+            // 放大率公式: M = hi / ho = -di / do
+            // => hi = -ho * (di / do)
+            hi = -ho * (di / objectDist);
+
+            const ix = cx + di; // 像 X 座標
+            const iy = cy - hi; // 像 Y 座標
+
+            // ----------------- 繪製三條主光線 -----------------
+            const LENS_RADIUS = canvas.height / 2; // 用於限制光線在透鏡上的入射點
+
+            // 1. 平行光線 (Ray 1: Parallel to Principal Axis)
+            // 入射: (ox, oy) -> (cx, oy)
+            // 折射: (cx, oy) -> 穿過遠端焦點 F' (cx + f, cy)
+            ctx.strokeStyle = '#f87171'; // 紅色
+            ctx.lineWidth = 1.5;
+            
+            // 繪製入射光線 (Ray 1 Incident)
+            drawArrow(ox, oy, cx, oy, 8);
+
+            // 繪製折射光線 (Ray 1 Refracted)
+            // 從透鏡交點 (cx, oy) 經過焦點 (cx + f, cy) 延伸至螢幕邊緣
+            const dx1 = (cx + f) - cx; // 焦點相對透鏡中心的 x 距離
+            const dy1 = cy - oy;       // 焦點相對入射點的 y 距離
+            const len1 = MAX_RAY_LENGTH; // 延長線長度
+            const rx1 = cx + dx1 * len1; 
+            const ry1 = oy + dy1 * len1; 
+
+            if (IS_CONVERGING) {
+                // 凸透鏡: 穿過實焦點 (cx + FOCAL_LENGTH, cy)
+                drawArrow(cx, oy, ix, iy, 8); // 折射光線必須交於像點 (ix, iy)
+                ctx.beginPath();
+                ctx.moveTo(ix, iy);
+                ctx.lineTo(rx1, ry1);
+                ctx.stroke();
+            } else {
+                // 凹透鏡: 折射光線的反向延長線穿過虛焦點 (cx + FOCAL_LENGTH, cy)
+                // 從交點 (cx, oy) 發出，方向是遠離焦點 (cx + f, cy)
+                // 繪製實光線 (遠離焦點的方向)
+                const rx_real = cx - dx1 * len1;
+                const ry_real = oy - dy1 * len1;
+                drawArrow(cx, oy, rx_real, ry_real, 8);
+                
+                // 繪製虛延長線 (到像點)
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#fca5a5';
+                drawArrow(cx, oy, ix, iy, 8);
+                ctx.setLineDash([]); // 恢復實線
+            }
+
+
+            // 2. 中心光線 (Ray 2: Through the center of the lens)
+            // 入射: (ox, oy) -> (cx, cy)
+            // 折射: (cx, cy) -> 穿過像點 (ix, iy)
+            ctx.strokeStyle = '#34d399'; // 綠色
+            ctx.lineWidth = 1.5;
+            
+            // 繪製入射光線 (Ray 2 Incident)
+            drawArrow(ox, oy, cx, cy, 8);
+
+            // 繪製折射光線 (Ray 2 Refracted)
+            // 從中心點 (cx, cy) 穿過像點 (ix, iy) 延伸
+            const angle2 = Math.atan2(iy - cy, ix - cx);
+            const rx2 = ix + Math.cos(angle2) * MAX_RAY_LENGTH;
+            const ry2 = iy + Math.sin(angle2) * MAX_RAY_LENGTH;
+            drawArrow(cx, cy, ix, iy, 8);
+            ctx.beginPath();
+            ctx.moveTo(ix, iy);
+            ctx.lineTo(rx2, ry2);
+            ctx.stroke();
+
+            // 3. 焦點光線 (Ray 3: Through near focal point F or directed towards it)
+            // 入射: (ox, oy) -> 穿過近端焦點 F (cx - f, cy) -> (cx, y_entry)
+            ctx.strokeStyle = '#60a5fa'; // 藍色
+            ctx.lineWidth = 1.5;
+            
+            let focusX = cx - f; // 近端焦點 X 座標
+            
+            if (IS_CONVERGING) {
+                // 凸透鏡: 入射光線穿過近端焦點 F (cx - FOCAL_LENGTH, cy)
+                // 找到入射光線與透鏡的交點
+                const entryY = ho * (FOCAL_LENGTH) / (objectDist - FOCAL_LENGTH); // 幾何計算交點 Y 座標
+                
+                // 繪製入射光線 (Ray 3 Incident)
+                drawArrow(ox, oy, cx, cy - entryY, 8); // 入射光線從 (ox, oy) 經過 F (cx-f, cy) 到達 (cx, cy-entryY)
+                
+                // 繪製折射光線 (Ray 3 Refracted) - 平行於主軸
+                drawArrow(cx, cy - entryY, ix, cy - entryY, 8); // 必須交於像點高度
+                ctx.beginPath();
+                ctx.moveTo(ix, cy - entryY);
+                ctx.lineTo(canvas.width, cy - entryY);
+                ctx.stroke();
+
+            } else {
+                // 凹透鏡: 入射光線指向遠端焦點 F' (cx + FOCAL_LENGTH, cy)
+                // 找到入射光線與透鏡的交點 (這條線從 ox, oy 指向 cx+f, cy)
+                const targetX = cx + FOCAL_LENGTH; // 遠端焦點 X
+                const dx = targetX - ox;
+                const dy = cy - oy;
+                const ratio = (cx - ox) / dx;
+                const entryY = oy + dy * ratio; // 幾何計算交點 Y 座標
+
+                // 繪製入射光線 (Ray 3 Incident)
+                drawArrow(ox, oy, cx, entryY, 8);
+
+                // 繪製折射光線 (Ray 3 Refracted) - 平行於主軸
+                // 折射後平行於主軸，從交點 (cx, entryY) 向左射出 (因為物體在左邊)
+                drawArrow(cx, entryY, 0, entryY, 8);
+                
+                // 繪製虛延長線 (到焦點)
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#93c5fd';
+                drawArrow(cx, entryY, targetX, cy, 8);
+                ctx.setLineDash([]);
+            }
+
+            // ----------------- 繪製像 (Image) -----------------
+            
+            // 像 (箭頭)
+            ctx.strokeStyle = di > 0 ? '#fb923c' : '#fca5a5'; // 實像為橙，虛像為淡紅
+            ctx.lineWidth = 2;
+            
+            if (di > 0) {
+                // 實像 (Real Image) - 實線
+                drawArrow(ix, cy, ix, iy, 10);
+                imageTypeDisplay.textContent = '實像 (Real)';
+                imageTypeDisplay.classList.remove('text-red-400', 'text-gray-400');
+                imageTypeDisplay.classList.add('text-orange-400');
+            } else {
+                // 虛像 (Virtual Image) - 虛線
+                ctx.setLineDash([5, 5]);
+                drawArrow(ix, cy, ix, iy, 10);
+                ctx.setLineDash([]);
+                imageTypeDisplay.textContent = '虛像 (Virtual)';
+                imageTypeDisplay.classList.remove('text-orange-400', 'text-gray-400');
+                imageTypeDisplay.classList.add('text-red-400');
+            }
+            
+            // 標註像
+            ctx.fillStyle = di > 0 ? '#fb923c' : '#fca5a5';
+            ctx.fillText("像 I", ix + 8, iy - 10);
+
+            return { di, hi };
+        }
+
+
+        // ----------------- 主要繪圖函式 -----------------
+
+        function draw() {
+            // 設定 Canvas 尺寸以適應父容器
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            // 取得中心點座標
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const lensHeight = canvas.height * 0.9;
+
+            // 清除畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 設置文字樣式
+            ctx.font = '14px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            // 繪製透鏡和主軸
+            drawLensAndAxis(centerX, centerY, lensHeight);
+
+            // 繪製物體
+            drawObject(centerX, centerY, OBJECT_DISTANCE, OBJECT_HEIGHT);
+            
+            // 追蹤光線並取得結果
+            const { di, hi } = traceRays(centerX, centerY, OBJECT_DISTANCE, OBJECT_HEIGHT);
+
+            // 更新結果顯示
+            imageDistanceDisplay.textContent = di.toFixed(2);
+            imageHeightDisplay.textContent = hi.toFixed(2);
+            
+            if (di > 1000 || di < -1000) { // 處理極端情況，如 di -> ∞
+                 imageDistanceDisplay.textContent = '∞ (無限遠)';
+                 imageHeightDisplay.textContent = '∞ (無限大)';
+                 imageTypeDisplay.textContent = '無法成像';
+                 imageTypeDisplay.classList.remove('text-orange-400', 'text-red-400');
+                 imageTypeDisplay.classList.add('text-gray-400');
+            } else if (Math.abs(di) < 0.1) {
+                 imageDistanceDisplay.textContent = '0 (在透鏡中心)';
+            }
+            
+            // 更新放大/縮小狀態
+            if (hi.toFixed(2) !== '0.00' && Math.abs(hi) > OBJECT_HEIGHT) {
+                imageHeightDisplay.textContent += ' (放大)';
+            } else if (hi.toFixed(2) !== '0.00' && Math.abs(hi) < OBJECT_HEIGHT) {
+                imageHeightDisplay.textContent += ' (縮小)';
+            } else if (Math.abs(hi) === OBJECT_HEIGHT) {
+                imageHeightDisplay.textContent += ' (等大)';
+            }
+
+            // 在控制項下方顯示當前透鏡類型
+            lensTypeValue.textContent = IS_CONVERGING 
+                ? '凸透鏡 (Converging)' : '凹透鏡 (Diverging)';
+            lensTypeValue.classList.remove('text-red-400', 'text-green-400');
+            lensTypeValue.classList.add(IS_CONVERGING ? 'text-green-400' : 'text-red-400');
+        }
+
+
+        // ----------------- 事件監聽器 -----------------
+
+        focalSlider.addEventListener('input', () => {
+            FOCAL_LENGTH = parseInt(focalSlider.value);
+            focalValue.textContent = FOCAL_LENGTH;
+            draw();
+        });
+
+        objectDistSlider.addEventListener('input', () => {
+            OBJECT_DISTANCE = parseInt(objectDistSlider.value);
+            objectDistValue.textContent = OBJECT_DISTANCE;
+            draw();
+        });
+
+        objectHeightSlider.addEventListener('input', () => {
+            OBJECT_HEIGHT = parseInt(objectHeightSlider.value);
+            objectHeightValue.textContent = OBJECT_HEIGHT;
+            draw();
+        });
+        
+        lensTypeButton.addEventListener('click', () => {
+            IS_CONVERGING = !IS_CONVERGING;
+            // 當切換透鏡類型時，重新計算焦距顯示（因為凹透鏡 f < 0）
+            FOCAL_LENGTH = parseInt(focalSlider.value); // 確保 FOCAL_LENGTH 仍為正值
+            draw();
+        });
+
+        window.addEventListener('resize', draw);
+        window.onload = draw; // 頁面載入時繪製初始狀態
+        
+    </script>
+
+</body>
+</html>

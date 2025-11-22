@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSX-R Simulator - No Grass Slowdown</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1b5e20;
+            font-family: 'Orbitron', sans-serif;
+            color: white;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* HUD Styling */
+        .hud-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            border-radius: 8px;
+            padding: 15px;
+            pointer-events: none;
+        }
+
+        #dashboard {
+            bottom: 30px;
+            right: 30px;
+            width: 320px;
+        }
+
+        #g-meter-container {
+            bottom: 30px;
+            left: 30px;
+            width: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #controls-hint {
+            top: 30px;
+            left: 30px;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.05s linear;
+        }
+
+        .gear-display {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: #fdd835;
+            text-align: center;
+            line-height: 1;
+            text-shadow: 0 0 15px rgba(253, 216, 53, 0.4);
+        }
+
+        .key-badge {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #eee;
+            display: inline-block;
+            min-width: 28px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        #pause-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        #pause-overlay h1 {
+            font-size: 3.5rem;
+            color: #fff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        #message {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: 900;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            color: #ff1744;
+            text-shadow: 0 0 20px #ff1744;
+            font-style: italic;
+        }
+        
+        .reverse-text {
+            color: #fff !important;
+            text-shadow: 0 0 15px #fff !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="world"></canvas>
+
+    <div id="pause-overlay" onclick="startGame()">
+        <h1>Click to Drive</h1>
+        <p class="text-gray-400 tracking-widest uppercase text-sm">Honda NSX-R Simulation</p>
+    </div>
+
+    <div id="controls-hint" class="hud-panel">
+        <h3 class="font-bold mb-3 text-white border-b border-gray-700 pb-2 text-sm tracking-wider">CONTROLS</h3>
+        <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-gray-300 text-xs">
+            <div class="flex items-center gap-2"><span class="key-badge">↑</span> Gas</div>
+            <div class="flex items-center gap-2"><span class="key-badge">↓</span> Brake</div>
+            <div class="flex items-center gap-2"><span class="key-badge">←</span> Left</div>
+            <div class="flex items-center gap-2"><span class="key-badge">→</span> Right</div>
+            <div class="flex items-center gap-2"><span class="key-badge">Q</span> Gear Down</div>
+            <div class="flex items-center gap-2"><span class="key-badge">E</span> Gear Up</div>
+            <div class="flex items-center gap-2"><span class="key-badge">SPACE</span> Handbrake</div>
+        </div>
+        <div class="mt-3 text-xs text-yellow-500 italic">
+            * Stop fully to shift to Reverse (R)
+        </div>
+    </div>
+
+    <div id="g-meter-container" class="hud-panel">
+        <div class="text-gray-500 text-[10px] font-bold uppercase mb-2 tracking-widest">G-Force</div>
+        <canvas id="g-canvas" width="140" height="140" style="border-radius: 50%; background: #0a0a0a; border: 1px solid #333;"></canvas>
+        <div class="flex justify-between w-full mt-2 text-[10px] text-gray-500 font-mono">
+            <span id="lat-g">LAT: 0.00</span>
+            <span id="long-g">LON: 0.00</span>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hud-panel">
+        <div class="flex items-center justify-between mb-2">
+            <div class="text-center w-1/3 border-r border-gray-700 pr-4">
+                <div class="text-[10px] text-gray-500 font-bold uppercase mb-1">Gear</div>
+                <div id="gear-val" class="gear-display">N</div>
+            </div>
+            <div class="text-right w-2/3 pl-4">
+                <div class="text-[10px] text-gray-500 font-bold uppercase mb-1">Speed</div>
+                <div><span id="speed-val" class="text-5xl font-black tracking-tighter">0</span> <span class="text-sm text-gray-500 font-bold">KM/H</span></div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[10px] text-gray-500 font-bold uppercase">RPM x1000</span>
+                <span id="rpm-val" class="text-xs font-mono text-yellow-500">0</span>
+            </div>
+            <div class="flex justify-between text-[8px] text-gray-600 mb-1 px-0.5 font-mono">
+                <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span>
+            </div>
+            <div class="bar-container bg-gray-800">
+                <div id="rpm-bar" class="bar-fill bg-gradient-to-r from-green-500 via-yellow-400 to-red-600"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4">
+            <div>
+                <div class="text-[10px] text-gray-500 font-bold uppercase">Throttle</div>
+                <div class="bar-container h-1.5">
+                    <div id="throttle-bar" class="bar-fill bg-green-500"></div>
+                </div>
+            </div>
+            <div>
+                <div class="text-[10px] text-gray-500 font-bold uppercase">Brake</div>
+                <div class="bar-container h-1.5">
+                    <div id="brake-bar" class="bar-fill bg-red-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="message">SHIFT UP!</div>
+</div>
+
+<script>
+// --- Utils for drawing ---
+function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+const CONFIG = {
+    maxRpm: 8200,
+    idleRpm: 900,
+    gears: [
+        { maxSpeed: 65, ratio: 3.8, torque: 1.45 }, 
+        { maxSpeed: 110, ratio: 2.4, torque: 1.1 }, 
+        { maxSpeed: 160, ratio: 1.6, torque: 0.8 } 
+    ],
+    reverse: { maxSpeed: 30, ratio: 4.0, torque: 1.2 },
+    
+    asphaltDrag: 0.04,
+    grassDrag: 0.04, // SAME DRAG AS ASPHALT
+    brakingForce: 0.7,
+    grip: 1.5, 
+    grassGrip: 0.4,
+    trackWidth: 320 
+};
+
+const TRACK_POINTS = [
+    {x: 0, y: 0},
+    {x: 0, y: -600},
+    {x: 300, y: -1200},
+    {x: 900, y: -1200},
+    {x: 1300, y: -800},
+    {x: 1300, y: 200},
+    {x: 1800, y: 700},
+    {x: 2400, y: 700},
+    {x: 2800, y: 200},
+    {x: 2800, y: -1600},
+    {x: 2200, y: -2200},
+    {x: 400, y: -2200},
+    {x: -400, y: -1600},
+    {x: -600, y: -800},
+    {x: -600, y: 0},
+    {x: 0, y: 0}
+];
+
+const Input = {
+    keys: {},
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    shiftUpTrigger: false,
+    shiftDownTrigger: false,
+
+    init() {
+        window.addEventListener('keydown', (e) => {
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+            this.keys[e.code] = true;
+            if(e.code === 'KeyE') this.shiftUpTrigger = true;
+            if(e.code === 'KeyQ') this.shiftDownTrigger = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+        });
+    },
+
+    update() {
+        if (this.keys['ArrowUp']) {
+            this.throttle = Math.min(this.throttle + 0.1, 1);
+        } else {
+            this.throttle = Math.max(this.throttle - 0.1, 0);
+        }
+
+        if (this.keys['ArrowDown']) {
+            this.brake = Math.min(this.brake + 0.15, 1);
+        } else {
+            this.brake = Math.max(this.brake - 0.2, 0);
+        }
+
+        const targetSteer = this.keys['ArrowLeft'] ? -1 : (this.keys['ArrowRight'] ? 1 : 0);
+        this.steer += (targetSteer - this.steer) * 0.1; 
+    },
+
+    consumeShiftUp() {
+        if(this.shiftUpTrigger) {
+            this.shiftUpTrigger = false;
+            return true;
+        }
+        return false;
+    },
+    consumeShiftDown() {
+        if(this.shiftDownTrigger) {
+            this.shiftDownTrigger = false;
+            return true;
+        }
+        return false;
+    }
+};
+
+class Car {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.angle = -Math.PI / 2; 
+        this.speed = 0; 
+        this.gear = 1; // 1, 2, 3. -1 is Reverse.
+        this.rpm = CONFIG.idleRpm;
+        this.accelX = 0; 
+        this.accelY = 0; 
+        this.onTrack = true;
+        this.skidMarks = [];
+        this.smokeParticles = [];
+        this.skidTimer = 0;
+        this.wheelAngle = 0; 
+        this.lastSpeed = 0; // For G calc
+    }
+
+    distToSegment(px, py, ax, ay, bx, by) {
+        const l2 = (bx - ax) ** 2 + (by - ay) ** 2;
+        if (l2 === 0) return Math.hypot(px - ax, py - ay);
+        let t = ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay)));
+    }
+
+    checkTrackSurface() {
+        let minDist = 99999;
+        for(let i=0; i<TRACK_POINTS.length-1; i++) {
+            const p1 = TRACK_POINTS[i];
+            const p2 = TRACK_POINTS[i+1];
+            const d = this.distToSegment(this.x, this.y, p1.x, p1.y, p2.x, p2.y);
+            if(d < minDist) minDist = d;
+        }
+        this.onTrack = minDist < (CONFIG.trackWidth / 2);
+    }
+
+    update() {
+        const isReverse = this.gear === -1;
+
+        // --- Gear Shifting Logic ---
+        if (Input.consumeShiftDown()) {
+            if (this.gear === 1 && this.speed < 2) {
+                this.gear = -1;
+            } else if (this.gear > 1) {
+                this.gear--;
+            }
+        }
+        if (Input.consumeShiftUp()) {
+            if (this.gear === -1 && this.speed < 2) {
+                this.gear = 1;
+            } else if (this.gear > 0 && this.gear < 3) {
+                this.gear++;
+            }
+        }
+
+        this.checkTrackSurface();
+        const currentDrag = this.onTrack ? CONFIG.asphaltDrag : CONFIG.grassDrag;
+        const currentGrip = this.onTrack ? CONFIG.grip : CONFIG.grassGrip;
+        
+        let currentGearConfig;
+        if(isReverse) {
+            currentGearConfig = CONFIG.reverse;
+        } else {
+            currentGearConfig = CONFIG.gears[this.gear - 1];
+        }
+
+        let force = 0;
+        if (Input.throttle > 0) {
+            let torque = currentGearConfig.torque * Input.throttle;
+            
+            // Rev Limiter
+            if (this.speed >= currentGearConfig.maxSpeed) {
+                torque = -0.8; 
+                this.rpm = CONFIG.maxRpm - 200 + (Math.random() * 400); 
+            }
+            // REMOVED OFF-TRACK TORQUE PENALTY
+            // if (!this.onTrack) torque *= 0.3; 
+            force = torque;
+        }
+
+        if (Input.brake > 0) force -= Input.brake * CONFIG.brakingForce;
+        force -= currentDrag * (1 + (this.speed/60));
+        
+        // Physics Step
+        let prevSpeed = this.speed;
+        this.speed += force;
+        if (this.speed < 0) this.speed = 0;
+        if (this.speed > 200) this.speed = 200;
+
+        // Steering
+        let turnRate = 0.045; 
+        this.wheelAngle = Input.steer * 0.6; 
+
+        if (this.speed > 1) {
+            let speedFactor = Math.max(0.3, 1 - (this.speed / 220));
+            if(this.speed > 80 && Input.throttle === 0 && Math.abs(Input.steer) > 0.5 && !isReverse) {
+                speedFactor *= 1.1;
+            }
+            
+            const dirMult = isReverse ? -1 : 1;
+            this.angle += Input.steer * turnRate * (this.speed / 18) * speedFactor * dirMult;
+        }
+
+        // RPM
+        let targetRpm = (this.speed / currentGearConfig.maxSpeed) * CONFIG.maxRpm;
+        if (targetRpm < CONFIG.idleRpm) targetRpm = CONFIG.idleRpm;
+        if (Input.throttle > 0 && this.speed < 5) targetRpm += Input.throttle * 4000; 
+        this.rpm += (targetRpm - this.rpm) * 0.15;
+
+        // G-Force Calculation
+        const dt = 1/60;
+        const currentSignedSpeed = (this.speed / 3.6) * (isReverse ? -1 : 1);
+        const lastSignedSpeed = (prevSpeed / 3.6) * (isReverse ? -1 : 1); 
+        
+        const longAccel = (currentSignedSpeed - lastSignedSpeed) / dt;
+        this.accelY += ((longAccel / 9.81) - this.accelY) * 0.1;
+
+        const speedMS = this.speed / 3.6;
+        let visualLatG = (speedMS * speedMS * (Input.steer * 0.003)); 
+        if(isReverse) visualLatG *= -1;
+        this.accelX += (visualLatG - this.accelX) * 0.1;
+
+        // Position Update
+        const moveDir = isReverse ? -1 : 1;
+        this.x += Math.cos(this.angle) * (this.speed * 0.15) * moveDir; 
+        this.y += Math.sin(this.angle) * (this.speed * 0.15) * moveDir;
+
+        // Visuals (Skidmarks)
+        const absLatG = Math.abs(this.accelX);
+        const isSliding = absLatG > currentGrip || Input.keys['Space'];
+        
+        if ((isSliding || (!this.onTrack && this.speed > 20)) && this.speed > 10) {
+            this.skidTimer++;
+            if (this.skidTimer % 2 === 0) {
+                const w = 13 * 0.7; 
+                const perp = this.angle + Math.PI/2;
+                const c = this.onTrack ? 'rgba(10,10,10,0.3)' : 'rgba(80,60,30,0.5)';
+                const rOffset = -25 * 0.7;
+
+                // Left Tire
+                this.skidMarks.push({
+                    x: this.x + Math.cos(this.angle)*rOffset + Math.cos(perp)*w,
+                    y: this.y + Math.sin(this.angle)*rOffset + Math.sin(perp)*w,
+                    life: 200, color: c
+                });
+                // Right Tire
+                this.skidMarks.push({
+                    x: this.x + Math.cos(this.angle)*rOffset - Math.cos(perp)*w,
+                    y: this.y + Math.sin(this.angle)*rOffset - Math.sin(perp)*w,
+                    life: 200, color: c
+                });
+            }
+            
+            if (this.onTrack && this.skidTimer % 4 === 0) {
+                 this.smokeParticles.push({
+                    x: this.x + (Math.random()*10-5),
+                    y: this.y + (Math.random()*10-5),
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    size: 2 + Math.random() * 3,
+                    alpha: 0.6,
+                    life: 60
+                 });
+            }
+        }
+    }
+}
+
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+const gCanvas = document.getElementById('g-canvas');
+const gCtx = gCanvas.getContext('2d');
+
+let gameRunning = false;
+const car = new Car(0, 0);
+const camera = { x: 0, y: 0 };
+
+function startGame() {
+    const overlay = document.getElementById('pause-overlay');
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 300);
+    if(!gameRunning) {
+        Input.init();
+        gameRunning = true;
+        loop();
+    }
+}
+
+function drawTrack(ctx) {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Grass/Dirt Base
+    ctx.lineWidth = CONFIG.trackWidth + 80;
+    ctx.strokeStyle = '#5d4037'; 
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Kerbs (Outer White)
+    ctx.lineWidth = CONFIG.trackWidth + 26;
+    ctx.strokeStyle = '#eeeeee';
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Kerbs (Red Striping)
+    ctx.lineWidth = CONFIG.trackWidth + 20;
+    ctx.strokeStyle = '#d32f2f';
+    ctx.setLineDash([25, 25]);
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Asphalt
+    ctx.lineWidth = CONFIG.trackWidth;
+    ctx.strokeStyle = '#263238'; 
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Racing Line
+    ctx.lineWidth = CONFIG.trackWidth * 0.6;
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Center Line
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.setLineDash([40, 60]);
+    ctx.beginPath();
+    ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+    for(let i=1; i<TRACK_POINTS.length; i++) ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Start Line
+    ctx.save();
+    ctx.translate(0, 0);
+    ctx.fillStyle = 'white';
+    for(let i=0; i<4; i++) {
+        for(let j=0; j<CONFIG.trackWidth/20; j++) {
+            ctx.fillStyle = (i+j)%2===0 ? 'white' : '#222';
+            ctx.fillRect(-CONFIG.trackWidth/2 + j*20, -20 + i*10, 20, 10);
+        }
+    }
+    ctx.restore();
+}
+
+function drawDetailedNSX(ctx) {
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(car.angle);
+
+    const scale = 0.7; 
+    const w = 32 * scale; 
+    const l = 66 * scale; 
+    
+    // --- TIRES ---
+    const tireW = 10 * scale;
+    const tireL = 22 * scale;
+    const frontAxis = 38 * scale;
+    const rearAxis = -36 * scale;
+
+    const drawWheel = (x, y, isFront, angle = 0) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#1a1a1a'; 
+        ctx.fillRect(-tireL/2, -tireW/2, tireL, tireW);
+        ctx.fillStyle = '#444'; 
+        ctx.beginPath(); ctx.arc(0, 0, tireW * 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#cc0000';
+        ctx.fillRect(-tireL/4, -tireW/4, tireL/2, tireW/2);
+        ctx.restore();
+    };
+
+    drawWheel(frontAxis, -w + 4*scale, true, car.wheelAngle); 
+    drawWheel(frontAxis, w - 4*scale, true, car.wheelAngle);  
+    drawWheel(rearAxis, -w + 4*scale, false); 
+    drawWheel(rearAxis, w - 4*scale, false);  
+
+    // --- BODY SHADOW ---
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    drawRoundedRect(ctx, -l - 4*scale, -w - 4*scale, l*2 + 8*scale, w*2 + 8*scale, 10*scale);
+    ctx.fill();
+
+    // --- MAIN BODY ---
+    ctx.fillStyle = '#F2F2F2'; 
+    ctx.strokeStyle = '#d4d4d4'; 
+    ctx.lineWidth = 1 * scale;
+    ctx.beginPath();
+    ctx.moveTo(l, -w + 8*scale); 
+    ctx.bezierCurveTo(l + 4*scale, -w/2, l + 4*scale, w/2, l, w - 8*scale); 
+    ctx.lineTo(-l + 4*scale, w - 2*scale);
+    ctx.lineTo(-l, -w + 2*scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // --- REAR DETAILS ---
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-l + 2*scale, -w + 10*scale, 6*scale, w*2 - 20*scale);
+    // Exhausts
+    ctx.fillStyle = '#ccc';
+    ctx.beginPath(); ctx.arc(-l + 2*scale, -w + 14*scale, 2.5*scale, 0, Math.PI*2); ctx.fill(); 
+    ctx.beginPath(); ctx.arc(-l + 2*scale, w - 14*scale, 2.5*scale, 0, Math.PI*2); ctx.fill(); 
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(-l + 2*scale, -w + 14*scale, 1.5*scale, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-l + 2*scale, w - 14*scale, 1.5*scale, 0, Math.PI*2); ctx.fill();
+
+    // --- CABIN ---
+    ctx.fillStyle = '#050505';
+    ctx.beginPath();
+    ctx.moveTo(10*scale, -w + 7*scale); 
+    ctx.lineTo(10*scale, w - 7*scale);
+    ctx.lineTo(-35*scale, w - 9*scale);
+    ctx.lineTo(-35*scale, -w + 9*scale);
+    ctx.closePath();
+    ctx.fill();
+
+    // Interior outline
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 0.5 * scale;
+    ctx.beginPath();
+    ctx.moveTo(10*scale, -w + 9*scale); 
+    ctx.lineTo(10*scale, w - 9*scale);
+    ctx.lineTo(-35*scale, w - 11*scale);
+    ctx.lineTo(-35*scale, -w + 11*scale);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath();
+    ctx.moveTo(8*scale, -w + 8*scale);
+    ctx.lineTo(8*scale, w - 8*scale);
+    ctx.lineTo(-5*scale, w - 9*scale);
+    ctx.lineTo(-5*scale, -w + 9*scale);
+    ctx.fill();
+
+    // --- ENGINE COVER ---
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-45*scale, -14*scale, 20*scale, 28*scale); 
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1 * scale;
+    for(let i = -45*scale; i < -25*scale; i+=3*scale) {
+        ctx.beginPath(); ctx.moveTo(i, -14*scale); ctx.lineTo(i, 14*scale); ctx.stroke();
+    }
+
+    // --- SPOILER ---
+    ctx.fillStyle = '#0a0a0a'; 
+    drawRoundedRect(ctx, -l + 2*scale, -w - 2*scale, 14*scale, w*2 + 4*scale, 2*scale);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-l + 4*scale, -w - 2*scale, 10*scale, 2*scale);
+    ctx.fillRect(-l + 4*scale, w, 10*scale, 2*scale);
+
+    // --- DETAILS ---
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.moveTo(30*scale, -14*scale); ctx.lineTo(42*scale, -12*scale); ctx.lineTo(42*scale, 12*scale); ctx.lineTo(30*scale, 14*scale); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.moveTo(-10*scale, -w + 2*scale); ctx.lineTo(-25*scale, -w + 5*scale); ctx.lineTo(-25*scale, -w + 2*scale); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10*scale, w - 2*scale); ctx.lineTo(-25*scale, w - 5*scale); ctx.lineTo(-25*scale, w - 2*scale); ctx.fill();
+    // Mirrors
+    ctx.fillStyle = '#F2F2F2'; ctx.fillRect(15*scale, -w - 3*scale, 6*scale, 4*scale); ctx.fillRect(15*scale, w - 1*scale, 6*scale, 4*scale);  
+    ctx.fillStyle = '#111'; ctx.fillRect(16*scale, -w - 3*scale, 1*scale, 4*scale); ctx.fillRect(16*scale, w - 1*scale, 1*scale, 4*scale);
+
+    // Lights
+    ctx.fillStyle = '#ccc'; ctx.fillRect(40*scale, -24*scale, 8*scale, 10*scale); ctx.fillRect(40*scale, 14*scale, 8*scale, 10*scale);
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(44*scale, -19*scale, 3*scale, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(44*scale, 19*scale, 3*scale, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath(); ctx.moveTo(46*scale, -24*scale); ctx.lineTo(200*scale, -80*scale); ctx.lineTo(200*scale, -10*scale); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(46*scale, 24*scale); ctx.lineTo(200*scale, 10*scale); ctx.lineTo(200*scale, 80*scale); ctx.fill();
+
+    // Taillights
+    if(Input.brake > 0) {
+        ctx.fillStyle = '#ff0000';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 15;
+    } else {
+        ctx.fillStyle = '#8b0000';
+        ctx.shadowBlur = 0;
+    }
+    ctx.fillRect(-l + 1*scale, -w + 3*scale, 3*scale, w*2 - 6*scale);
+    ctx.shadowBlur = 0;
+
+    // Reverse Lights
+    if(car.gear === -1) {
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(-l + 1*scale, -10*scale, 4*scale, 6*scale);
+        ctx.fillRect(-l + 1*scale, 4*scale, 4*scale, 6*scale);
+        ctx.shadowBlur = 0;
+    }
+
+    // Badge
+    ctx.fillStyle = '#cc0000'; 
+    ctx.fillRect(l - 6*scale, -2.5*scale, 4*scale, 5*scale);
+    ctx.fillStyle = '#eee'; 
+    ctx.font = `bold ${4*scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('H', l - 4*scale, 0);
+
+    ctx.restore();
+}
+
+function drawGMeter() {
+    const w = gCanvas.width;
+    const h = gCanvas.height;
+    const cx = w/2;
+    const cy = h/2;
+    const scale = 35; 
+
+    gCtx.clearRect(0, 0, w, h);
+
+    gCtx.strokeStyle = '#333';
+    gCtx.lineWidth = 1;
+    gCtx.beginPath(); gCtx.arc(cx, cy, scale*0.5, 0, Math.PI*2); gCtx.stroke();
+    gCtx.beginPath(); gCtx.arc(cx, cy, scale*1.0, 0, Math.PI*2); gCtx.stroke();
+    gCtx.beginPath(); gCtx.arc(cx, cy, scale*1.5, 0, Math.PI*2); gCtx.stroke();
+
+    gCtx.beginPath();
+    gCtx.moveTo(cx, 10); gCtx.lineTo(cx, h-10);
+    gCtx.moveTo(10, cy); gCtx.lineTo(w-10, cy);
+    gCtx.stroke();
+
+    const ballX = cx - (car.accelX * scale);
+    const ballY = cy + (car.accelY * scale);
+
+    gCtx.shadowBlur = 10;
+    gCtx.shadowColor = 'cyan';
+    gCtx.fillStyle = '#00e5ff';
+    gCtx.beginPath();
+    gCtx.arc(ballX, ballY, 4, 0, Math.PI*2);
+    gCtx.fill();
+    gCtx.shadowBlur = 0;
+
+    document.getElementById('lat-g').innerText = `LAT: ${Math.abs(car.accelX).toFixed(2)}`;
+    document.getElementById('long-g').innerText = `LON: ${Math.abs(car.accelY).toFixed(2)}`;
+}
+
+function loop() {
+    Input.update();
+    car.update();
+
+    ctx.fillStyle = '#1b5e20'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    camera.x += (car.x - camera.x) * 0.1;
+    camera.y += (car.y - camera.y) * 0.1;
+
+    ctx.save();
+    ctx.translate(canvas.width/2 - camera.x, canvas.height/2 - camera.y);
+
+    drawTrack(ctx);
+
+    for(let i=car.skidMarks.length-1; i>=0; i--) {
+        const s = car.skidMarks[i];
+        s.life--;
+        if(s.life <= 0) {
+            car.skidMarks.splice(i, 1);
+            continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = (s.life / 200) * 0.6;
+        ctx.fillStyle = s.color;
+        // Draw small circle/rect per mark
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    for(let i=car.smokeParticles.length-1; i>=0; i--) {
+        const p = car.smokeParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.size += 0.2;
+        p.life--;
+        p.alpha = (p.life / 60) * 0.4;
+        
+        if(p.life <= 0) {
+            car.smokeParticles.splice(i, 1);
+            continue;
+        }
+        
+        ctx.save();
+        ctx.fillStyle = `rgba(200, 200, 200, ${p.alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    ctx.restore();
+
+    drawDetailedNSX(ctx);
+    drawGMeter();
+
+    document.getElementById('speed-val').innerText = Math.floor(car.speed);
+    document.getElementById('rpm-val').innerText = (car.rpm/1000).toFixed(1);
+    
+    const gearEl = document.getElementById('gear-val');
+    if (car.gear === -1) {
+        gearEl.innerText = 'R';
+        gearEl.classList.add('reverse-text');
+    } else {
+        gearEl.innerText = car.gear;
+        gearEl.classList.remove('reverse-text');
+    }
+    
+    const rpmPct = Math.min(100, (car.rpm / CONFIG.maxRpm) * 100);
+    const rpmBar = document.getElementById('rpm-bar');
+    rpmBar.style.width = rpmPct + '%';
+    
+    if(rpmPct > 92) {
+        rpmBar.classList.remove('from-green-500', 'via-yellow-400', 'to-red-600');
+        rpmBar.style.backgroundColor = '#ff1744';
+        document.getElementById('gear-val').style.color = '#ff1744';
+        
+        if(Math.floor(Date.now()/100)%2===0 && car.gear < 3 && car.gear !== -1) {
+             document.getElementById('message').style.opacity = 1;
+        } else {
+             document.getElementById('message').style.opacity = 0;
+        }
+    } else {
+        rpmBar.style.backgroundColor = '';
+        rpmBar.classList.add('bg-gradient-to-r', 'from-green-500', 'via-yellow-400', 'to-red-600');
+        document.getElementById('gear-val').style.color = '#fdd835';
+        document.getElementById('message').style.opacity = 0;
+    }
+
+    document.getElementById('throttle-bar').style.width = (Input.throttle*100)+'%';
+    document.getElementById('brake-bar').style.width = (Input.brake*100)+'%';
+
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+</script>
+</body>
+</html>

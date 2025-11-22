@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熱傳遞模擬實驗 (原生JS版)</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* 自定義滑桿樣式 */
+        input[type=range] {
+            accent-color: #ea580c; /* Orange-600 */
+        }
+        .tab-active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .tab-inactive {
+            background-color: white;
+            color: #4b5563;
+        }
+        .tab-inactive:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2 flex justify-center items-center gap-3">
+                <i data-lucide="flame" class="text-orange-500 w-8 h-8"></i>
+                熱傳遞模擬實驗
+            </h1>
+            <p class="text-gray-500">互動式物理學習：熱傳導、熱對流、熱輻射</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap justify-center gap-4 mb-8">
+            <button onclick="switchTab('conduction')" id="tab-conduction" class="px-6 py-3 rounded-full font-bold flex items-center gap-2 transition tab-active">
+                <i data-lucide="thermometer" class="w-5 h-5"></i> 熱傳導 (Conduction)
+            </button>
+            <button onclick="switchTab('convection')" id="tab-convection" class="px-6 py-3 rounded-full font-bold flex items-center gap-2 transition tab-inactive">
+                <i data-lucide="wind" class="w-5 h-5"></i> 熱對流 (Convection)
+            </button>
+            <button onclick="switchTab('radiation')" id="tab-radiation" class="px-6 py-3 rounded-full font-bold flex items-center gap-2 transition tab-inactive">
+                <i data-lucide="sun" class="w-5 h-5"></i> 熱輻射 (Radiation)
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="bg-white rounded-2xl shadow-xl p-1 min-h-[500px]">
+            <div class="p-6">
+                
+                <!-- 1. Conduction Simulation -->
+                <div id="view-conduction" class="block space-y-6">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i> 實驗說明
+                        </h3>
+                        <p class="text-sm text-blue-600">觀察熱能如何在不同材質的固體中傳遞。金屬（如銅）通常是熱的良導體，而木頭則是熱的絕緣體。</p>
+                    </div>
+
+                    <!-- Simulation Visualization -->
+                    <div class="relative h-40 bg-gray-100 rounded-xl border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                        <!-- Heat Source -->
+                        <div id="cond-heater" class="absolute left-0 top-0 bottom-0 w-24 bg-gray-300 flex flex-col items-center justify-center transition-colors duration-500 z-10">
+                            <i data-lucide="flame" class="w-8 h-8 text-white drop-shadow-md"></i>
+                            <span class="text-xs text-white font-bold mt-1">熱源</span>
+                        </div>
+                        
+                        <!-- Material Bar (Will be populated by JS) -->
+                        <div id="cond-bar" class="flex h-16 w-[600px] ml-24 border-y-2 border-gray-400 bg-white">
+                            <!-- Particles created by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50 p-6 rounded-xl">
+                        <div class="space-y-4">
+                            <label class="block font-bold text-gray-700">選擇材質</label>
+                            <div class="flex gap-2">
+                                <button onclick="setMaterial('copper')" id="btn-copper" class="flex-1 py-2 px-4 rounded-lg border-2 font-medium transition bg-orange-100 border-orange-500 text-orange-700">銅</button>
+                                <button onclick="setMaterial('iron')" id="btn-iron" class="flex-1 py-2 px-4 rounded-lg border-2 font-medium transition bg-white border-gray-200 text-gray-600">鐵</button>
+                                <button onclick="setMaterial('wood')" id="btn-wood" class="flex-1 py-2 px-4 rounded-lg border-2 font-medium transition bg-white border-gray-200 text-gray-600">木頭</button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <label class="font-bold text-gray-700">加熱控制</label>
+                                <span id="cond-status" class="text-sm font-mono text-gray-500">冷卻中</span>
+                            </div>
+                            <div class="flex gap-3">
+                                <button onclick="toggleHeat(true)" id="btn-heat-on" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition shadow-sm">
+                                    <i data-lucide="flame" class="w-4 h-4"></i> 開始加熱
+                                </button>
+                                <button onclick="toggleHeat(false)" id="btn-heat-off" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition shadow-sm opacity-50 cursor-not-allowed" disabled>
+                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 冷卻/重置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Convection Simulation -->
+                <div id="view-convection" class="hidden space-y-6">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i> 實驗說明
+                        </h3>
+                        <p class="text-sm text-blue-600">觀察液體或氣體受熱時的流動。熱空氣/水密度變小而上升，冷空氣/水密度變大而下降，形成對流循環。</p>
+                    </div>
+
+                    <div class="relative h-[400px] bg-slate-200 rounded-xl border-4 border-slate-300 overflow-hidden flex justify-center">
+                        <!-- Water Background -->
+                        <div class="absolute inset-0 bg-blue-100 opacity-50"></div>
+                        
+                        <!-- Canvas for Particles -->
+                        <canvas id="conv-canvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+                        <!-- Heater UI -->
+                        <div class="absolute bottom-0 w-32 h-12 bg-gray-800 rounded-t-xl flex items-center justify-center z-10 transition-colors duration-500" id="conv-heater-ui">
+                            <span class="text-white text-xs font-bold">加熱器</span>
+                        </div>
+                        
+                        <!-- Flame Animation -->
+                        <div id="conv-flame" class="absolute bottom-12 text-red-500 animate-bounce transition-opacity duration-300 opacity-0">
+                            <i data-lucide="flame" class="w-10 h-10 fill-red-500"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center">
+                        <button onclick="toggleConvection()" id="btn-conv-toggle" class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95">
+                            <i data-lucide="play" class="w-5 h-5"></i> 啟動加熱器
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Radiation Simulation -->
+                <div id="view-radiation" class="hidden space-y-6">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                        <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i> 實驗說明
+                        </h3>
+                        <p class="text-sm text-blue-600">熱輻射不需要介質。調整熱源距離或物體表面特性（深色/淺色），觀察溫度上升的速率差異。</p>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-8 items-center justify-center py-8 bg-gray-50 rounded-xl border border-gray-200">
+                        
+                        <!-- Lamp (Source) -->
+                        <div class="relative flex flex-col items-center group">
+                            <div class="absolute -bottom-20 w-48 h-48 bg-yellow-400 rounded-full blur-3xl opacity-0 transition-opacity duration-500" id="rad-glow"></div>
+                            <i data-lucide="sun" class="w-24 h-24 text-gray-400 transition-colors duration-500 relative z-10" id="rad-lamp-icon"></i>
+                            <div class="mt-2 font-bold text-gray-600">熱輻射源 (太陽/燈)</div>
+                        </div>
+
+                        <!-- Distance Representation -->
+                        <div class="h-1 w-full md:w-32 bg-gray-300 rounded relative">
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 text-xs text-gray-500 font-mono" id="rad-dist-label">Distance</div>
+                            <i data-lucide="chevrons-right" class="absolute -right-2 -top-2 w-5 h-5 text-gray-400"></i>
+                            <i data-lucide="chevrons-left" class="absolute -left-2 -top-2 w-5 h-5 text-gray-400"></i>
+                        </div>
+
+                        <!-- Object (Target) -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div id="rad-object" class="w-32 h-32 rounded-lg border-4 border-gray-300 flex items-center justify-center relative transition-colors duration-1000 bg-gray-800">
+                                <!-- Thermometer -->
+                                <div class="absolute -right-12 bottom-0 w-4 h-full bg-white rounded-full border border-gray-300 overflow-hidden flex flex-col justify-end shadow-sm">
+                                    <div id="rad-therm-fill" class="w-full bg-red-500 transition-all duration-300" style="height: 20%"></div>
+                                </div>
+                                <span id="rad-temp-display" class="text-white font-bold text-2xl font-mono z-10 mix-blend-difference">20°C</span>
+                            </div>
+                            <div class="text-sm font-bold text-gray-600">受熱物體</div>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">熱源距離</label>
+                            <input type="range" id="rad-slider-dist" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                <span>近 (強)</span>
+                                <span>遠 (弱)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">表面特性</label>
+                            <div class="flex gap-2">
+                                <button onclick="setRadSurface('black')" id="btn-surf-black" class="flex-1 py-2 rounded bg-gray-800 text-white text-sm font-bold shadow-md ring-2 ring-orange-500">深色/粗糙</button>
+                                <button onclick="setRadSurface('shiny')" id="btn-surf-shiny" class="flex-1 py-2 rounded bg-gray-100 text-gray-600 text-sm font-bold hover:bg-gray-200 border border-gray-300">淺色/光滑</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <footer class="mt-8 text-center text-gray-400 text-sm">
+            物理科輔助教材 | Heat Transfer Simulation
+        </footer>
+    </div>
+
+    <script>
+        // --- Global Helper ---
+        function getTempColor(temp, min = 0, max = 100) {
+            const ratio = Math.min(Math.max((temp - min) / (max - min), 0), 1);
+            // Blue (0, 0, 255) -> Red (255, 0, 0)
+            const r = Math.round(255 * ratio);
+            const b = Math.round(255 * (1 - ratio));
+            const g = 0; // Simplify to Red-Blue gradient
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // --- Tab System ---
+        function switchTab(tabId) {
+            // Hide all views
+            ['conduction', 'convection', 'radiation'].forEach(id => {
+                document.getElementById(`view-${id}`).classList.add('hidden');
+                const tab = document.getElementById(`tab-${id}`);
+                tab.classList.remove('tab-active', 'bg-blue-600', 'text-white', 'shadow-lg');
+                tab.classList.add('tab-inactive');
+                
+                // Reset specific icon colors if needed
+                // Fix for TypeError: Lucide replaces <i> with <svg>, so we must check for svg first
+                const icon = tab.querySelector('svg') || tab.querySelector('i');
+                if(icon && id === 'radiation') {
+                    icon.style.color = ''; 
+                }
+            });
+
+            // Show active view
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('tab-inactive');
+            activeBtn.classList.add('tab-active');
+            
+            if(tabId === 'convection') {
+                initConvection(); // Resize canvas if needed
+                startConvectionLoop();
+            } else {
+                stopConvectionLoop();
+            }
+            
+            if(tabId === 'conduction') {
+                startConductionLoop();
+            } else {
+                stopConductionLoop();
+            }
+
+            if(tabId === 'radiation') {
+                startRadiationLoop();
+            } else {
+                stopRadiationLoop();
+            }
+        }
+
+
+        // ==========================================
+        // 1. Conduction Simulation Logic
+        // ==========================================
+        const condState = {
+            material: 'copper',
+            isPlaying: false,
+            segments: 20,
+            temps: new Array(20).fill(20), // Ambient 20C
+            kValues: { copper: 0.4, iron: 0.15, wood: 0.01 }, // Simulation speeds
+            animId: null
+        };
+
+        // Setup Conduction DOM
+        const condBar = document.getElementById('cond-bar');
+        for(let i=0; i<condState.segments; i++) {
+            const div = document.createElement('div');
+            div.className = "flex-1 h-full border-r border-gray-200/20 transition-colors duration-100";
+            div.id = `seg-${i}`;
+            div.style.backgroundColor = getTempColor(20);
+            condBar.appendChild(div);
+        }
+
+        function setMaterial(mat) {
+            condState.material = mat;
+            
+            // Update Buttons
+            ['copper', 'iron', 'wood'].forEach(m => {
+                const btn = document.getElementById(`btn-${m}`);
+                if(m === mat) {
+                    btn.className = "flex-1 py-2 px-4 rounded-lg border-2 font-medium transition bg-orange-100 border-orange-500 text-orange-700";
+                } else {
+                    btn.className = "flex-1 py-2 px-4 rounded-lg border-2 font-medium transition bg-white border-gray-200 text-gray-600";
+                }
+            });
+        }
+
+        function toggleHeat(on) {
+            condState.isPlaying = on;
+            const heater = document.getElementById('cond-heater');
+            const btnOn = document.getElementById('btn-heat-on');
+            const btnOff = document.getElementById('btn-heat-off');
+            const status = document.getElementById('cond-status');
+
+            if(on) {
+                heater.classList.remove('bg-gray-300');
+                heater.classList.add('bg-red-600');
+                btnOn.disabled = true;
+                btnOn.classList.add('opacity-50', 'cursor-not-allowed');
+                btnOff.disabled = false;
+                btnOff.classList.remove('opacity-50', 'cursor-not-allowed');
+                status.textContent = "加熱中...";
+                status.className = "text-sm font-mono text-red-600 font-bold animate-pulse";
+            } else {
+                // Reset
+                heater.classList.add('bg-gray-300');
+                heater.classList.remove('bg-red-600');
+                btnOn.disabled = false;
+                btnOn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnOff.disabled = true;
+                btnOff.classList.add('opacity-50', 'cursor-not-allowed');
+                condState.temps.fill(20);
+                updateConductionView();
+                status.textContent = "冷卻中";
+                status.className = "text-sm font-mono text-blue-500 font-bold";
+            }
+        }
+
+        function updateConductionView() {
+            for(let i=0; i<condState.segments; i++) {
+                document.getElementById(`seg-${i}`).style.backgroundColor = getTempColor(condState.temps[i]);
+            }
+        }
+
+        function startConductionLoop() {
+            if(condState.animId) return;
+            function loop() {
+                if(condState.isPlaying) {
+                    // Heat Source Logic
+                    condState.temps[0] = 100; // Left end is always hot source
+                    
+                    // Heat Diffusion Logic
+                    const k = condState.kValues[condState.material];
+                    const newTemps = [...condState.temps];
+                    
+                    for(let i=1; i<condState.segments; i++) {
+                        const diff = condState.temps[i-1] - condState.temps[i];
+                        // Simple Euler integration for diffusion
+                        newTemps[i] += diff * k; 
+                        
+                        // Ambient cooling (simplistic)
+                        if(newTemps[i] > 20) {
+                            newTemps[i] -= 0.05;
+                        }
+                    }
+                    condState.temps = newTemps;
+                    updateConductionView();
+                }
+                condState.animId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function stopConductionLoop() {
+            if(condState.animId) {
+                cancelAnimationFrame(condState.animId);
+                condState.animId = null;
+            }
+        }
+
+
+        // ==========================================
+        // 2. Convection Simulation Logic
+        // ==========================================
+        const convCanvas = document.getElementById('conv-canvas');
+        const convCtx = convCanvas.getContext('2d');
+        let convParticles = [];
+        const convState = {
+            isHeating: false,
+            animId: null
+        };
+
+        function initConvection() {
+            convCanvas.width = convCanvas.offsetWidth;
+            convCanvas.height = convCanvas.offsetHeight;
+            
+            if(convParticles.length === 0) {
+                // Initialize particles
+                for(let i=0; i<60; i++) {
+                    convParticles.push({
+                        x: Math.random() * convCanvas.width,
+                        y: Math.random() * convCanvas.height,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        temp: 20, // 20 to 100
+                        size: Math.random() * 4 + 2
+                    });
+                }
+            }
+        }
+
+        function toggleConvection() {
+            convState.isHeating = !convState.isHeating;
+            const btn = document.getElementById('btn-conv-toggle');
+            const heaterUI = document.getElementById('conv-heater-ui');
+            const flame = document.getElementById('conv-flame');
+
+            if(convState.isHeating) {
+                btn.innerHTML = `<i data-lucide="pause" class="w-5 h-5"></i> 停止加熱`;
+                btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                btn.classList.add('bg-slate-700', 'hover:bg-slate-800');
+                
+                heaterUI.classList.add('bg-red-700');
+                heaterUI.classList.remove('bg-gray-800');
+                
+                flame.classList.remove('opacity-0');
+                
+                lucide.createIcons();
+            } else {
+                btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> 啟動加熱器`;
+                btn.classList.add('bg-red-500', 'hover:bg-red-600');
+                btn.classList.remove('bg-slate-700', 'hover:bg-slate-800');
+                
+                heaterUI.classList.remove('bg-red-700');
+                heaterUI.classList.add('bg-gray-800');
+                
+                flame.classList.add('opacity-0');
+                
+                lucide.createIcons();
+            }
+        }
+
+        function startConvectionLoop() {
+            if(convState.animId) return;
+            
+            function loop() {
+                // Logic
+                const width = convCanvas.width;
+                const height = convCanvas.height;
+                const centerX = width / 2;
+                const heatZoneWidth = 150; // Width of heater at bottom
+
+                convCtx.clearRect(0, 0, width, height);
+
+                convParticles.forEach(p => {
+                    // 1. Heating Logic
+                    // If near bottom center and heating is on
+                    if(convState.isHeating && p.y > height - 50 && Math.abs(p.x - centerX) < heatZoneWidth/2) {
+                        p.temp = Math.min(p.temp + 2, 100);
+                    } else {
+                        // Cooling naturally everywhere else
+                        p.temp = Math.max(p.temp - 0.3, 20);
+                    }
+
+                    // 2. Movement Logic
+                    // Hot particles rise (vy negative), Cold sink (vy positive)
+                    // Map temp 20->100 to vy 1 -> -3
+                    const targetVy = ((p.temp - 20) / 80) * -4 + 1; 
+                    
+                    // Ease velocity towards target
+                    p.vy += (targetVy - p.vy) * 0.05;
+
+                    // Convection Current Simulation (Horizontal drift)
+                    // If rising (hot) and high up, move outwards
+                    // If sinking (cold) and low down, move inwards
+                    if(p.y < height * 0.3) {
+                         if(p.x < centerX) p.vx -= 0.05;
+                         else p.vx += 0.05;
+                    } else if (p.y > height * 0.8) {
+                         if(p.x < centerX) p.vx += 0.05;
+                         else p.vx -= 0.05;
+                    }
+                    
+                    // Apply random flutter
+                    p.vx += (Math.random() - 0.5) * 0.1;
+
+                    // Friction
+                    p.vx *= 0.98;
+
+                    // Update Position
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    // Boundaries
+                    if(p.x < 0) { p.x = 0; p.vx *= -1; }
+                    if(p.x > width) { p.x = width; p.vx *= -1; }
+                    if(p.y < 0) { p.y = 0; p.vy *= -1; }
+                    if(p.y > height) { p.y = height; p.vy *= -1; }
+
+                    // Draw
+                    convCtx.beginPath();
+                    convCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    convCtx.fillStyle = getTempColor(p.temp, 20, 100);
+                    convCtx.fill();
+                });
+
+                convState.animId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function stopConvectionLoop() {
+            if(convState.animId) {
+                cancelAnimationFrame(convState.animId);
+                convState.animId = null;
+            }
+        }
+
+
+        // ==========================================
+        // 3. Radiation Simulation Logic
+        // ==========================================
+        const radState = {
+            distance: 5,
+            surfaceType: 'black', // 'black' or 'shiny'
+            objectTemp: 20,
+            animId: null
+        };
+
+        const radSlider = document.getElementById('rad-slider-dist');
+        radSlider.addEventListener('input', (e) => {
+            radState.distance = parseInt(e.target.value);
+            updateRadiationUI();
+        });
+
+        function setRadSurface(type) {
+            radState.surfaceType = type;
+            const obj = document.getElementById('rad-object');
+            const btnBlack = document.getElementById('btn-surf-black');
+            const btnShiny = document.getElementById('btn-surf-shiny');
+
+            if(type === 'black') {
+                obj.className = "w-32 h-32 rounded-lg border-4 border-gray-300 flex items-center justify-center relative transition-colors duration-1000 bg-gray-800";
+                btnBlack.classList.add('ring-2', 'ring-orange-500');
+                btnShiny.classList.remove('ring-2', 'ring-orange-500');
+            } else {
+                obj.className = "w-32 h-32 rounded-lg border-4 border-gray-300 flex items-center justify-center relative transition-colors duration-1000 bg-gray-100";
+                btnShiny.classList.add('ring-2', 'ring-orange-500');
+                btnBlack.classList.remove('ring-2', 'ring-orange-500');
+            }
+        }
+
+        function updateRadiationUI() {
+            // Update distance visuals
+            const widthPercent = (radState.distance / 10) * 100;
+            // Actually, smaller distance = closer visually. 
+            // Let's just assume the UI slider maps 1 (Close) to 10 (Far)
+            // We won't move the DOM elements physically for simplicity, just glow intensity
+            
+            const glow = document.getElementById('rad-glow');
+            const intensity = 1 - ((radState.distance - 1) / 9); // 1 to 0
+            glow.style.opacity = intensity;
+            
+            const lampIcon = document.getElementById('rad-lamp-icon');
+            if(intensity > 0.7) lampIcon.classList.replace('text-gray-400', 'text-orange-500');
+            else lampIcon.classList.replace('text-orange-500', 'text-gray-400');
+        }
+
+        function startRadiationLoop() {
+            if(radState.animId) return;
+            function loop() {
+                // Physics: 
+                // Heating rate inversely proportional to distance squared
+                // Heating rate depends on surface (black > shiny)
+                
+                // Normalized distance 1..10
+                // Heat input ~ 1 / d^2
+                const heatInputBase = 50 / (radState.distance * radState.distance);
+                
+                // Surface modifier
+                const absorption = radState.surfaceType === 'black' ? 1.0 : 0.2;
+                
+                const heatInput = heatInputBase * absorption;
+                
+                // Cooling rate (Newtons law of cooling - proportional to temp diff)
+                const coolingRate = (radState.objectTemp - 20) * 0.02;
+                
+                // Update Temp
+                radState.objectTemp += heatInput - coolingRate;
+                
+                // Clamp
+                if(radState.objectTemp > 100) radState.objectTemp = 100;
+                if(radState.objectTemp < 20) radState.objectTemp = 20;
+
+                // UI Update
+                const display = document.getElementById('rad-temp-display');
+                const fill = document.getElementById('rad-therm-fill');
+                
+                display.textContent = `${Math.round(radState.objectTemp)}°C`;
+                fill.style.height = `${radState.objectTemp}%`;
+                
+                // Optional: Object glows red if very hot
+                if(radState.objectTemp > 80 && radState.surfaceType === 'black') {
+                    // document.getElementById('rad-object').style.borderColor = 'red';
+                }
+
+                updateRadiationUI();
+                radState.animId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function stopRadiationLoop() {
+            if(radState.animId) {
+                cancelAnimationFrame(radState.animId);
+                radState.animId = null;
+            }
+        }
+
+        // --- Init ---
+        switchTab('conduction');
+        setMaterial('copper'); // trigger UI update
+
+    </script>
+</body>
+</html>

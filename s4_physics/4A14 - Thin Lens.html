@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進階透鏡成像模擬 (Canvas原生版)</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* 防止移動端選取文字干擾拖曳 */
+        canvas {
+            touch-action: none;
+        }
+        input[type=range] {
+            accent-color: currentColor;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <div class="flex flex-col items-center p-4 min-h-screen">
+        
+        <!-- Header -->
+        <header class="w-full max-w-5xl mb-4 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-6 h-6 text-blue-600"></i>
+                    進階透鏡成像模擬 (原生JS版)
+                </h1>
+                <p class="text-sm text-gray-500">拖動滑桿調整焦距、物距，即時觀察光路</p>
+            </div>
+            
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <button id="btn-convex" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-white text-blue-600 shadow-sm">
+                    <i data-lucide="chevrons-right" class="w-4 h-4 rotate-90"></i> 凸透鏡
+                </button>
+                <button id="btn-concave" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all text-gray-500 hover:bg-gray-200">
+                    <i data-lucide="chevrons-left" class="w-4 h-4 rotate-90"></i> 凹透鏡
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Visualization Area - Canvas -->
+        <div id="canvas-container" class="relative bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-6 w-full max-w-5xl h-[500px]">
+            <canvas id="simCanvas" class="w-full h-full cursor-crosshair block"></canvas>
+
+            <!-- Undefined Overlay -->
+            <div id="overlay-undefined" class="hidden absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
+                <div class="bg-white px-6 py-3 rounded-lg shadow-xl border border-red-200 text-red-600 font-bold">
+                    成像於無窮遠 (Infinity)
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-5xl">
+            
+            <!-- Sliders Section -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
+                <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2 border-b pb-2">
+                    <i data-lucide="settings" class="w-5 h-5"></i> 參數調整
+                </h2>
+                
+                <!-- 1. Object Distance -->
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-blue-900 flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                            物距 (u)
+                        </label>
+                        <span id="disp-u" class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-mono font-bold">150.0 cm</span>
+                    </div>
+                    <input id="input-u" type="range" min="10" max="350" step="1" value="150" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer text-blue-600">
+                </div>
+
+                <!-- 2. Focal Length -->
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-purple-900 flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-purple-600"></div>
+                            焦距 (f)
+                        </label>
+                        <span id="disp-f" class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm font-mono font-bold">120.0 cm</span>
+                    </div>
+                    <input id="input-f" type="range" min="30" max="200" step="1" value="120" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer text-purple-600">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1 px-1">
+                        <span>短焦距 (厚透鏡)</span>
+                        <span>長焦距 (薄透鏡)</span>
+                    </div>
+                </div>
+
+                <!-- 3. Refractive Index -->
+                <div class="pt-4 border-t border-gray-100 opacity-80 hover:opacity-100 transition-opacity">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-600 flex items-center gap-1">
+                            <i data-lucide="link-2" class="w-3 h-3"></i>
+                            折射率 (n) <span class="text-xs font-normal text-gray-400">(與焦距連動)</span>
+                        </label>
+                        <span id="disp-n" class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-mono">n = 1.50</span>
+                    </div>
+                    <input id="input-n" type="range" min="1.2" max="2.5" step="0.01" value="1.5" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer text-gray-500">
+                </div>
+            </div>
+
+            <!-- Data Panel -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                    <i data-lucide="calculator" class="w-5 h-5"></i> 實驗數據
+                </h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Formula -->
+                    <div class="col-span-2 bg-slate-50 p-3 rounded text-center text-slate-600 font-mono text-sm mb-2">
+                        1/v = 1/f - 1/u
+                    </div>
+
+                    <!-- Cards -->
+                    <div class="p-4 rounded-lg border bg-white border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="text-xs text-gray-500 mb-1">焦距 (f)</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="res-f" class="text-2xl font-bold text-gray-800">120.0</span>
+                            <span class="text-sm text-gray-500">cm</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-lg border bg-white border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="text-xs text-gray-500 mb-1">像距 (v)</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="res-v" class="text-2xl font-bold text-green-600">600.0</span>
+                            <span class="text-sm text-gray-500">cm</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-lg border bg-blue-50 border-blue-200 shadow-sm flex flex-col justify-between">
+                        <div class="text-xs text-gray-500 mb-1">放大率 (m)</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="res-m" class="text-2xl font-bold text-gray-800">4.00</span>
+                            <span class="text-sm text-gray-500">x</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Nature of Image -->
+                    <div id="card-nature" class="p-3 rounded-lg border-l-4 flex flex-col justify-center items-center shadow-sm bg-green-50 border-green-500">
+                        <span class="text-xs text-gray-500 mb-1">成像性質</span>
+                        <span id="res-nature-main" class="font-bold text-lg text-green-700">倒立實像</span>
+                        <span id="res-nature-sub" class="text-xs text-gray-500 mt-1">(放大)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & State ---
+        const CONFIG = {
+            OBJ_HEIGHT: 60,
+            LENS_R: 120,
+            ORIGINAL_WIDTH: 800,
+            ORIGINAL_HEIGHT: 500,
+            GRID_SIZE: 20
+        };
+
+        const state = {
+            fMagnitude: 120,
+            objDist: 150,
+            lensType: 'convex', // 'convex' | 'concave'
+            n: 1.5
+        };
+
+        // --- DOM Elements ---
+        const canvas = document.getElementById('simCanvas');
+        const container = document.getElementById('canvas-container');
+        const ctx = canvas.getContext('2d');
+
+        const inputs = {
+            u: document.getElementById('input-u'),
+            f: document.getElementById('input-f'),
+            n: document.getElementById('input-n')
+        };
+        
+        const displays = {
+            u: document.getElementById('disp-u'),
+            f: document.getElementById('disp-f'),
+            n: document.getElementById('disp-n')
+        };
+
+        const results = {
+            f: document.getElementById('res-f'),
+            v: document.getElementById('res-v'),
+            m: document.getElementById('res-m'),
+            natureCard: document.getElementById('card-nature'),
+            natureMain: document.getElementById('res-nature-main'),
+            natureSub: document.getElementById('res-nature-sub'),
+            overlay: document.getElementById('overlay-undefined')
+        };
+
+        const buttons = {
+            convex: document.getElementById('btn-convex'),
+            concave: document.getElementById('btn-concave')
+        };
+
+        // --- Logic: Physics Calculation ---
+        function calculatePhysics() {
+            const f = state.lensType === 'convex' ? state.fMagnitude : -state.fMagnitude;
+            const uCoord = -state.objDist;
+            const denominator = uCoord + f;
+            
+            // Avoid division by zero logic
+            const isUndefined = Math.abs(denominator) < 0.1 && state.lensType === 'convex';
+            
+            const vCoord = isUndefined ? Infinity : (f * uCoord) / denominator;
+            const m = isUndefined ? Infinity : vCoord / uCoord;
+            const imgHeight = m * CONFIG.OBJ_HEIGHT;
+            const isVirtual = vCoord < 0;
+
+            return { f, uCoord, vCoord, m, imgHeight, isVirtual, isUndefined };
+        }
+
+        // --- Logic: Drawing ---
+        const CENTER_X = CONFIG.ORIGINAL_WIDTH / 2;
+        const CENTER_Y = CONFIG.ORIGINAL_HEIGHT / 2;
+
+        function toCanvas(x, y) {
+            return { x: CENTER_X + x, y: CENTER_Y - y };
+        }
+
+        function drawLine(x1, y1, x2, y2, color, width = 1, dash = []) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.setLineDash(dash);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawArrowHead(x, y, angle, color) {
+            const headLen = 10;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - headLen * Math.cos(angle - Math.PI / 6), y - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x - headLen * Math.cos(angle + Math.PI / 6), y - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function drawArrow(x1, y1, x2, y2, color, width = 2) {
+            drawLine(x1, y1, x2, y2, color, width);
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            drawArrowHead(x2, y2, angle, color);
+        }
+
+        function drawText(text, x, y, color, align = "center", font = "12px sans-serif") {
+            ctx.fillStyle = color;
+            ctx.font = font;
+            ctx.textAlign = align;
+            ctx.fillText(text, x, y);
+        }
+
+        function draw() {
+            const phys = calculatePhysics();
+            
+            // Clear
+            ctx.clearRect(0, 0, CONFIG.ORIGINAL_WIDTH, CONFIG.ORIGINAL_HEIGHT);
+
+            // Grid
+            ctx.beginPath();
+            ctx.strokeStyle = "#e2e8f0";
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= CONFIG.ORIGINAL_WIDTH; x += CONFIG.GRID_SIZE) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.ORIGINAL_HEIGHT);
+            }
+            for (let y = 0; y <= CONFIG.ORIGINAL_HEIGHT; y += CONFIG.GRID_SIZE) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.ORIGINAL_WIDTH, y);
+            }
+            ctx.stroke();
+
+            // Axis
+            drawLine(0, CENTER_Y, CONFIG.ORIGINAL_WIDTH, CENTER_Y, "#64748b", 2);
+
+            // Lens Shape
+            ctx.beginPath();
+            if (state.lensType === 'convex') {
+                ctx.ellipse(CENTER_X, CENTER_Y, state.fMagnitude < 80 ? 25 : 10, 200, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = "rgba(59, 130, 246, 0.1)";
+                ctx.fill();
+                ctx.strokeStyle = "#334155"; ctx.lineWidth = 1; ctx.stroke();
+                
+                // Decoration
+                ctx.beginPath();
+                ctx.moveTo(CENTER_X - 10, CENTER_Y - 190); ctx.lineTo(CENTER_X, CENTER_Y - 200); ctx.lineTo(CENTER_X + 10, CENTER_Y - 190);
+                ctx.moveTo(CENTER_X - 10, CENTER_Y + 190); ctx.lineTo(CENTER_X, CENTER_Y + 200); ctx.lineTo(CENTER_X + 10, CENTER_Y + 190);
+                ctx.strokeStyle = "#334155"; ctx.lineWidth = 2; ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(CENTER_X - 10, CENTER_Y - 200);
+                ctx.quadraticCurveTo(CENTER_X, CENTER_Y, CENTER_X - 10, CENTER_Y + 200);
+                ctx.lineTo(CENTER_X + 10, CENTER_Y + 200);
+                ctx.quadraticCurveTo(CENTER_X, CENTER_Y, CENTER_X + 10, CENTER_Y - 200);
+                ctx.closePath();
+                ctx.fillStyle = "rgba(147, 197, 253, 0.05)";
+                ctx.fill();
+                ctx.strokeStyle = "#334155"; ctx.lineWidth = 1; ctx.stroke();
+                
+                // Decoration
+                ctx.beginPath();
+                ctx.moveTo(CENTER_X - 10, CENTER_Y - 200); ctx.lineTo(CENTER_X, CENTER_Y - 190); ctx.lineTo(CENTER_X + 10, CENTER_Y - 200);
+                ctx.moveTo(CENTER_X - 10, CENTER_Y + 200); ctx.lineTo(CENTER_X, CENTER_Y + 190); ctx.lineTo(CENTER_X + 10, CENTER_Y + 200);
+                ctx.strokeStyle = "#334155"; ctx.lineWidth = 2; ctx.stroke();
+            }
+            // Vertical Axis Line
+            drawLine(CENTER_X, CENTER_Y - 200, CENTER_X, CENTER_Y + 200, "#334155", 2);
+
+            // Focal Points
+            const points = [ 
+                { x: -state.fMagnitude, label: "F'" }, 
+                { x: state.fMagnitude, label: "F" },
+                { x: -2 * state.fMagnitude, label: "2F'" }, 
+                { x: 2 * state.fMagnitude, label: "2F" } 
+            ];
+            points.forEach(pt => {
+                const p = toCanvas(pt.x, 0);
+                drawLine(p.x, CENTER_Y - 4, p.x, CENTER_Y + 4, "#000", 2);
+                drawText(pt.label, p.x, CENTER_Y + 20, "#4b5563", "center", "bold 12px sans-serif");
+            });
+
+            // Object
+            const pObjBase = toCanvas(phys.uCoord, 0);
+            const pObjTip = toCanvas(phys.uCoord, CONFIG.OBJ_HEIGHT);
+            drawArrow(pObjBase.x, pObjBase.y, pObjTip.x, pObjTip.y, "#2563eb", 4);
+            drawText("O", pObjTip.x, pObjTip.y - 10, "#1d4ed8", "center", "bold 18px sans-serif");
+
+            // Image & Rays
+            if (!phys.isUndefined) {
+                const pImgBase = toCanvas(phys.vCoord, 0);
+                const pImgTip = toCanvas(phys.vCoord, phys.imgHeight);
+                
+                // Image Arrow
+                const imgColor = "#dc2626";
+                ctx.setLineDash(phys.isVirtual ? [6, 4] : []);
+                drawLine(pImgBase.x, pImgBase.y, pImgTip.x, pImgTip.y, imgColor, 4);
+                ctx.setLineDash([]);
+                const imgAngle = Math.atan2(pImgTip.y - pImgBase.y, pImgTip.x - pImgBase.x);
+                drawArrowHead(pImgTip.x, pImgTip.y, imgAngle, imgColor);
+                drawText("I", pImgTip.x, pImgTip.y + (phys.imgHeight > 0 ? -15 : 25), "#b91c1c", "center", "bold 18px sans-serif");
+
+                // --- Rays ---
+                const rayHitLens = toCanvas(0, CONFIG.OBJ_HEIGHT);
+                const rayExtension = 450;
+
+                // Ray 1
+                let ray1End;
+                if (state.lensType === 'convex') {
+                    const pF_Right = toCanvas(state.fMagnitude, 0);
+                    const slope = (pF_Right.y - rayHitLens.y) / (pF_Right.x - rayHitLens.x);
+                    ray1End = { x: CENTER_X + rayExtension, y: rayHitLens.y + slope * rayExtension };
+                } else {
+                    const pF_Left = toCanvas(-state.fMagnitude, 0);
+                    const slope = (rayHitLens.y - pF_Left.y) / (rayHitLens.x - pF_Left.x);
+                    ray1End = { x: CENTER_X + rayExtension, y: rayHitLens.y + slope * rayExtension };
+                }
+
+                // Draw R1
+                drawLine(pObjTip.x, pObjTip.y, rayHitLens.x, rayHitLens.y, "#f59e0b", 2);
+                drawLine(rayHitLens.x, rayHitLens.y, ray1End.x, ray1End.y, "#f59e0b", 2);
+                const midR1X = (rayHitLens.x + ray1End.x) / 2;
+                const midR1Y = (rayHitLens.y + ray1End.y) / 2;
+                const angleR1 = Math.atan2(ray1End.y - rayHitLens.y, ray1End.x - rayHitLens.x);
+                drawArrowHead(midR1X, midR1Y, angleR1, "#f59e0b");
+
+                // Ray 2 (Through Center)
+                const slope2 = (CENTER_Y - pObjTip.y) / (CENTER_X - pObjTip.x);
+                const ray2EndX = CENTER_X + rayExtension;
+                const ray2EndY = CENTER_Y + slope2 * rayExtension;
+                drawLine(pObjTip.x, pObjTip.y, ray2EndX, ray2EndY, "#f59e0b", 2);
+
+                // Virtual Trace
+                if (phys.isVirtual) {
+                    drawLine(rayHitLens.x, rayHitLens.y, pImgTip.x, pImgTip.y, "#f59e0b", 1, [4, 4]);
+                    drawLine(CENTER_X, CENTER_Y, pImgTip.x, pImgTip.y, "#f59e0b", 1, [4, 4]);
+                    if (state.lensType === 'concave') {
+                        const pF_Left = toCanvas(-state.fMagnitude, 0);
+                        drawLine(pF_Left.x, pF_Left.y, rayHitLens.x, rayHitLens.y, "#f59e0b", 1, [4, 4]);
+                    }
+                }
+            }
+        }
+
+        // --- UI Updates ---
+        function updateUI() {
+            const phys = calculatePhysics();
+
+            // Inputs
+            displays.u.textContent = `${state.objDist.toFixed(1)} cm`;
+            displays.f.textContent = `${state.fMagnitude.toFixed(1)} cm`;
+            displays.n.textContent = `n = ${state.n.toFixed(2)}`;
+
+            // Results
+            results.f.textContent = phys.f.toFixed(1);
+            
+            if (phys.isUndefined) {
+                results.v.textContent = "∞";
+                results.m.textContent = "∞";
+                results.v.className = "text-2xl font-bold text-gray-400";
+                results.overlay.classList.remove('hidden');
+                
+                results.natureCard.className = "p-3 rounded-lg border-l-4 flex flex-col justify-center items-center shadow-sm bg-gray-100 border-gray-400";
+                results.natureMain.textContent = "不成像";
+                results.natureMain.className = "font-bold text-lg text-gray-600";
+                results.natureSub.textContent = "";
+            } else {
+                results.overlay.classList.add('hidden');
+                results.v.textContent = phys.vCoord.toFixed(1);
+                results.m.textContent = Math.abs(phys.m).toFixed(2);
+                
+                // Color logic
+                if (phys.vCoord < 0) { // Virtual
+                   results.v.className = "text-2xl font-bold text-yellow-600";
+                   results.natureCard.className = "p-3 rounded-lg border-l-4 flex flex-col justify-center items-center shadow-sm bg-yellow-50 border-yellow-500";
+                   results.natureMain.textContent = "正立虛像";
+                   results.natureMain.className = "font-bold text-lg text-yellow-700";
+                } else { // Real
+                   results.v.className = "text-2xl font-bold text-green-600";
+                   results.natureCard.className = "p-3 rounded-lg border-l-4 flex flex-col justify-center items-center shadow-sm bg-green-50 border-green-500";
+                   results.natureMain.textContent = "倒立實像";
+                   results.natureMain.className = "font-bold text-lg text-green-700";
+                }
+
+                const magText = Math.abs(phys.m) > 1 ? "(放大)" : Math.abs(phys.m) < 1 ? "(縮小)" : "(等大)";
+                results.natureSub.textContent = magText;
+            }
+
+            // Button Styles
+            if (state.lensType === 'convex') {
+                buttons.convex.className = "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-white text-blue-600 shadow-sm";
+                buttons.concave.className = "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all text-gray-500 hover:bg-gray-200";
+            } else {
+                buttons.convex.className = "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all text-gray-500 hover:bg-gray-200";
+                buttons.concave.className = "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-white text-blue-600 shadow-sm";
+            }
+
+            draw();
+        }
+
+        // --- Event Listeners ---
+
+        // Inputs
+        inputs.u.addEventListener('input', (e) => {
+            state.objDist = parseFloat(e.target.value);
+            updateUI();
+        });
+
+        inputs.f.addEventListener('input', (e) => {
+            const newF = parseFloat(e.target.value);
+            state.fMagnitude = newF;
+            // Link to N logic
+            state.n = 1 + (CONFIG.LENS_R / (2 * newF));
+            inputs.n.value = state.n; // Sync slider
+            updateUI();
+        });
+
+        inputs.n.addEventListener('input', (e) => {
+            const newN = parseFloat(e.target.value);
+            state.n = newN;
+            // Link to F logic
+            const newF = CONFIG.LENS_R / (2 * (newN - 1));
+            state.fMagnitude = newF;
+            inputs.f.value = newF; // Sync slider
+            updateUI();
+        });
+
+        // Buttons
+        buttons.convex.addEventListener('click', () => {
+            state.lensType = 'convex';
+            updateUI();
+        });
+
+        buttons.concave.addEventListener('click', () => {
+            state.lensType = 'concave';
+            updateUI();
+        });
+
+        // --- Initialization & Resizing ---
+
+        function resizeCanvas() {
+            const containerWidth = container.clientWidth;
+            const scale = containerWidth / CONFIG.ORIGINAL_WIDTH;
+            const displayWidth = containerWidth;
+            const displayHeight = CONFIG.ORIGINAL_HEIGHT * scale;
+
+            canvas.style.width = `${displayWidth}px`;
+            canvas.style.height = `${displayHeight}px`;
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(displayWidth * dpr);
+            canvas.height = Math.floor(displayHeight * dpr);
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset
+            ctx.scale(dpr * scale, dpr * scale);
+            
+            draw();
+        }
+
+        // Init
+        window.addEventListener('resize', resizeCanvas);
+        lucide.createIcons();
+        resizeCanvas();
+        updateUI();
+
+    </script>
+</body>
+</html>

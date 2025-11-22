@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>愛因斯坦光電效應模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義滑桿樣式 */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- 標題列 -->
+    <header class="bg-blue-900 text-white p-4 shadow-md shrink-0 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold tracking-wider">物理實驗室：愛因斯坦光電效應</h1>
+            <div class="text-sm text-blue-200">Photoelectric Effect Simulator v1.2</div>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- 左側：模擬與控制 -->
+        <div class="w-full lg:w-7/12 flex flex-col p-4 overflow-y-auto border-r border-slate-200 scrollbar-hide">
+            
+            <!-- 模擬畫布 -->
+            <div class="mb-4 relative shadow-lg border-4 border-slate-700 rounded-lg bg-slate-900 shrink-0">
+                <canvas id="simCanvas" width="800" height="380" class="w-full h-auto"></canvas>
+                <!-- 儀表讀數覆蓋層 -->
+                <div class="absolute top-4 right-4 bg-black/80 text-green-400 font-mono p-2 rounded border border-green-600 text-sm shadow-lg">
+                    <div class="flex justify-between gap-4"><span>電流 (I):</span> <span id="ammeterValue">0.00</span> A</div>
+                    <div class="flex justify-between gap-4"><span>電壓 (V):</span> <span id="voltmeterValue">0.00</span> V</div>
+                </div>
+            </div>
+
+            <!-- 控制面板 -->
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 space-y-5">
+                
+                <!-- 金屬選擇 -->
+                <div class="flex items-center space-x-4 bg-slate-50 p-2 rounded border border-slate-200">
+                    <label class="font-bold w-24 text-slate-700">金屬靶材:</label>
+                    <select id="metalSelect" class="flex-1 p-1 bg-transparent font-medium text-slate-800 outline-none cursor-pointer">
+                        <option value="2.0">鉀 (Potassium) - Φ = 2.0 eV</option>
+                        <option value="2.3" selected>鈉 (Sodium) - Φ = 2.3 eV</option>
+                        <option value="4.3">鋅 (Zinc) - Φ = 4.3 eV</option>
+                        <option value="4.7">銅 (Copper) - Φ = 4.7 eV</option>
+                        <option value="6.35">鉑 (Platinum) - Φ = 6.35 eV</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 光強度 -->
+                    <div class="relative">
+                        <div class="flex justify-between mb-1">
+                            <label class="font-bold text-slate-700 text-sm">光強度 (Intensity)</label>
+                            <span id="intensityDisplay" class="text-blue-600 font-mono text-sm">50%</span>
+                        </div>
+                        <input type="range" id="intensitySlider" min="0" max="100" value="50" class="w-full">
+                    </div>
+
+                    <!-- 電壓 -->
+                    <div class="relative">
+                        <div class="flex justify-between mb-1">
+                            <label class="font-bold text-slate-700 text-sm">電壓 (Voltage)</label>
+                            <span id="voltageDisplay" class="text-blue-600 font-mono text-sm">0.0 V</span>
+                        </div>
+                        <input type="range" id="voltageSlider" min="-5" max="5" step="0.1" value="0" class="w-full">
+                        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                            <span>-5V (遏止)</span>
+                            <span>+5V (加速)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 頻率/波長 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 text-sm">光的頻率 / 顏色 (Frequency)</label>
+                        <div class="text-right">
+                            <span id="freqDisplay" class="text-blue-600 font-mono text-sm font-bold">650 THz</span>
+                            <span id="wavelengthDisplay" class="text-slate-400 text-xs">462 nm</span>
+                        </div>
+                    </div>
+                    <!-- 顏色漸層背景條 -->
+                    <div class="relative h-8 w-full rounded-md mb-1 shadow-inner overflow-hidden" style="background: linear-gradient(to right, #300 0%, #500 10%, #f00 20%, #ff0 35%, #0f0 50%, #00f 65%, #80f 80%, #306 90%, #103 100%);">
+                        <input type="range" id="freqSlider" min="300" max="1200" value="650" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-20">
+                        <!-- 指示器 -->
+                        <div id="freqThumb" class="absolute top-0 h-full w-1 bg-white border-x border-black/30 shadow z-10 transition-all duration-75" style="left: 38%;"></div>
+                        <!-- 閾值標記 (將由 JS 動態更新) -->
+                        <div id="thresholdMarker" class="absolute top-0 h-full border-l-2 border-white/50 z-0" style="left: 0%;">
+                            <span class="absolute -top-1 left-1 text-[10px] text-white/80 drop-shadow-md font-bold">f₀</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 px-1">
+                        <span>IR</span>
+                        <span>Visible</span>
+                        <span>UV</span>
+                    </div>
+                </div>
+
+                <!-- 能量計算資訊 -->
+                <div class="bg-indigo-50 p-3 rounded text-sm text-indigo-900 flex justify-between items-center border border-indigo-100 shadow-sm">
+                    <span>光子能量 (E = hf): <strong id="photonEnergy" class="font-mono text-indigo-700">2.69 eV</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>最大動能 (Kₘₐₓ): <strong id="kineticEnergy" class="font-mono text-indigo-700">0.39 eV</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：圖表分析 -->
+        <div class="w-full lg:w-5/12 bg-slate-50 p-4 overflow-y-auto flex flex-col gap-4 border-l border-slate-200">
+            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wide border-b pb-1">Real-time Data Analysis</h2>
+            
+            <!-- 圖表 1: 電流 vs 光度 -->
+            <div class="bg-white p-3 rounded shadow-sm border border-slate-200 relative group">
+                <h3 class="text-sm font-semibold text-center mb-2 text-slate-700">電流 (I) - 光度 (Intensity)</h3>
+                <canvas id="graphIntensity" width="400" height="180" class="w-full border border-slate-100 rounded bg-slate-50/50"></canvas>
+            </div>
+
+            <!-- 圖表 2: 電流 vs 電壓 -->
+            <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+                <h3 class="text-sm font-semibold text-center mb-2 text-slate-700">電流 (I) - 電壓 (V) <span class="text-xs font-normal text-slate-400 block">顯示截止電壓 Vs</span></h3>
+                <canvas id="graphVoltage" width="400" height="180" class="w-full border border-slate-100 rounded bg-slate-50/50"></canvas>
+            </div>
+
+            <!-- 圖表 3: 電流 vs 頻率 -->
+            <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+                <h3 class="text-sm font-semibold text-center mb-2 text-slate-700">電流 (I) - 頻率 (f) <span class="text-xs font-normal text-slate-400 block">顯示底限頻率 f₀</span></h3>
+                <canvas id="graphFrequency" width="400" height="180" class="w-full border border-slate-100 rounded bg-slate-50/50"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function() {
+        // --- 物理常數 ---
+        // Planck's constant in eV*s
+        // 1 THz = 10^12 Hz
+        // h = 4.1357e-15 eV*s
+        // h * 1THz = 4.1357e-3 eV
+        const H_THZ = 0.0041357; 
+        const C_LIGHT = 300000; // nm * THz approximate constant for display
+        
+        // 模擬狀態
+        const state = {
+            frequency: 650, // THz
+            intensity: 50,  // %
+            voltage: 0.0,   // Volts
+            workFunction: 2.3, // eV (Sodium)
+            photons: [],
+            electrons: []
+        };
+
+        // DOM 緩存
+        const els = {
+            canvas: document.getElementById('simCanvas'),
+            ctx: document.getElementById('simCanvas').getContext('2d'),
+            metalSelect: document.getElementById('metalSelect'),
+            intensitySlider: document.getElementById('intensitySlider'),
+            voltageSlider: document.getElementById('voltageSlider'),
+            freqSlider: document.getElementById('freqSlider'),
+            freqThumb: document.getElementById('freqThumb'),
+            thresholdMarker: document.getElementById('thresholdMarker'),
+            
+            display: {
+                intensity: document.getElementById('intensityDisplay'),
+                voltage: document.getElementById('voltageDisplay'),
+                freq: document.getElementById('freqDisplay'),
+                wavelength: document.getElementById('wavelengthDisplay'),
+                photonEnergy: document.getElementById('photonEnergy'),
+                kineticEnergy: document.getElementById('kineticEnergy'),
+                ammeter: document.getElementById('ammeterValue'),
+                voltmeter: document.getElementById('voltmeterValue')
+            },
+
+            graphs: {
+                intensity: document.getElementById('graphIntensity').getContext('2d'),
+                voltage: document.getElementById('graphVoltage').getContext('2d'),
+                frequency: document.getElementById('graphFrequency').getContext('2d')
+            }
+        };
+
+        function frequencyToColor(freqTHz) {
+            // 根據頻率返回 CSS 顏色 (近似光譜)
+            const nm = 300000 / freqTHz;
+            let r, g, b, alpha = 1;
+
+            if (freqTHz < 380) { r=50; g=0; b=0; alpha=0.3; } // IR
+            else if (freqTHz >= 380 && freqTHz < 440) { r=255; g=0; b=0; } // Red
+            else if (freqTHz >= 440 && freqTHz < 490) { r=255; g=165; b=0; } // Orange
+            else if (freqTHz >= 490 && freqTHz < 510) { r=255; g=255; b=0; } // Yellow
+            else if (freqTHz >= 510 && freqTHz < 580) { r=0; g=255; b=0; } // Green
+            else if (freqTHz >= 580 && freqTHz < 640) { r=0; g=255; b=255; } // Cyan
+            else if (freqTHz >= 640 && freqTHz < 750) { r=0; g=0; b=255; } // Blue
+            else if (freqTHz >= 750 && freqTHz < 850) { r=138; g=43; b=226; } // Violet
+            else { r=75; g=0; b=130; alpha=0.5; } // UV
+
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // 核心物理計算
+        function getPhysics(freq, voltage, workFunc) {
+            const photonEnergy = H_THZ * freq;
+            
+            // 只有當光子能量大於功函數時，才會有光電子
+            // Max Kinetic Energy Kmax = hf - Phi
+            let maxKinetic = photonEnergy - workFunc;
+            let hasEmission = true;
+
+            if (maxKinetic < 0) {
+                maxKinetic = 0;
+                hasEmission = false;
+            }
+
+            // 截止電壓 (Stopping Potential) Vs = Kmax / e
+            // 在電路圖中，這是反向電壓的大小。
+            // 如果外加電壓 V < -Vs，則電流為 0。
+            const stoppingPotential = -maxKinetic;
+
+            return {
+                photonEnergy,
+                maxKinetic,
+                stoppingPotential, // 負值，例如 -1.5V
+                hasEmission
+            };
+        }
+
+        function updateUI() {
+            const phys = getPhysics(state.frequency, state.voltage, state.workFunction);
+            
+            // 數值顯示
+            els.display.intensity.innerText = state.intensity + "%";
+            els.display.voltage.innerText = state.voltage.toFixed(1) + " V";
+            els.display.voltmeter.innerText = state.voltage.toFixed(2);
+            els.display.freq.innerText = state.frequency + " THz";
+            els.display.wavelength.innerText = (300000 / state.frequency).toFixed(0) + " nm";
+            els.display.photonEnergy.innerText = phys.photonEnergy.toFixed(2) + " eV";
+            els.display.kineticEnergy.innerText = phys.maxKinetic.toFixed(2) + " eV";
+
+            // 滑桿位置更新
+            const fMin = 300, fMax = 1200;
+            const pct = (state.frequency - fMin) / (fMax - fMin) * 100;
+            els.freqThumb.style.left = `${pct}%`;
+            els.freqThumb.style.backgroundColor = frequencyToColor(state.frequency);
+
+            // 更新閾值標記位置 f0 = Phi / h
+            const f0 = state.workFunction / H_THZ;
+            const f0Pct = Math.max(0, Math.min(100, (f0 - fMin) / (fMax - fMin) * 100));
+            els.thresholdMarker.style.left = `${f0Pct}%`;
+            els.thresholdMarker.title = `Threshold: ${f0.toFixed(0)} THz`;
+        }
+
+        // --- 模擬動畫 ---
+
+        function drawSimulation() {
+            const ctx = els.ctx;
+            const w = els.canvas.width;
+            const h = els.canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // 繪製電路背景
+            const cx = w / 2;
+            const cy = h / 2 - 20;
+            
+            // 真空管
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(255,255,255,0.1)";
+            ctx.lineWidth = 2;
+            ctx.arc(cx, cy, 90, 0, Math.PI*2);
+            ctx.stroke();
+
+            // 極板位置
+            const cathodeX = cx - 60;
+            const anodeX = cx + 60;
+            
+            // 陰極 (Target Metal)
+            ctx.fillStyle = state.workFunction < 2.5 ? "#e2e8f0" : (state.workFunction > 4.5 ? "#d97706" : "#94a3b8");
+            ctx.beginPath();
+            ctx.arc(cathodeX - 10, cy, 50, -0.6, 0.6);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.stroke();
+
+            // 陽極 (Collector)
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(anodeX, cy - 25, 4, 50);
+
+            // 導線
+            ctx.beginPath();
+            ctx.strokeStyle = "#475569";
+            ctx.lineWidth = 3;
+            // Cathode path
+            ctx.moveTo(cathodeX - 10, cy);
+            ctx.lineTo(cathodeX - 80, cy);
+            ctx.lineTo(cathodeX - 80, h - 40);
+            ctx.lineTo(cx - 30, h - 40); // Battery Left
+            // Anode path
+            ctx.moveTo(anodeX + 2, cy);
+            ctx.lineTo(anodeX + 80, cy);
+            ctx.lineTo(anodeX + 80, h - 40);
+            ctx.lineTo(cx + 30, h - 40); // Battery Right (Ammeter)
+            ctx.stroke();
+
+            // 電池符號
+            ctx.strokeStyle = state.voltage >= 0 ? "#22c55e" : "#ef4444";
+            ctx.lineWidth = 2;
+            const bx = cx - 15;
+            const by = h - 40;
+            // 簡單的電池極性顯示
+            ctx.font = "14px monospace";
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.textAlign = "center";
+            ctx.fillText(state.voltage >= 0 ? "+  -" : "-  +", bx, by - 10);
+            ctx.strokeRect(bx - 15, by - 5, 30, 10); // Battery box representation
+
+            // 安培計
+            const ax = cx + 45;
+            const ay = h - 40;
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath(); ctx.arc(ax, ay, 15, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#94a3b8"; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "10px Arial"; ctx.fillText("A", ax, ay + 3);
+
+            // 光源
+            const lx = cathodeX - 100;
+            const ly = cy - 80;
+            ctx.save();
+            ctx.translate(lx, ly);
+            ctx.rotate(0.4);
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(0, -10, 30, 20);
+            ctx.fillStyle = frequencyToColor(state.frequency);
+            ctx.beginPath();
+            ctx.moveTo(30, -10); ctx.lineTo(40, -20); ctx.lineTo(40, 20); ctx.lineTo(30, 10);
+            ctx.fill();
+            ctx.restore();
+
+            return { cathodeX, anodeX, cy, lx: lx+20, ly: ly+20 };
+        }
+
+        function updateParticles(positions) {
+            const phys = getPhysics(state.frequency, state.voltage, state.workFunction);
+            const ctx = els.ctx;
+
+            // 1. 生成光子
+            if (Math.random() * 100 < state.intensity) {
+                state.photons.push({
+                    x: positions.lx,
+                    y: positions.ly,
+                    vx: 6,
+                    vy: 2.5,
+                    color: frequencyToColor(state.frequency)
+                });
+            }
+
+            // 2. 更新光子
+            for (let i = state.photons.length - 1; i >= 0; i--) {
+                const p = state.photons[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); ctx.fill();
+
+                // 撞擊判定
+                const dx = p.x - (positions.cathodeX);
+                const dy = p.y - positions.cy;
+                if (dx*dx + dy*dy < 1500) { // Hit cathode area
+                    state.photons.splice(i, 1);
+                    // 根據物理條件生成電子
+                    if (phys.hasEmission) {
+                        // 速度與 Kmax 有關
+                        const speed = Math.sqrt(phys.maxKinetic) * 3;
+                        state.electrons.push({
+                            x: p.x, 
+                            y: p.y,
+                            vx: speed * (0.5 + Math.random()), 
+                            vy: (Math.random() - 0.5) * speed,
+                            dead: false
+                        });
+                    }
+                } else if (p.x > 800 || p.y > 400) {
+                    state.photons.splice(i, 1);
+                }
+            }
+
+            // 3. 更新電子
+            let currentCount = 0;
+            for (let i = state.electrons.length - 1; i >= 0; i--) {
+                const e = state.electrons[i];
+                
+                // 電場效應 F = qE
+                // 簡化：ax 正比於 Voltage
+                e.vx += state.voltage * 0.15; 
+                
+                e.x += e.vx;
+                e.y += e.vy;
+
+                ctx.fillStyle = "#60a5fa";
+                ctx.beginPath(); ctx.arc(e.x, e.y, 2, 0, Math.PI*2); ctx.fill();
+
+                // 邊界判定
+                if (e.x > positions.anodeX && Math.abs(e.y - positions.cy) < 40) {
+                    // Reached anode
+                    currentCount++;
+                    state.electrons.splice(i, 1);
+                } else if (e.x < positions.cathodeX - 50 || e.x > 800 || e.y < 0 || e.y > 400) {
+                    // Missed or pushed back
+                    state.electrons.splice(i, 1);
+                }
+            }
+            
+            // 計算顯示電流 (模擬平滑值)
+            // 1. 理論電流計算 (用於圖表和儀表顯示，較為穩定)
+            let iCalc = 0;
+            if (phys.hasEmission) {
+                if (state.voltage >= 0) {
+                    iCalc = state.intensity;
+                } else if (state.voltage < phys.stoppingPotential) {
+                    iCalc = 0;
+                } else {
+                    // 遏止區間曲線
+                    const range = 0 - phys.stoppingPotential;
+                    const dist = state.voltage - phys.stoppingPotential;
+                    iCalc = state.intensity * Math.sqrt(dist / range);
+                }
+            }
+            
+            // 儀表顯示 (模擬值)
+            els.display.ammeter.innerText = (iCalc / 10).toFixed(2);
+            return iCalc;
+        }
+
+        function loop() {
+            const positions = drawSimulation();
+            updateParticles(positions);
+            updateUI();
+            requestAnimationFrame(loop);
+        }
+
+        // --- 圖表繪製 ---
+        
+        function drawGrid(ctx, w, h, labelX, labelY) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 1;
+            
+            // Axes
+            ctx.beginPath();
+            ctx.moveTo(40, 10); ctx.lineTo(40, h-25); ctx.lineTo(w-10, h-25);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = "#64748b";
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(labelX, w/2 + 20, h-5);
+            
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(labelY, 0, 0);
+            ctx.restore();
+
+            return { x0: 40, y0: h-25, gw: w-50, gh: h-35 };
+        }
+
+        function drawPoint(ctx, x, y, color="#ef4444") {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+        }
+
+        function updateGraphs() {
+            const currentPhys = getPhysics(state.frequency, state.voltage, state.workFunction);
+            const currentI = parseFloat(els.display.ammeter.innerText) * 10; // Back to 0-100 scale
+
+            // 1. Intensity vs Current
+            {
+                const ctx = els.graphs.intensity;
+                const {x0, y0, gw, gh} = drawGrid(ctx, 400, 180, "Intensity (%)", "Current (I)");
+                
+                // 理論線
+                ctx.strokeStyle = "#3b82f6";
+                ctx.beginPath();
+                // 如果當前電壓足以讓電流通過 (V > -Vs) 且 頻率 > f0
+                const isConducting = currentPhys.hasEmission && (state.voltage > currentPhys.stoppingPotential);
+                
+                if (isConducting) {
+                    // Linear relation
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x0 + gw, y0 - gh); 
+                } else {
+                    // Zero current
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x0 + gw, y0);
+                }
+                ctx.stroke();
+
+                // Current Point
+                const px = x0 + (state.intensity / 100) * gw;
+                const py = y0 - (currentI / 100) * gh;
+                drawPoint(ctx, px, py);
+            }
+
+            // 2. Voltage vs Current (I-V Curve)
+            {
+                const ctx = els.graphs.voltage;
+                const {x0, y0, gw, gh} = drawGrid(ctx, 400, 180, "Voltage (V)", "Current (I)");
+                
+                // X-axis range: -5V to +5V
+                // Zero V is at x0 + gw/2
+                const zeroX = x0 + gw/2;
+                
+                ctx.strokeStyle = "#3b82f6";
+                ctx.beginPath();
+
+                const Vs = currentPhys.stoppingPotential; // negative value, e.g. -1.2
+                
+                // Plot curve
+                for (let i = 0; i <= gw; i++) {
+                    const vVal = ((i / gw) * 10) - 5; // Map pixel to -5..+5 V
+                    let iVal = 0;
+
+                    if (currentPhys.hasEmission) {
+                        if (vVal > 0) {
+                            iVal = state.intensity; // Saturation
+                        } else if (vVal < Vs) {
+                            iVal = 0; // Cutoff
+                        } else {
+                            // Transition: sqrt((V - Vs) / -Vs)
+                            // V goes from Vs to 0
+                            const ratio = (vVal - Vs) / (0 - Vs);
+                            iVal = state.intensity * Math.sqrt(ratio);
+                        }
+                    }
+
+                    const py = y0 - (iVal / 100) * gh;
+                    if (i===0) ctx.moveTo(x0+i, py); else ctx.lineTo(x0+i, py);
+                }
+                ctx.stroke();
+
+                // Draw Vs marker if visible
+                if (currentPhys.hasEmission && Vs > -5) {
+                    const vsPx = x0 + ((Vs + 5) / 10) * gw;
+                    ctx.fillStyle = "#059669";
+                    ctx.fillRect(vsPx, y0 - 5, 2, 5);
+                    ctx.fillText("Vs", vsPx, y0 - 8);
+                }
+
+                // Current Point
+                const currVPx = x0 + ((state.voltage + 5) / 10) * gw;
+                const currIPy = y0 - (currentI / 100) * gh;
+                drawPoint(ctx, currVPx, currIPy);
+            }
+
+            // 3. Frequency vs Current
+            {
+                const ctx = els.graphs.frequency;
+                const {x0, y0, gw, gh} = drawGrid(ctx, 400, 180, "Frequency (THz)", "Current (I)");
+                
+                const fMin = 300, fMax = 1200;
+                const f0 = state.workFunction / H_THZ;
+
+                ctx.strokeStyle = "#3b82f6";
+                ctx.beginPath();
+
+                for (let i = 0; i <= gw; i++) {
+                    const fVal = fMin + (i/gw) * (fMax - fMin);
+                    let iVal = 0;
+                    
+                    // Condition: f > f0 AND V > -Vs(f)
+                    // Vs(f) = -(hf - Phi)
+                    if (fVal > f0) {
+                        const kMaxLocal = (H_THZ * fVal) - state.workFunction;
+                        const vsLocal = -kMaxLocal;
+                        
+                        // If applied voltage is greater than stopping potential for this freq
+                        if (state.voltage >= vsLocal) {
+                            iVal = state.intensity; // Constant current model
+                        }
+                    }
+
+                    const py = y0 - (iVal / 100) * gh;
+                    if (i===0) ctx.moveTo(x0+i, py); else ctx.lineTo(x0+i, py);
+                }
+                ctx.stroke();
+
+                // Mark f0
+                if (f0 > fMin && f0 < fMax) {
+                    const f0Px = x0 + ((f0 - fMin)/(fMax - fMin)) * gw;
+                    ctx.fillStyle = "#059669";
+                    ctx.fillRect(f0Px, y0, 2, -gh); // Vertical line
+                    ctx.fillText("f₀", f0Px + 8, y0 - gh + 10);
+                }
+
+                // Current Point
+                const currFPx = x0 + ((state.frequency - fMin) / (fMax - fMin)) * gw;
+                const currIPy = y0 - (currentI / 100) * gh;
+                drawPoint(ctx, currFPx, currIPy);
+            }
+
+            requestAnimationFrame(updateGraphs);
+        }
+
+        // --- 交互 ---
+        els.metalSelect.addEventListener('change', e => state.workFunction = parseFloat(e.target.value));
+        els.intensitySlider.addEventListener('input', e => state.intensity = parseInt(e.target.value));
+        els.voltageSlider.addEventListener('input', e => state.voltage = parseFloat(e.target.value));
+        els.freqSlider.addEventListener('input', e => state.frequency = parseInt(e.target.value));
+
+        // Start
+        loop();
+        updateGraphs();
+    })();
+    </script>
+</body>
+</html>

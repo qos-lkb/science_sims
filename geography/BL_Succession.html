@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地理科互動教學：植物演替過程</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts: Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* 淡入動畫 */
+        .fade-in-up {
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 圖片切換過渡 */
+        .image-transition {
+            transition: opacity 0.4s ease-in-out, transform 6s ease;
+        }
+        
+        /* 玻璃擬態效果 */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 進度條過渡 */
+        .progress-bar {
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-slate-700 min-h-screen flex flex-col">
+
+    <!-- 頂部導航 -->
+    <header class="bg-emerald-800 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm">
+                    🌿
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide">植物演替 (Succession)</h1>
+                    <p class="text-emerald-200 text-xs hidden md:block">地理科 DSE 課題：由原生演替至頂級群落</p>
+                </div>
+            </div>
+            <div class="text-xs bg-emerald-900/50 px-3 py-1 rounded border border-emerald-700/50">
+                原生演替 (Primary)
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
+        
+        <!-- 背景裝飾 -->
+        <div class="absolute top-0 left-0 w-full h-64 bg-emerald-800 -z-10"></div>
+        <div class="absolute bottom-0 right-0 w-64 h-64 bg-stone-200 rounded-full blur-3xl -z-10 opacity-50"></div>
+
+        <div class="max-w-5xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-stone-200 flex flex-col md:flex-row min-h-[600px]">
+            
+            <!-- 左側：圖片展示區 -->
+            <div class="md:w-1/2 relative bg-stone-900 overflow-hidden group h-64 md:h-auto">
+                <img id="stage-image" src="" alt="Ecological Stage" class="w-full h-full object-cover image-transition opacity-0 scale-110">
+                
+                <!-- 圖片遮罩與標籤 -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                
+                <div class="absolute bottom-6 left-6 text-white z-10">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="stage-badge" class="bg-emerald-500 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
+                            階段 1
+                        </span>
+                    </div>
+                    <h2 id="image-caption" class="text-2xl font-bold text-shadow">裸露岩石</h2>
+                </div>
+                
+                <!-- 放大提示 -->
+                <div class="absolute top-4 right-4 bg-black/30 p-2 rounded-full text-white/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- 右側：資訊與控制區 -->
+            <div class="md:w-1/2 p-6 md:p-10 flex flex-col relative">
+                
+                <!-- 進度指示器 -->
+                <div class="mb-8">
+                    <div class="flex justify-between text-xs font-medium text-stone-400 mb-2">
+                        <span>演替進度</span>
+                        <span><span id="current-step-display">1</span> / 6</span>
+                    </div>
+                    <div class="h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-emerald-600 progress-bar rounded-full relative overflow-hidden" style="width: 0%">
+                            <div class="absolute inset-0 bg-white/20 w-full h-full animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 內容卡片容器 -->
+                <div id="content-container" class="flex-grow space-y-6 fade-in-up">
+                    
+                    <!-- 標題 (手機版隱藏，因為已在圖片上顯示) -->
+                    <h2 id="content-title" class="text-3xl font-bold text-stone-800 hidden md:block"></h2>
+
+                    <!-- 環境特徵卡片 -->
+                    <div class="group">
+                        <div class="flex items-center gap-2 mb-2 text-amber-600 font-bold text-sm uppercase tracking-wide">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                            非生物環境特徵 (Abiotic)
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 group-hover:border-amber-200 transition-colors">
+                            <p id="env-text" class="text-stone-700 leading-relaxed text-sm md:text-base"></p>
+                        </div>
+                    </div>
+
+                    <!-- 植被特徵卡片 -->
+                    <div class="group">
+                        <div class="flex items-center gap-2 mb-2 text-emerald-600 font-bold text-sm uppercase tracking-wide">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg>
+                            主要植被 (Biotic)
+                        </div>
+                        <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:border-emerald-200 transition-colors">
+                            <p id="veg-text" class="text-stone-700 leading-relaxed text-sm md:text-base"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 控制按鈕區 -->
+                <div class="mt-8 pt-6 border-t border-stone-100 flex justify-between items-center">
+                    <button id="prev-btn" onclick="changeSlide(-1)" class="flex items-center gap-2 px-4 py-3 rounded-xl text-stone-500 hover:bg-stone-100 hover:text-stone-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                        <span class="hidden md:inline">上一步</span>
+                    </button>
+                    
+                    <!-- 老師提示按鈕 (懸浮觸發) -->
+                    <div class="group relative">
+                        <div class="cursor-help text-amber-500 bg-amber-100 p-2 rounded-full hover:bg-amber-200 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                        </div>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-64 bg-stone-800 text-white text-xs p-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                            <strong>地理小知識：</strong><br>
+                            留意土壤厚度的增加。這是一個「正反饋循環」(Positive Feedback)：植物死後分解增加土壤腐殖質，更肥沃的土壤支持更大的植物，更大的植物提供更多有機物。
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-stone-800 rotate-45"></div>
+                        </div>
+                    </div>
+
+                    <button id="next-btn" onclick="changeSlide(1)" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-700/30 hover:shadow-emerald-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all transform active:scale-95 font-medium">
+                        <span class="hidden md:inline">下一步</span>
+                        <span class="md:hidden">下一階段</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 資料庫：演替階段
+        const stages = [
+            {
+                id: 1,
+                title: "裸露岩石 (Bare Rock)",
+                env: "這是演替的起點。環境極端惡劣，缺乏土壤，表面溫度日夜溫差極大。風化作用（物理和化學）正在緩慢進行，水分難以保留，幾乎沒有養分。",
+                veg: "無。此階段幾乎沒有生命能在此存活，被稱為「無生命地帶」。",
+                // Unsplash ID: Rocky mountain
+                img: "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            },
+            {
+                id: 2,
+                title: "先鋒群落 (Pioneer Community)",
+                env: "微量的原始土壤開始在岩石縫隙中形成。岩石表面受酸性物質侵蝕，開始崩解。水分保持能力依然很低。",
+                veg: "**地衣 (Lichens)** 和 **苔蘚 (Mosses)** 出現。它們是「先鋒物種」，能忍受極端環境，並分泌酸性物質加速岩石風化。死後分解形成第一層腐殖質。",
+                // Unsplash ID: Lichen on rock
+                img: "https://images.unsplash.com/photo-1625239527816-d80e13157086?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            },
+            {
+                id: 3,
+                title: "草本植物階段 (Grassy Stage)",
+                env: "薄層土壤形成，腐殖質含量增加，保水能力稍為提升。昆蟲和微生物活動開始變得頻繁。",
+                veg: "**蕨類 (Ferns)** 和 **草本植物 (Grasses)** 進駐。這些植物的根系能進一步抓緊並物理性分解岩石。由於它們生長週期短，死後能提供大量有機物。",
+                // Unsplash ID: Grass field
+                img: "https://images.unsplash.com/photo-1533460004989-e6b9275fd2b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            },
+            {
+                id: 4,
+                title: "灌木階段 (Shrub Stage)",
+                env: "土壤層變厚且肥沃，能儲存足夠水分。地面開始出現遮蔭，改變了微氣候，減少地表水分蒸發，風速減低。",
+                veg: "**灌木 (Shrubs)** 和木本植物幼苗出現。較高大的灌木開始遮擋陽光，令喜光的草本植物（如野草）因光照不足而逐漸減少。",
+                // Unsplash ID: Shrubland
+                img: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            },
+            {
+                id: 5,
+                title: "幼樹林 (Young Woodland)",
+                env: "土壤深厚，營養豐富且呈酸性（視乎樹種）。樹冠層開始形成，地面變得陰暗潮濕。",
+                veg: "**陽性樹種** (如松樹、白樺) 迅速生長。它們生長速度快，迅速佔據空間，與灌木競爭陽光和養分，逐漸取代灌木的優勢地位。",
+                // Unsplash ID: Pine forest
+                img: "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            },
+            {
+                id: 6,
+                title: "頂級群落 (Climax Community)",
+                env: "生態系統達到動態平衡 (Dynamic Equilibrium)。土壤結構複雜成熟。物種多樣性最高。",
+                veg: "**硬木樹種** (如橡樹、樟樹) 成為優勢物種。形成了層次分明的森林結構（喬木層、灌木層、地被層）。除非有大型干擾（如山火），否則群落結構將保持穩定。",
+                // Unsplash ID: Ancient forest
+                img: "https://images.unsplash.com/photo-1511497584788-876760111969?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+            }
+        ];
+
+        // 狀態變數
+        let currentIndex = 0;
+
+        // DOM 元素緩存
+        const elements = {
+            img: document.getElementById('stage-image'),
+            title: document.getElementById('content-title'),
+            caption: document.getElementById('image-caption'),
+            badge: document.getElementById('stage-badge'),
+            env: document.getElementById('env-text'),
+            veg: document.getElementById('veg-text'),
+            progress: document.getElementById('progress-bar'),
+            stepDisplay: document.getElementById('current-step-display'),
+            prevBtn: document.getElementById('prev-btn'),
+            nextBtn: document.getElementById('next-btn'),
+            container: document.getElementById('content-container')
+        };
+
+        // 初始化
+        function init() {
+            render(0);
+        }
+
+        // 渲染函數
+        function render(index) {
+            const data = stages[index];
+            
+            // 1. 圖片處理 (先淡出再切換)
+            elements.img.style.opacity = "0";
+            elements.img.style.transform = "scale(1.1)"; // 重置縮放
+            
+            setTimeout(() => {
+                elements.img.src = data.img;
+                elements.img.onload = () => {
+                    elements.img.style.opacity = "1";
+                    elements.img.style.transform = "scale(1.0)"; // 緩慢縮放效果
+                };
+            }, 400);
+
+            // 2. 文字內容動畫 (重置動畫 Class)
+            elements.container.classList.remove('fade-in-up');
+            void elements.container.offsetWidth; // 強制 Reflow
+            elements.container.classList.add('fade-in-up');
+
+            // 3. 更新文字
+            elements.title.textContent = data.title;
+            elements.caption.textContent = data.title.split(' ')[0]; // 簡短標題給圖片
+            elements.env.innerHTML = highlightKeywords(data.env);
+            elements.veg.innerHTML = highlightKeywords(data.veg);
+            elements.badge.textContent = `階段 ${data.id}`;
+            elements.stepDisplay.textContent = data.id;
+
+            // 4. 更新進度條
+            const progress = ((index + 1) / stages.length) * 100;
+            elements.progress.style.width = `${progress}%`;
+
+            // 5. 更新按鈕狀態
+            elements.prevBtn.disabled = index === 0;
+            elements.nextBtn.disabled = index === stages.length - 1;
+            
+            // 如果是最後一步，按鈕變色提示完成
+            if (index === stages.length - 1) {
+                elements.nextBtn.innerHTML = `
+                    <span class="hidden md:inline">演替完成</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                `;
+                elements.nextBtn.classList.add('bg-stone-700', 'hover:bg-stone-800');
+                elements.nextBtn.classList.remove('bg-emerald-700', 'hover:bg-emerald-600');
+            } else {
+                elements.nextBtn.innerHTML = `
+                    <span class="hidden md:inline">下一步</span>
+                    <span class="md:hidden">下一階段</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                `;
+                elements.nextBtn.classList.remove('bg-stone-700', 'hover:bg-stone-800');
+                elements.nextBtn.classList.add('bg-emerald-700', 'hover:bg-emerald-600');
+            }
+        }
+
+        // 切換控制
+        function changeSlide(direction) {
+            const newIndex = currentIndex + direction;
+            if (newIndex >= 0 && newIndex < stages.length) {
+                currentIndex = newIndex;
+                render(currentIndex);
+            }
+        }
+
+        // 輔助功能：高亮關鍵字
+        function highlightKeywords(text) {
+            // 將 Markdown 風格的 **text** 轉換為 HTML 高亮
+            return text.replace(/\*\*(.*?)\*\*/g, '<span class="font-bold text-emerald-700 bg-emerald-50 px-1 rounded">$1</span>');
+        }
+
+        // 啟動
+        init();
+
+        // 鍵盤導航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') changeSlide(1);
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+        });
+
+    </script>
+</body>
+</html>

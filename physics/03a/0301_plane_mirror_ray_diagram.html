@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>物理教學：平面鏡反射光線圖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 防止在 iPad 上拖動時選取文字或滾動頁面 */
+        body {
+            overscroll-behavior: none;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-3 shadow-md z-10 shrink-0">
+        <div class="max-w-7xl mx-auto flex flex-wrap gap-3 justify-between items-center">
+            <h1 class="text-lg md:text-xl font-bold flex items-center gap-2 whitespace-nowrap">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                物理教室：平面鏡反射
+            </h1>
+            
+            <div class="flex flex-wrap items-center gap-2 md:gap-4">
+                <label class="flex items-center gap-2 cursor-pointer bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded border border-blue-500 transition select-none">
+                    <input type="checkbox" id="toggleDistances" class="w-4 h-4 text-blue-300 rounded focus:ring-blue-500 cursor-pointer">
+                    <span class="text-xs md:text-sm font-bold">顯示物距/像距</span>
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded border border-blue-500 transition select-none">
+                    <input type="checkbox" id="toggleAngles" class="w-4 h-4 text-blue-300 rounded focus:ring-blue-500 cursor-pointer">
+                    <span class="text-xs md:text-sm font-bold">顯示法線/角度</span>
+                </label>
+
+                <button onclick="resetSimulation()" class="bg-blue-500 hover:bg-blue-700 text-white text-xs md:text-sm font-bold py-2 px-4 rounded border border-blue-400 transition whitespace-nowrap">
+                    重置位置
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Canvas Container -->
+    <main class="flex-grow relative w-full h-full bg-white cursor-crosshair" id="canvas-container">
+        <canvas id="simCanvas" class="block w-full h-full"></canvas>
+        
+        <!-- Floating Instructions -->
+        <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg border-l-4 border-yellow-500 max-w-xs pointer-events-none select-none">
+            <h3 class="font-bold text-gray-700 mb-1">操作說明：</h3>
+            <ul class="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                <li>拖動 <span class="font-bold text-red-600">紅色箭咀</span> 改變物體位置。</li>
+                <li>拖動 <span class="font-bold text-blue-600">眼睛</span> 改變觀察角度。</li>
+                <li>勾選上方選項顯示輔助線。</li>
+            </ul>
+        </div>
+
+        <!-- Image Properties Panel -->
+        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg border-r-4 border-blue-600 max-w-xs pointer-events-none select-none hidden md:block">
+            <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1">平面鏡成像性質：</h3>
+            <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside font-medium">
+                <li><span class="font-bold text-red-500">虛像</span> (Virtual)</li>
+                <li><span class="font-bold text-blue-600">正立</span> (Erect)</li>
+                <li><span class="font-bold">大小相等</span> (Same size)</li>
+                <li><span class="font-bold">橫向倒置</span> (Laterally inverted)</li>
+                <li><span class="font-bold">像距 = 物距</span></li>
+                <li>影像形成在平面鏡後</li>
+            </ol>
+        </div>
+
+        <!-- Legend -->
+        <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow border border-gray-200 text-xs md:text-sm pointer-events-none">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="w-6 h-0.5 bg-green-600"></span> <span>來自頂部的光線</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-6 h-0.5 bg-purple-600"></span> <span>來自底部的光線</span>
+            </div>
+            <div class="mt-2 pt-2 border-t border-gray-200 text-gray-500">
+                實線 = 真實光線<br>虛線 = 虛擬延伸線
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Configuration & State ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let mirrorX;
+        
+        // Physics State
+        const state = {
+            obj: { x: 0, y: 0, w: 40, h: 160, dragging: false },
+            eye: { x: 0, y: 0, radius: 20, dragging: false },
+            showDistances: false,
+            showAngles: false,
+            dragOffset: { x: 0, y: 0 }
+        };
+
+        // Grid Config
+        const gridSize = 40;
+
+        // --- Initialization ---
+        function resize() {
+            width = canvas.parentElement.clientWidth;
+            height = canvas.parentElement.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            
+            mirrorX = width / 2;
+            
+            // Re-clamp positions if screen resizes
+            if(state.obj.x > mirrorX - 20) state.obj.x = mirrorX - 100;
+            if(state.eye.x > mirrorX - 20) state.eye.x = mirrorX - 200;
+            
+            draw();
+        }
+
+        function init() {
+            width = canvas.parentElement.clientWidth;
+            height = canvas.parentElement.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            mirrorX = width / 2;
+            
+            // Listener for checkboxes
+            document.getElementById('toggleDistances').addEventListener('change', (e) => {
+                state.showDistances = e.target.checked;
+                draw();
+            });
+
+            document.getElementById('toggleAngles').addEventListener('change', (e) => {
+                state.showAngles = e.target.checked;
+                draw();
+            });
+
+            resetSimulation();
+            
+            window.addEventListener('resize', resize);
+            setupInteractions();
+            requestAnimationFrame(loop);
+        }
+
+        function resetSimulation() {
+            mirrorX = width / 2;
+            // Default positions
+            state.obj.x = mirrorX - 150;
+            state.obj.y = height / 2 + 50; // Base of arrow
+            state.eye.x = mirrorX - 250;
+            state.eye.y = height / 2 - 100;
+            draw();
+        }
+
+        // --- Drawing Functions ---
+
+        function drawGrid() {
+            ctx.beginPath();
+            ctx.strokeStyle = '#e5e7eb'; // tailwind gray-200
+            ctx.lineWidth = 1;
+
+            // Vertical lines
+            for (let x = mirrorX; x < width; x += gridSize) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, height);
+            }
+            for (let x = mirrorX; x > 0; x -= gridSize) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, height);
+            }
+
+            // Horizontal lines
+            const centerY = height / 2;
+            for (let y = centerY; y < height; y += gridSize) {
+                ctx.moveTo(0, y); ctx.lineTo(width, y);
+            }
+            for (let y = centerY; y > 0; y -= gridSize) {
+                ctx.moveTo(0, y); ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawMirror() {
+            ctx.beginPath();
+            ctx.strokeStyle = '#3b82f6'; // Blue-500
+            ctx.lineWidth = 4;
+            ctx.moveTo(mirrorX, 50);
+            ctx.lineTo(mirrorX, height - 50);
+            ctx.stroke();
+
+            // Draw hash marks on the back (right side)
+            ctx.beginPath();
+            ctx.strokeStyle = '#9ca3af'; // Gray-400
+            ctx.lineWidth = 1;
+            for (let y = 60; y < height - 50; y += 15) {
+                ctx.moveTo(mirrorX, y);
+                ctx.lineTo(mirrorX + 10, y + 10);
+            }
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#1f2937';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("平面鏡", mirrorX, 40);
+        }
+
+        function drawDistances() {
+            // Calculate distances
+            // Scale: 1 grid (40px) = 10 mm
+            const pixelDist = mirrorX - state.obj.x;
+            const mmDist = Math.round((pixelDist / gridSize) * 10); // Convert px to mm
+            
+            const imageX = mirrorX + pixelDist;
+            
+            // Position markers near the bottom of the mirror
+            const yPos = height - 120; 
+
+            ctx.save();
+            ctx.strokeStyle = '#4b5563'; // gray-600
+            ctx.fillStyle = '#4b5563'; // Fill for arrows
+            ctx.lineWidth = 2;
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+
+            // Helper to draw dimension line with arrows <--->
+            function drawDimensionArrow(x1, x2, y) {
+                // Main line
+                ctx.beginPath();
+                ctx.moveTo(x1, y);
+                ctx.lineTo(x2, y);
+                ctx.stroke();
+
+                // Arrow at Left (x1)
+                ctx.beginPath();
+                ctx.moveTo(x1, y);
+                ctx.lineTo(x1 + 8, y - 4);
+                ctx.lineTo(x1 + 8, y + 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Arrow at Right (x2)
+                ctx.beginPath();
+                ctx.moveTo(x2, y);
+                ctx.lineTo(x2 - 8, y - 4);
+                ctx.lineTo(x2 - 8, y + 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Vertical ticks
+                ctx.beginPath();
+                ctx.moveTo(x1, y - 8); ctx.lineTo(x1, y + 8);
+                ctx.moveTo(x2, y - 8); ctx.lineTo(x2, y + 8);
+                ctx.stroke();
+            }
+
+            // --- Object Distance ---
+            drawDimensionArrow(state.obj.x, mirrorX, yPos);
+
+            // Text
+            const objLabelX = (state.obj.x + mirrorX) / 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.8)'; // background for text
+            ctx.fillRect(objLabelX - 50, yPos - 20, 100, 16); // slightly wider background
+            ctx.fillStyle = '#dc2626'; // Red color for object text
+            ctx.fillText(`物距: ${mmDist} mm`, objLabelX, yPos - 8);
+
+
+            // --- Image Distance ---
+            // Reset fill style for arrows
+            ctx.fillStyle = '#4b5563'; 
+            drawDimensionArrow(mirrorX, imageX, yPos);
+
+            // Text
+            const imgLabelX = (mirrorX + imageX) / 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.fillRect(imgLabelX - 50, yPos - 20, 100, 16);
+            ctx.fillStyle = '#dc2626'; // Red color for image text (virtual image logic)
+            ctx.fillText(`像距: ${mmDist} mm`, imgLabelX, yPos - 8);
+
+            ctx.restore();
+        }
+
+        function drawArrow(x, y, height, color, isDashed, label) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 5;
+            if (isDashed) {
+                ctx.setLineDash([8, 8]);
+            }
+
+            // Main shaft (drawing from bottom up)
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - height);
+            ctx.stroke();
+
+            // Arrow Head (放大兩倍)
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(x, y - height);
+            ctx.lineTo(x - 16, y - height + 30);
+            ctx.lineTo(x + 16, y - height + 30);
+            ctx.closePath();
+            ctx.fill();
+
+            // Label
+            if (label) {
+                ctx.fillStyle = color;
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, x, y + 30);
+            }
+            ctx.restore();
+        }
+
+        function drawEye(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // 放大倍率
+            const s = 4.0;
+
+            // Make eye look towards the mirror (right)
+            // Sclera
+            ctx.beginPath();
+            ctx.strokeStyle = '#2563eb'; // Blue-600
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'white';
+            // Eye shape
+            ctx.moveTo(-15 * s, 0);
+            ctx.quadraticCurveTo(0, -12 * s, 15 * s, 0);
+            ctx.quadraticCurveTo(0, 12 * s, -15 * s, 0);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pupil (Lens area)
+            ctx.beginPath();
+            ctx.fillStyle = '#1e40af';
+            // Pupil slightly to the right to look at mirror
+            ctx.ellipse(5 * s, 0, 3 * s, 6 * s, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = '#1e40af';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("眼睛", 0, 35);
+
+            ctx.restore();
+        }
+
+        // Helper to draw a ray with an arrow in the middle
+        function drawRayLine(x1, y1, x2, y2, color, type) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            
+            if (type === 'virtual') {
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = 0.4;
+            } else {
+                ctx.globalAlpha = 0.8;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Draw direction arrow in the middle of the segment
+            if (type !== 'virtual') {
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                
+                ctx.translate(midX, midY);
+                ctx.rotate(angle);
+                
+                ctx.beginPath();
+                ctx.fillStyle = color;
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-6, -3);
+                ctx.lineTo(-6, 3);
+                ctx.fill();
+                
+                // Reset transform
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
+            
+            ctx.restore();
+        }
+
+        // Helper to draw normal and angles
+        function drawNormalAndAngles(intersectY, sourcePt, targetPt) {
+            // 1. Draw Normal (Horizontal dashed line)
+            // It is horizontal because mirror is vertical
+            ctx.save();
+            ctx.strokeStyle = '#000000';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(mirrorX, intersectY);
+            ctx.lineTo(mirrorX - 100, intersectY); // Draw normal to the left
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Label "Normal"
+            ctx.fillStyle = 'black';
+            ctx.font = '12px sans-serif';
+            ctx.fillText("法線", mirrorX - 105, intersectY + 4);
+
+            // 2. Calculate Angles
+            // Angle is formed with the Normal (horizontal, pointing left = PI)
+            // We need angle of Incident Ray vector (Intersection -> Object) relative to Normal
+            // And Reflected Ray vector (Intersection -> Eye) relative to Normal (wait, reflected is to right)
+            // Standard physics: Normal is perpendicular to surface. 
+            // Let's use absolute slope angles.
+
+            // Normal Vector is (-1, 0)
+            
+            // Incident Ray Vector (Intersection -> Source)
+            const incDx = sourcePt.x - mirrorX;
+            const incDy = sourcePt.y - intersectY;
+            const incAngleRad = Math.atan2(incDy, incDx); // This is angle from Intersection pointing to Source
+
+            // Reflected Ray Vector (Intersection -> Target)
+            // But reflection angle is usually measured between Normal and Reflected Ray
+            // Let's calculate the angle magnitude simply using geometry
+            // Theta = atan(|dy| / |dx|)
+            const theta = Math.atan(Math.abs((targetPt.y - intersectY) / (targetPt.x - mirrorX)));
+            const deg = (theta * 180 / Math.PI).toFixed(1);
+
+            // Draw Arc for Incident Angle (i)
+            // Center at (mirrorX, intersectY)
+            // Normal is at 180 degrees (PI)
+            // Object is to the left, so angle is PI +/- theta
+            const radius = 40;
+            const startAngle = Math.PI;
+            let endAngle = Math.PI + ((sourcePt.y > intersectY) ? theta : -theta);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#ef4444'; // Red for i
+            ctx.lineWidth = 2;
+            ctx.arc(mirrorX, intersectY, radius, startAngle, endAngle, (sourcePt.y < intersectY)); // counterclockwise if source is above
+            ctx.stroke();
+
+            // Label i
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 14px sans-serif';
+            // Position text
+            const labelAngleI = (startAngle + endAngle) / 2;
+            const lxI = mirrorX + (radius + 15) * Math.cos(labelAngleI);
+            const lyI = intersectY + (radius + 15) * Math.sin(labelAngleI);
+            ctx.fillText(`i = ${deg}°`, lxI - 20, lyI);
+
+            // Draw Arc for Reflected Angle (r)
+            // The reflected ray goes to the RIGHT (Eye). 
+            // BUT the "Angle of Reflection" is the angle between the Reflected Ray and the Normal.
+            // The Normal is perpendicular to surface.
+            // In this 2D side view, the "Normal" is the horizontal line.
+            // The reflected ray is on the RIGHT side of the mirror.
+            // So we measure angle from 0 degrees (Horizontal Right) to the Reflected Ray?
+            // Wait, the Normal is a line. It extends both sides? 
+            // In reflection diagrams, the normal is usually drawn on the side where light comes from (Left).
+            // But the reflected ray goes to the right (Eye is on left? NO).
+            // Let's check the setup.
+            // Object is Left (x < MirrorX). Eye is Left (x < MirrorX).
+            // Mirror is at MirrorX.
+            // Light: Object -> Mirror -> Eye.
+            // BOTH Incident and Reflected rays are on the LEFT side of the mirror.
+            // My previous traceRay drew:
+            // 1. Object -> Mirror (Incident)
+            // 2. Mirror -> Eye (Reflected)
+            // Yes, both are on the left.
+            
+            // Re-calc Reflected Vector (Intersection -> Eye)
+            const refDx = targetPt.x - mirrorX;
+            const refDy = targetPt.y - intersectY;
+            // Both object and eye are on the Left (negative relative to mirror).
+            // So the logic holds.
+            
+            // Angle for Reflected Ray
+            // Eye is to the left, so dx is negative.
+            // Angle is PI +/- theta.
+            let endAngleR = Math.PI + ((targetPt.y > intersectY) ? theta : -theta);
+
+            // Wait, if Object is above Eye (or vice versa), one angle is +theta, one is -theta relative to PI
+            // Incident Ray comes FROM object. Reflected Ray goes TO eye.
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#2563eb'; // Blue for r
+            ctx.lineWidth = 2;
+            // Draw arc from PI to Reflected Ray angle
+            // Note: Draw slightly smaller radius to avoid overlap if they are close
+            const radiusR = 30;
+            ctx.arc(mirrorX, intersectY, radiusR, Math.PI, endAngleR, (targetPt.y < intersectY));
+            ctx.stroke();
+
+            // Label r
+            ctx.fillStyle = '#2563eb';
+            ctx.font = 'bold 14px sans-serif';
+            const labelAngleR = (Math.PI + endAngleR) / 2;
+            const lxR = mirrorX + (radiusR + 25) * Math.cos(labelAngleR);
+            const lyR = intersectY + (radiusR + 25) * Math.sin(labelAngleR);
+            ctx.fillText(`r = ${deg}°`, lxR - 20, lyR);
+
+            ctx.restore();
+        }
+
+        function drawRayDiagram() {
+            const objectDist = mirrorX - state.obj.x;
+            const imageX = mirrorX + objectDist;
+            const imageY = state.obj.y;
+
+            // Draw Image (Ghost Arrow)
+            drawArrow(imageX, imageY, state.obj.h, '#ef4444', true, "虛像");
+
+            // Coordinates for Object Tips and Tail
+            const objTop = { x: state.obj.x, y: state.obj.y - state.obj.h };
+            const objBot = { x: state.obj.x, y: state.obj.y };
+            
+            const imgTop = { x: imageX, y: imageY - state.obj.h };
+            const imgBot = { x: imageX, y: imageY };
+
+            const eyePos = { x: state.eye.x, y: state.eye.y };
+            
+            // Eye aperture (Top and Bottom entrance points of pupil)
+            const s = 4.0;
+            const pupilCenterX = eyePos.x + (5 * s);
+            const pupilRadiusY = 6 * s;
+            
+            const eyeTargetTop = { x: pupilCenterX, y: eyePos.y - pupilRadiusY };
+            const eyeTargetBot = { x: pupilCenterX, y: eyePos.y + pupilRadiusY };
+
+            // --- Ray Logic ---
+            // added displayAngles param
+            function traceRay(sourcePt, imagePt, targetPt, color, showAnglesForThisRay) {
+                // 1. Calculate slope between Image and Target (Eye part)
+                const dx = targetPt.x - imagePt.x;
+                const dy = targetPt.y - imagePt.y;
+                
+                if (dx === 0) return; 
+
+                const m = dy / dx;
+
+                // 2. Find Y at Mirror X
+                const intersectY = m * (mirrorX - imagePt.x) + imagePt.y;
+
+                // Ray 1: Virtual (Image to Mirror)
+                drawRayLine(imagePt.x, imagePt.y, mirrorX, intersectY, color, 'virtual');
+
+                // Ray 2: Reflected (Mirror to Eye Target)
+                drawRayLine(mirrorX, intersectY, targetPt.x, targetPt.y, color, 'reflected');
+
+                // Ray 3: Incident (Object to Mirror)
+                drawRayLine(sourcePt.x, sourcePt.y, mirrorX, intersectY, color, 'incident');
+
+                // Draw Normal and Angles if requested
+                if (showAnglesForThisRay) {
+                    drawNormalAndAngles(intersectY, sourcePt, targetPt);
+                }
+            }
+
+            // Trace Top Rays (Green)
+            // Only show angles for the FIRST ray (Top -> Top Pupil) to prevent clutter
+            traceRay(objTop, imgTop, eyeTargetTop, '#16a34a', state.showAngles); 
+            traceRay(objTop, imgTop, eyeTargetBot, '#16a34a', false);
+
+            // Trace Bottom Rays (Purple)
+            traceRay(objBot, imgBot, eyeTargetTop, '#9333ea', false);
+            traceRay(objBot, imgBot, eyeTargetBot, '#9333ea', false);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            drawGrid();
+            drawMirror();
+            
+            // Draw Object
+            drawArrow(state.obj.x, state.obj.y, state.obj.h, '#dc2626', false, "物體");
+            
+            // Draw Eye
+            drawEye(state.eye.x, state.eye.y);
+
+            // Draw Rays & Image
+            drawRayDiagram();
+
+            // Draw Distances if toggled
+            if (state.showDistances) {
+                drawDistances();
+            }
+        }
+
+        function loop() {
+            if (state.obj.dragging || state.eye.dragging) {
+                draw();
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // --- Interactions ---
+
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function isOverObject(pos) {
+            const dx = Math.abs(pos.x - state.obj.x);
+            // Expanded hitbox for better touch
+            return dx < 30 && pos.y > state.obj.y - state.obj.h - 20 && pos.y < state.obj.y + 20;
+        }
+
+        function isOverEye(pos) {
+            const dx = pos.x - state.eye.x;
+            const dy = pos.y - state.eye.y;
+            return Math.sqrt(dx*dx + dy*dy) < 40; 
+        }
+
+        function handleStart(e) {
+            const pos = getPointerPos(e);
+            
+            if (isOverObject(pos)) {
+                state.obj.dragging = true;
+                state.dragOffset.x = pos.x - state.obj.x;
+                state.dragOffset.y = pos.y - state.obj.y;
+                canvas.style.cursor = 'grabbing';
+            } else if (isOverEye(pos)) {
+                state.eye.dragging = true;
+                state.dragOffset.x = pos.x - state.eye.x;
+                state.dragOffset.y = pos.y - state.eye.y;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function handleMove(e) {
+            const pos = getPointerPos(e);
+
+            if (!state.obj.dragging && !state.eye.dragging) {
+                if (isOverObject(pos) || isOverEye(pos)) {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'crosshair';
+                }
+                return;
+            }
+
+            if (state.obj.dragging) {
+                let newX = pos.x - state.dragOffset.x;
+                let newY = pos.y - state.dragOffset.y;
+
+                if (newX > mirrorX - 20) newX = mirrorX - 20;
+                if (newX < 20) newX = 20;
+                if (newY < state.obj.h + 20) newY = state.obj.h + 20;
+                if (newY > height - 20) newY = height - 20;
+
+                state.obj.x = newX;
+                state.obj.y = newY;
+            } else if (state.eye.dragging) {
+                let newX = pos.x - state.dragOffset.x;
+                let newY = pos.y - state.dragOffset.y;
+
+                if (newX > mirrorX - 20) newX = mirrorX - 20;
+                if (newX < 20) newX = 20;
+                if (newY < 20) newY = 20;
+                if (newY > height - 20) newY = height - 20;
+
+                state.eye.x = newX;
+                state.eye.y = newY;
+            }
+        }
+
+        function handleEnd() {
+            state.obj.dragging = false;
+            state.eye.dragging = false;
+            canvas.style.cursor = 'crosshair';
+            draw(); 
+        }
+
+        function setupInteractions() {
+            // Mouse
+            canvas.addEventListener('mousedown', handleStart);
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleEnd);
+
+            // Touch
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleStart(e);
+            }, { passive: false });
+            window.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                handleMove(e);
+            }, { passive: false });
+            window.addEventListener('touchend', handleEnd);
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>

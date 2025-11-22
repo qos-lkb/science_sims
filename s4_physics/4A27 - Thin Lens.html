@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理光學模擬：薄透鏡成像</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --panel-bg: #ffffff;
+            --text-color: #333;
+            --accent-color: #2196F3;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        canvas {
+            display: block;
+            background-color: #ffffff;
+            cursor: crosshair;
+        }
+
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .value-display {
+            float: right;
+            font-family: monospace;
+            color: var(--accent-color);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .data-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f1f3f5;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 4px;
+        }
+        
+        .legend {
+            margin-top: 15px;
+            font-size: 0.8em;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .color-box {
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+            }
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>薄透鏡成像模擬 (Thin Lens Simulation)</h1>
+
+    <div class="container">
+        <!-- 繪圖區域 -->
+        <div class="canvas-wrapper">
+            <canvas id="opticsCanvas" width="800" height="500"></canvas>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="controls">
+            <div class="control-group">
+                <h3>透鏡設定</h3>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="lensType" value="convex" checked> 凸透鏡 (匯聚)
+                    </label>
+                    <label>
+                        <input type="radio" name="lensType" value="concave"> 凹透鏡 (發散)
+                    </label>
+                </div>
+                
+                <label>焦距 (f) <span id="val-f" class="value-display">100 mm</span></label>
+                <input type="range" id="focalLength" min="20" max="200" value="100" step="5">
+            </div>
+
+            <div class="control-group">
+                <h3>物體設定</h3>
+                <label>物距 (do) <span id="val-do" class="value-display">200 mm</span></label>
+                <input type="range" id="objectDistance" min="10" max="380" value="200" step="5">
+
+                <label>物高 (ho) <span id="val-ho" class="value-display">60 mm</span></label>
+                <input type="range" id="objectHeight" min="-100" max="100" value="60" step="5">
+            </div>
+
+            <div class="data-panel">
+                <h3>成像數據</h3>
+                <div class="data-row">
+                    <span>像距 (di):</span>
+                    <span id="res-di">計算中...</span>
+                </div>
+                <div class="data-row">
+                    <span>像高 (hi):</span>
+                    <span id="res-hi">計算中...</span>
+                </div>
+                <div class="data-row">
+                    <span>放大率 (M):</span>
+                    <span id="res-m">計算中...</span>
+                </div>
+                <div class="data-row">
+                    <span>成像性質:</span>
+                    <span id="res-type" style="font-weight:bold">計算中...</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><span class="color-box" style="background:blue"></span>物體 (Object)</div>
+                <div class="legend-item"><span class="color-box" style="background:orange"></span>像 (Image)</div>
+                <div class="legend-item"><span class="color-box" style="background:red"></span>平行光線</div>
+                <div class="legend-item"><span class="color-box" style="background:green"></span>中心光線</div>
+                <div class="legend-item"><span class="color-box" style="background:purple"></span>焦點光線</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 物理模擬核心邏輯
+ */
+
+const canvas = document.getElementById('opticsCanvas');
+const ctx = canvas.getContext('2d');
+
+// 狀態變數
+const state = {
+    f: 100,         // 焦距 (像素 = mm)
+    do: 200,        // 物距 (正值代表在透鏡左側)
+    ho: 60,         // 物高 (像素)
+    lensType: 'convex', // 'convex' 或 'concave'
+    width: canvas.width,
+    height: canvas.height,
+    centerX: canvas.width / 2,
+    centerY: canvas.height / 2
+};
+
+// DOM 元素
+const inputs = {
+    f: document.getElementById('focalLength'),
+    do: document.getElementById('objectDistance'),
+    ho: document.getElementById('objectHeight'),
+    lensRadios: document.getElementsByName('lensType'),
+    displays: {
+        f: document.getElementById('val-f'),
+        do: document.getElementById('val-do'),
+        ho: document.getElementById('val-ho'),
+        di: document.getElementById('res-di'),
+        hi: document.getElementById('res-hi'),
+        m: document.getElementById('res-m'),
+        type: document.getElementById('res-type')
+    }
+};
+
+// 初始化與事件監聽
+function init() {
+    inputs.f.addEventListener('input', updateState);
+    inputs.do.addEventListener('input', updateState);
+    inputs.ho.addEventListener('input', updateState);
+    inputs.lensRadios.forEach(r => r.addEventListener('change', updateState));
+    
+    // 滑鼠互動 (簡單拖曳支援)
+    let isDragging = false;
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        // 檢查是否點擊到物體附近 (X軸方向)
+        const objectScreenX = state.centerX - state.do;
+        if (Math.abs(mouseX - objectScreenX) < 20) {
+            isDragging = true;
+        }
+    });
+    
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        // 計算新的物距 (限制範圍)
+        let newDo = state.centerX - mouseX;
+        if (newDo < 10) newDo = 10;
+        if (newDo > 380) newDo = 380;
+        
+        state.do = newDo;
+        inputs.do.value = newDo;
+        updateState(); // 觸發重繪
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    draw();
+    updateUIValues();
+}
+
+function updateState() {
+    state.f = parseInt(inputs.f.value);
+    state.do = parseInt(inputs.do.value);
+    state.ho = parseInt(inputs.ho.value);
+    
+    let selectedType = 'convex';
+    inputs.lensRadios.forEach(r => { if(r.checked) selectedType = r.value; });
+    state.lensType = selectedType;
+
+    // 物理計算
+    // 凹透鏡的焦距為負
+    const physicsF = state.lensType === 'convex' ? state.f : -state.f;
+    
+    // 薄透鏡公式: 1/f = 1/do + 1/di  =>  di = 1 / (1/f - 1/do) = (f*do) / (do - f)
+    // 注意 JS 中除以 0 會變成 Infinity，需處理
+    let di = (physicsF * state.do) / (state.do - physicsF);
+    
+    // 放大率 M = -di / do = hi / ho
+    let m = -di / state.do;
+    let hi = m * state.ho;
+
+    state.results = { di, hi, m, physicsF };
+
+    draw();
+    updateUIValues();
+}
+
+function updateUIValues() {
+    inputs.displays.f.textContent = state.f + " mm";
+    inputs.displays.do.textContent = state.do + " mm";
+    inputs.displays.ho.textContent = state.ho + " mm";
+    
+    const { di, hi, m, physicsF } = state.results;
+
+    if (!isFinite(di)) {
+        inputs.displays.di.textContent = "∞ (無窮遠)";
+        inputs.displays.hi.textContent = "∞";
+        inputs.displays.m.textContent = "∞";
+        inputs.displays.type.textContent = "不成像 (光線平行)";
+        return;
+    }
+
+    inputs.displays.di.textContent = di.toFixed(1) + " mm";
+    inputs.displays.hi.textContent = hi.toFixed(1) + " mm";
+    inputs.displays.m.textContent = m.toFixed(2) + "x";
+
+    // 判斷性質
+    let typeText = "";
+    if (di > 0) {
+        typeText += "實像 (Real)";
+    } else {
+        typeText += "虛像 (Virtual)";
+    }
+    
+    typeText += Math.abs(m) > 1 ? " / 放大" : (Math.abs(m) < 1 ? " / 縮小" : " / 等大");
+    typeText += m > 0 ? " / 正立" : " / 倒立";
+    
+    inputs.displays.type.textContent = typeText;
+}
+
+/**
+ * 繪圖系統
+ * 座標系統: 
+ * X: 畫布中心為 0, 向右為正
+ * Y: 畫布中心為 0, 向上為正 (需在繪製時轉換為 Canvas 座標)
+ */
+function draw() {
+    // 清空畫布
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const cx = state.centerX;
+    const cy = state.centerY;
+
+    // 1. 繪製網格與主軸
+    drawGrid(20, '#f0f0f0');
+    ctx.beginPath();
+    ctx.moveTo(0, cy);
+    ctx.lineTo(canvas.width, cy);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 2. 繪製透鏡
+    drawLens(cx, cy, state.lensType);
+
+    // 3. 繪製焦點
+    drawFocalPoints(cx, cy, state.f);
+
+    // 4. 繪製物體
+    const objX = cx - state.do; // 物體在左邊
+    const objY = cy - state.ho; // Canvas Y 向上是減
+    drawArrow(objX, cy, objX, objY, 'blue', 3);
+    ctx.fillStyle = 'blue';
+    ctx.fillText('Object', objX - 15, objY - 10);
+
+    // 5. 繪製像 (如果存在)
+    const { di, hi } = state.results;
+    let imgX, imgY;
+    
+    if (isFinite(di)) {
+        imgX = cx + di;
+        imgY = cy - hi; // Physics Y to Canvas Y
+        const isVirtual = di < 0; // 虛像在左側
+        
+        // 虛像用虛線箭頭，實像用實線
+        if (isVirtual) ctx.setLineDash([5, 5]);
+        drawArrow(imgX, cy, imgX, imgY, 'orange', 3);
+        ctx.setLineDash([]); // 重置
+        
+        ctx.fillStyle = 'orange';
+        ctx.fillText('Image', imgX + 10, imgY > cy ? imgY + 15 : imgY - 10);
+    }
+
+    // 6. 光線追蹤 (核心物理)
+    if (Math.abs(state.ho) > 0.1) {
+        traceRays(objX, objY, cx, cy, imgX, imgY, state.results.physicsF);
+    }
+}
+
+function traceRays(objX, objY, lensX, lensY, imgX, imgY, f) {
+    // 物體頂點座標 (Canvas Coords)
+    const tipX = objX;
+    const tipY = objY;
+    
+    // 像的頂點 (如果無窮遠，此值無效，需特殊處理)
+    const hasImage = isFinite(imgX);
+
+    // --- 光線 1: 平行主軸入射 ---
+    // 路徑: 物體頂點 -> 透鏡平面(相同高度) -> 焦點F (右側)
+    // 如果是凹透鏡，折射後反向延長線通過 F (左側)
+    
+    const ray1_LensHitY = tipY; // 平行，所以撞擊高度等於物體高度
+    
+    // 1a. 入射段
+    drawLine(tipX, tipY, lensX, ray1_LensHitY, 'red'); 
+
+    // 1b. 折射段
+    if (state.lensType === 'convex') {
+        // 凸透鏡：通過右側焦點
+        const focusRightX = lensX + state.f;
+        const focusRightY = lensY;
+        // 畫一條長線通過焦點
+        const slope = (focusRightY - ray1_LensHitY) / (focusRightX - lensX);
+        const endX = canvas.width;
+        const endY = ray1_LensHitY + slope * (endX - lensX);
+        drawLine(lensX, ray1_LensHitY, endX, endY, 'red');
+        
+        // 如果是虛像，畫回溯虛線
+        if (hasImage && state.results.di < 0) {
+            drawDashedLine(lensX, ray1_LensHitY, imgX, imgY, 'red');
+        }
+    } else {
+        // 凹透鏡：發散，反向延長線通過左側焦點
+        const focusLeftX = lensX - state.f;
+        const focusLeftY = lensY;
+        
+        // 計算發散斜率
+        const slope = (ray1_LensHitY - focusLeftY) / (lensX - focusLeftX);
+        
+        // 向右發散
+        const endX = canvas.width;
+        const endY = ray1_LensHitY + slope * (endX - lensX);
+        drawLine(lensX, ray1_LensHitY, endX, endY, 'red');
+
+        // 向左虛線 (指向焦點)
+        drawDashedLine(lensX, ray1_LensHitY, focusLeftX - 50, focusLeftY - 50 * slope, 'red');
+    }
+
+    // --- 光線 2: 通過光心 ---
+    // 路徑: 物體頂點 -> 透鏡中心 -> 直線傳播
+    // 斜率
+    const slope2 = (lensY - tipY) / (lensX - tipX);
+    const ray2_endX = canvas.width;
+    const ray2_endY = lensY + slope2 * (ray2_endX - lensX);
+    
+    drawLine(tipX, tipY, ray2_endX, ray2_endY, 'green');
+    
+    // 如果是虛像，畫回溯虛線 (其實就是沿著原路回去，但為了視覺一致性)
+    if (hasImage && state.results.di < 0) {
+         drawDashedLine(lensX, lensY, imgX, imgY, 'green');
+    }
+
+    // --- 光線 3: 通過(物方)焦點入射 ---
+    // 凸透鏡：通過左側焦點 -> 撞擊透鏡 -> 平行射出
+    // 凹透鏡：指向右側焦點 -> 撞擊透鏡 -> 平行射出
+    
+    let ray3_LensHitY;
+    
+    if (state.lensType === 'convex') {
+        const focusLeftX = lensX - state.f;
+        const focusLeftY = lensY;
+        
+        // 計算撞擊透鏡的高度
+        // 斜率由 物體頂點 和 左焦點 決定
+        const slope3 = (focusLeftY - tipY) / (focusLeftX - tipX);
+        ray3_LensHitY = tipY + slope3 * (lensX - tipX);
+        
+        drawLine(tipX, tipY, lensX, ray3_LensHitY, 'purple');
+    } else {
+        // 凹透鏡：瞄準右側焦點
+        const focusRightX = lensX + state.f;
+        const focusRightY = lensY;
+        
+        const slope3 = (focusRightY - tipY) / (focusRightX - tipX);
+        ray3_LensHitY = tipY + slope3 * (lensX - tipX);
+        
+        // 畫入射部分 (只畫到透鏡)
+        drawLine(tipX, tipY, lensX, ray3_LensHitY, 'purple');
+        // 畫虛線指向右焦點 (輔助線)
+        // drawDashedLine(lensX, ray3_LensHitY, focusRightX, focusRightY, 'purple', 0.2);
+    }
+
+    // 折射後平行
+    drawLine(lensX, ray3_LensHitY, canvas.width, ray3_LensHitY, 'purple');
+    
+    // 虛像回溯 (水平回溯)
+    if (hasImage && state.results.di < 0) {
+        drawDashedLine(lensX, ray3_LensHitY, -50, ray3_LensHitY, 'purple');
+    }
+}
+
+// --- 輔助繪圖函數 ---
+
+function drawLine(x1, y1, x2, y2, color, width=2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+}
+
+function drawDashedLine(x1, y1, x2, y2, color, alpha=1) {
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.globalAlpha = 0.6 * alpha;
+    drawLine(x1, y1, x2, y2, color, 2);
+    ctx.restore();
+}
+
+function drawArrow(fromX, fromY, toX, toY, color, width) {
+    const headlen = 10; 
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const angle = Math.atan2(dy, dx);
+    
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+    ctx.lineTo(toX, toY);
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+function drawLens(x, y, type) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#007bff';
+    ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+    ctx.lineWidth = 2;
+
+    const h = 150; // 透鏡高度的一半
+    const w = 20;  // 透鏡厚度
+
+    if (type === 'convex') {
+        // 畫橢圓形作為雙凸透鏡示意
+        ctx.ellipse(x, y, w, h, 0, 0, 2 * Math.PI);
+        // 畫透鏡符號 (兩端箭頭向外)
+        drawLensSymbol(x, y, h, true);
+    } else {
+        // 雙凹透鏡示意圖
+        ctx.moveTo(x - w, y - h);
+        ctx.quadraticCurveTo(x, y, x - w, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.quadraticCurveTo(x, y, x + w, y - h);
+        ctx.lineTo(x - w, y - h);
+        
+        drawLensSymbol(x, y, h, false);
+    }
+    ctx.fill();
+    ctx.stroke();
+}
+
+function drawLensSymbol(x, y, h, isConvex) {
+    // 這是物理課本常見的透鏡符號
+    ctx.beginPath();
+    ctx.moveTo(x, y - h - 20);
+    ctx.lineTo(x, y + h + 20);
+    ctx.strokeStyle = '#333';
+    ctx.setLineDash([2, 2]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 箭頭
+    ctx.beginPath();
+    if (isConvex) {
+        // 正常箭頭 (凸)
+        ctx.moveTo(x - 10, y - h - 10); ctx.lineTo(x, y - h - 20); ctx.lineTo(x + 10, y - h - 10);
+        ctx.moveTo(x - 10, y + h + 10); ctx.lineTo(x, y + h + 20); ctx.lineTo(x + 10, y + h + 10);
+    } else {
+        // 反向箭頭 (凹)
+        ctx.moveTo(x - 10, y - h - 30); ctx.lineTo(x, y - h - 20); ctx.lineTo(x + 10, y - h - 30);
+        ctx.moveTo(x - 10, y + h + 30); ctx.lineTo(x, y + h + 20); ctx.lineTo(x + 10, y + h + 30);
+    }
+    ctx.stroke();
+}
+
+function drawFocalPoints(cx, cy, f) {
+    ctx.fillStyle = '#000';
+    ctx.font = '12px Arial';
+    
+    // F (右)
+    ctx.beginPath(); ctx.arc(cx + f, cy, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillText('F', cx + f - 5, cy + 20);
+    
+    // F' (左)
+    ctx.beginPath(); ctx.arc(cx - f, cy, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillText("F'", cx - f - 5, cy + 20);
+    
+    // 2F
+    ctx.beginPath(); ctx.arc(cx + 2*f, cy, 2, 0, Math.PI*2); ctx.fill();
+    ctx.fillText('2F', cx + 2*f - 5, cy + 20);
+    ctx.beginPath(); ctx.arc(cx - 2*f, cy, 2, 0, Math.PI*2); ctx.fill();
+    ctx.fillText("2F'", cx - 2*f - 5, cy + 20);
+}
+
+function drawGrid(step, color) {
+    ctx.beginPath();
+    for (let x = 0; x <= canvas.width; x += step) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+    }
+    for (let y = 0; y <= canvas.height; y += step) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+}
+
+// 啟動
+init();
+updateState(); // 第一次計算
+
+</script>
+</body>
+</html>

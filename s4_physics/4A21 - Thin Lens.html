@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <!-- Prevent user scaling to ensure app-like feel on iPad -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>物理光學模擬：凸透鏡成像 (iPad 優化版)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            /* Use dvh (dynamic viewport height) for iOS Safari bottom bar handling */
+            height: 100dvh; 
+            touch-action: none;
+            overscroll-behavior: none; /* Prevent bounce effect on iOS */
+        }
+        canvas {
+            cursor: grab;
+            touch-action: none; /* Critical for canvas drawing on touch devices */
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .ai-response p {
+            margin-bottom: 0.5em;
+        }
+        .ai-response strong {
+            color: #2563eb;
+        }
+    </style>
+</head>
+<!-- h-[100dvh] ensures full height on mobile browsers including Safari address bar area -->
+<body class="bg-slate-100 flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Header: Compact on mobile -->
+    <header class="bg-blue-600 text-white p-3 shadow-md z-10 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2 overflow-hidden">
+            <h1 class="text-lg md:text-xl font-bold truncate whitespace-nowrap">
+                物理光學模擬
+            </h1>
+            <span class="bg-blue-500 text-[10px] md:text-xs px-2 py-0.5 rounded-full border border-blue-400 shrink-0">AI 加強版</span>
+        </div>
+        <div class="text-xs text-blue-200 hidden md:block">
+            中四物理科習作
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <!-- lg:flex-row means side-by-side on large screens (iPad Pro Landscape/Desktop) -->
+    <!-- flex-col means stacked vertical on phones and iPad Portrait -->
+    <div class="flex-1 relative flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Canvas Container -->
+        <!-- On mobile/portrait: takes remaining space after controls. On desktop: takes remaining width. -->
+        <div class="flex-1 relative bg-white overflow-hidden touch-none" id="canvas-container">
+            <canvas id="opticsCanvas" class="block w-full h-full"></canvas>
+            
+            <!-- Floating Legend (Adjusted position for iPad) -->
+            <div class="absolute top-3 right-3 bg-white/95 p-2.5 rounded-lg shadow-lg text-xs md:text-sm border border-gray-200 pointer-events-none select-none z-10">
+                <div class="font-bold mb-1.5 border-b pb-1 text-gray-700">成像性質</div>
+                <div id="image-nature" class="space-y-1">
+                    <p class="flex items-center"><span class="inline-block w-2.5 h-2.5 bg-orange-500 rounded-full mr-2"></span><span id="status-type">實像</span></p>
+                    <p class="flex items-center"><span class="inline-block w-2.5 h-2.5 bg-gray-500 rounded-full mr-2"></span><span id="status-orientation">倒立</span></p>
+                    <p class="flex items-center"><span class="inline-block w-2.5 h-2.5 bg-blue-500 rounded-full mr-2"></span><span id="status-size">縮小</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <!-- 
+           - lg:w-96 lg:h-auto: Fixed width, full height on large landscape 
+           - w-full h-[45%]: Full width, 45% height on portrait/mobile (gives more room to canvas than 50%)
+        -->
+        <div class="w-full lg:w-96 h-[45%] lg:h-auto bg-white border-t lg:border-t-0 lg:border-l border-gray-200 flex flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-20 shrink-0">
+            
+            <!-- Draggable Handle (Visual cue for mobile) -->
+            <div class="w-full flex justify-center py-2 lg:hidden shrink-0">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 pt-0 lg:pt-4 space-y-5">
+                
+                <!-- AI Tutor Section -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 md:p-4 shadow-sm">
+                    <h2 class="font-bold text-indigo-800 flex items-center gap-2 mb-2 text-sm md:text-base">
+                        <span>✨</span> AI 物理導師
+                    </h2>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="askAI('explain')" id="btn-explain" class="flex-1 bg-white active:bg-indigo-50 text-indigo-600 font-medium py-2 px-2 border border-indigo-200 rounded-lg text-xs md:text-sm transition-colors flex justify-center items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                            分析成像
+                        </button>
+                        <button onclick="askAI('challenge')" id="btn-challenge" class="flex-1 bg-indigo-600 active:bg-indigo-700 text-white font-medium py-2 px-2 rounded-lg text-xs md:text-sm transition-colors flex justify-center items-center gap-1 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
+                            挑戰任務
+                        </button>
+                    </div>
+                    
+                    <!-- AI Response Area -->
+                    <div id="ai-output-container" class="hidden">
+                        <div class="bg-white p-3 rounded-lg border border-indigo-100 text-xs md:text-sm text-gray-700 leading-relaxed shadow-inner min-h-[60px] max-h-[150px] overflow-y-auto custom-scrollbar">
+                            <div id="ai-loading" class="hidden flex items-center gap-2 text-indigo-400 animate-pulse">
+                                <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                思考中...
+                            </div>
+                            <div id="ai-text" class="ai-response"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4 pb-8"> <!-- Extra padding at bottom for scrolling comfort -->
+                    <h2 class="font-bold text-gray-800 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+                        參數設定
+                    </h2>
+
+                    <!-- Sliders Group -->
+                    <div class="space-y-3">
+                        <!-- Focal Length Control -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs md:text-sm font-medium text-gray-700">焦距 ($f$)</label>
+                                <span class="text-xs md:text-sm text-blue-600 font-mono" id="val-f">100 mm</span>
+                            </div>
+                            <input type="range" id="slider-f" min="50" max="300" value="150" class="w-full h-6 bg-transparent cursor-pointer accent-blue-600 touch-none">
+                        </div>
+
+                        <!-- Object Distance Control -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs md:text-sm font-medium text-gray-700">物距 ($u$)</label>
+                                <span class="text-xs md:text-sm text-blue-600 font-mono" id="val-u">300 mm</span>
+                            </div>
+                            <input type="range" id="slider-u" min="10" max="600" value="300" class="w-full h-6 bg-transparent cursor-pointer accent-blue-600 touch-none">
+                        </div>
+
+                        <!-- Object Height Control -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs md:text-sm font-medium text-gray-700">物體高度 ($h_o$)</label>
+                                <span class="text-xs md:text-sm text-blue-600 font-mono" id="val-h">80 mm</span>
+                            </div>
+                            <input type="range" id="slider-h" min="10" max="150" value="80" class="w-full h-6 bg-transparent cursor-pointer accent-blue-600 touch-none">
+                        </div>
+                        
+                        <!-- Lens Height Control -->
+                         <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs md:text-sm font-medium text-gray-700">透鏡大小</label>
+                                <span class="text-xs md:text-sm text-blue-600 font-mono" id="val-lens-h">200 mm</span>
+                            </div>
+                            <input type="range" id="slider-lens-h" min="100" max="400" value="200" class="w-full h-6 bg-transparent cursor-pointer accent-blue-600 touch-none">
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-200">
+
+                    <!-- Calculated Data -->
+                    <div class="space-y-2">
+                        <h2 class="font-bold text-gray-800 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+                            計算結果
+                        </h2>
+                        <div class="grid grid-cols-2 gap-2 text-xs md:text-sm">
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                <div class="text-gray-500 text-[10px]">像距 ($v$)</div>
+                                <div class="font-mono font-bold text-gray-800" id="res-v">--</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                <div class="text-gray-500 text-[10px]">放大率 ($m$)</div>
+                                <div class="font-mono font-bold text-gray-800" id="res-m">--</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100 col-span-2">
+                                <div class="text-gray-500 text-[10px]">透鏡公式</div>
+                                <div class="font-mono text-center text-blue-600 mt-1">1/f = 1/u + 1/v</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = ""; // Provided by environment
+        
+        const state = {
+            f: 150,
+            u: 300,
+            h: 80,
+            lensH: 200,
+            isDragging: false,
+            dragTarget: null,
+            calculatedV: 0,
+            calculatedM: 0,
+            nature: "實像",
+        };
+
+        const canvas = document.getElementById('opticsCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        const ui = {
+            sliders: {
+                f: document.getElementById('slider-f'),
+                u: document.getElementById('slider-u'),
+                h: document.getElementById('slider-h'),
+                lensH: document.getElementById('slider-lens-h'),
+            },
+            displays: {
+                f: document.getElementById('val-f'),
+                u: document.getElementById('val-u'),
+                h: document.getElementById('val-h'),
+                lensH: document.getElementById('val-lens-h'),
+                v: document.getElementById('res-v'),
+                m: document.getElementById('res-m'),
+            },
+            status: {
+                type: document.getElementById('status-type'),
+                orientation: document.getElementById('status-orientation'),
+                size: document.getElementById('status-size'),
+            },
+            ai: {
+                container: document.getElementById('ai-output-container'),
+                loading: document.getElementById('ai-loading'),
+                text: document.getElementById('ai-text'),
+            }
+        };
+
+        function init() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            // Fix for iPad orientation change glitches
+            window.addEventListener('orientationchange', () => {
+                setTimeout(resizeCanvas, 100);
+            });
+            
+            ui.sliders.f.addEventListener('input', (e) => { state.f = Number(e.target.value); update(); });
+            ui.sliders.u.addEventListener('input', (e) => { state.u = Number(e.target.value); update(); });
+            ui.sliders.h.addEventListener('input', (e) => { state.h = Number(e.target.value); update(); });
+            ui.sliders.lensH.addEventListener('input', (e) => { state.lensH = Number(e.target.value); update(); });
+
+            // Touch/Mouse events (Unified)
+            canvas.addEventListener('mousedown', handleInputStart);
+            canvas.addEventListener('mousemove', handleInputMove);
+            window.addEventListener('mouseup', handleInputEnd);
+            
+            canvas.addEventListener('touchstart', handleInputStart, {passive: false});
+            canvas.addEventListener('touchmove', handleInputMove, {passive: false});
+            window.addEventListener('touchend', handleInputEnd);
+            window.addEventListener('touchcancel', handleInputEnd);
+
+            update();
+        }
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            update();
+        }
+
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Support multitouch but only take the first finger
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function handleInputStart(e) {
+            // No e.preventDefault() here to allow some browser interactions if needed, 
+            // but we use touch-action: none in CSS
+            
+            const pos = getPointerPos(e);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            const objTipX = cx - state.u;
+            const objTipY = cy - state.h;
+            const threshold = 40; // Increased touch target size for iPad
+
+            if (Math.abs(pos.x - objTipX) < threshold && Math.abs(pos.y - objTipY) < threshold) {
+                state.isDragging = true;
+                state.dragTarget = 'object-tip';
+            } else if (Math.abs(pos.x - objTipX) < threshold && Math.abs(pos.y - cy) < threshold * 2) {
+                state.isDragging = true;
+                state.dragTarget = 'object-base';
+            }
+        }
+
+        function handleInputMove(e) {
+            if (!state.isDragging) return;
+            if (e.cancelable) e.preventDefault(); // Stop scrolling while dragging candle
+
+            const pos = getPointerPos(e);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            if (state.dragTarget === 'object-tip') {
+                let newU = cx - pos.x;
+                let newH = cy - pos.y;
+                
+                if (newU < 10) newU = 10;
+                if (newU > cx - 10) newU = cx - 10;
+                if (newH < 10) newH = 10;
+                if (newH > cy - 10) newH = cy - 10;
+
+                state.u = newU;
+                state.h = newH;
+            } else if (state.dragTarget === 'object-base') {
+                let newU = cx - pos.x;
+                if (newU < 10) newU = 10;
+                if (newU > cx - 10) newU = cx - 10;
+                state.u = newU;
+            }
+
+            syncSliders();
+            update();
+        }
+
+        function handleInputEnd() {
+            state.isDragging = false;
+            state.dragTarget = null;
+        }
+
+        function syncSliders() {
+            ui.sliders.u.value = Math.round(state.u);
+            ui.sliders.h.value = Math.round(state.h);
+        }
+
+        function calculateImage() {
+            const u = state.u;
+            const f = state.f;
+            let v = 0;
+            let m = 0;
+            
+            if (u === f) {
+                v = Infinity;
+                m = Infinity;
+            } else {
+                v = (f * u) / (u - f);
+                m = -v / u; 
+            }
+
+            state.calculatedV = v;
+            state.calculatedM = m;
+            return { v, m };
+        }
+
+        // --- Gemini API Logic ---
+        async function askAI(mode) {
+            const container = ui.ai.container;
+            const loading = ui.ai.loading;
+            const textDiv = ui.ai.text;
+
+            container.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            loading.classList.add('flex');
+            textDiv.innerHTML = '';
+
+            let prompt = "";
+            const { f, u, h, calculatedV: v, calculatedM: m, nature } = state;
+            const vStr = v === Infinity ? "無窮遠" : Math.round(v);
+            const mStr = m === Infinity ? "無窮大" : m.toFixed(2);
+
+            if (mode === 'explain') {
+                prompt = `
+                    我正在使用一個凸透鏡模擬器。請你扮演一位友善的香港中四物理老師。
+                    目前的參數是：
+                    - 焦距 f = ${f} mm
+                    - 物距 u = ${u} mm
+                    - 物高 h = ${h} mm
+                    
+                    計算結果：
+                    - 像距 v = ${vStr} mm ${v < 0 ? "(負值代表虛像)" : ""}
+                    - 放大率 m = ${mStr}
+                    - 成像性質：${nature}
+
+                    請用簡潔、鼓勵性的口吻（使用香港中文習慣），解釋為什麼會形成這樣的像。
+                    重點解釋：光線是如何會聚/發散的？這對應到課本上的哪個 Case (如 u > 2f, f < u < 2f, u < f)?
+                    請保持回答在 80 字以內，重點突出。
+                `;
+            } else if (mode === 'challenge') {
+                prompt = `
+                    我正在使用一個凸透鏡模擬器。請你扮演一位愛出題的香港物理老師。
+                    目前的焦距 f = ${f} mm。
+                    請根據這個焦距，給學生一個簡單的操作挑戰任務。
+                    例如："試著把物體移到某個位置，讓像變成虛像" 或 "試著產生一個放大 2 倍的實像"。
+                    請給出一個具體的挑戰，並給一點點提示，但不要直接說出答案（物距要設多少）。
+                    請保持回答在 60 字以內。
+                `;
+            }
+
+            try {
+                const response = await callGeminiAPI(prompt);
+                textDiv.innerHTML = marked.parse(response);
+            } catch (error) {
+                textDiv.innerHTML = `<span class="text-red-500">AI 連線發生錯誤，請稍後再試。</span>`;
+                console.error(error);
+            } finally {
+                loading.classList.add('hidden');
+                loading.classList.remove('flex');
+            }
+        }
+
+        async function callGeminiAPI(userQuery) {
+            const maxRetries = 3;
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ contents: [{ parts: [{ text: userQuery }] }] })
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+                    return data.candidates[0].content.parts[0].text;
+                } catch (error) {
+                    console.warn(`Attempt ${i + 1} failed:`, error);
+                    if (i === maxRetries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        function update() {
+            ui.displays.f.innerText = `${Math.round(state.f)} mm`;
+            ui.displays.u.innerText = `${Math.round(state.u)} mm`;
+            ui.displays.h.innerText = `${Math.round(state.h)} mm`;
+            ui.displays.lensH.innerText = `${Math.round(state.lensH)} mm`;
+
+            const { v, m } = calculateImage();
+            
+            if (v === Infinity) {
+                ui.displays.v.innerText = "無窮遠";
+                ui.displays.m.innerText = "∞";
+                ui.status.type.innerText = "不成像";
+                ui.status.orientation.innerText = "--";
+                ui.status.size.innerText = "--";
+                state.nature = "不成像";
+            } else {
+                ui.displays.v.innerText = `${Math.round(Math.abs(v))} mm`;
+                ui.displays.m.innerText = `${Math.abs(m).toFixed(2)}x`;
+                
+                let typeText = "", orientText = "", sizeText = "";
+
+                if (v > 0) {
+                    typeText = "實像";
+                    orientText = "倒立";
+                    ui.status.type.innerText = "實像";
+                    ui.status.orientation.innerText = "倒立";
+                } else {
+                    typeText = "虛像";
+                    orientText = "正立";
+                    ui.status.type.innerText = "虛像";
+                    ui.status.orientation.innerText = "正立";
+                }
+
+                if (Math.abs(m) > 1.01) {
+                    sizeText = "放大";
+                    ui.status.size.innerText = "放大";
+                } else if (Math.abs(m) < 0.99) {
+                    sizeText = "縮小";
+                    ui.status.size.innerText = "縮小";
+                } else {
+                    sizeText = "等大";
+                    ui.status.size.innerText = "等大";
+                }
+                state.nature = `${sizeText}${orientText}${typeText}`;
+            }
+            drawScene(v, m);
+        }
+
+        function drawScene(v, m) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Grid
+            ctx.strokeStyle = "#e2e8f0";
+            ctx.lineWidth = 1;
+            for(let x = cx % 50; x < canvas.width; x += 50) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y = cy % 50; y < canvas.height; y += 50) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Axis
+            ctx.strokeStyle = "#334155";
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(canvas.width, cy); ctx.stroke();
+
+            drawLens(cx, cy);
+            drawFocusPoints(cx, cy);
+
+            const objX = cx - state.u;
+            const objY = cy - state.h;
+            drawArrow(cx - state.u, cy, state.h, "#dc2626", "物體", false);
+
+            if (v !== Infinity) {
+                const imgX = cx + v;
+                const imgH = state.h * m; 
+                const isVirtual = v < 0;
+                const color = isVirtual ? "#9333ea" : "#ea580c";
+                drawArrow(imgX, cy, imgH, color, isVirtual ? "虛像" : "實像", isVirtual);
+            }
+            drawRays(cx, cy, objX, objY, v, m);
+        }
+
+        function drawLens(cx, cy) {
+            ctx.fillStyle = "rgba(147, 197, 253, 0.3)";
+            ctx.strokeStyle = "#2563eb";
+            ctx.lineWidth = 2;
+            const h = state.lensH / 2;
+            const w = 20;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, w, h, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "#1e40af";
+            ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
+            ctx.font = "14px sans-serif";
+            ctx.fillText("O", cx + 5, cy + 15);
+        }
+
+        function drawFocusPoints(cx, cy) {
+            ctx.fillStyle = "#000";
+            const f = state.f;
+            ctx.beginPath(); ctx.arc(cx - f, cy, 3, 0, Math.PI*2); ctx.fill();
+            ctx.font = "12px sans-serif";
+            ctx.fillStyle = "#475569";
+            ctx.fillText("F'", cx - f - 5, cy + 20);
+            ctx.beginPath(); ctx.arc(cx + f, cy, 3, 0, Math.PI*2); ctx.fill();
+            ctx.fillText("F", cx + f - 5, cy + 20);
+        }
+
+        function drawArrow(x, originY, height, color, label, isDashed) {
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+            if (isDashed) ctx.setLineDash([5, 5]);
+            else ctx.setLineDash([]);
+
+            const tipY = originY - height;
+            ctx.beginPath(); ctx.moveTo(x, originY); ctx.lineTo(x, tipY); ctx.stroke();
+
+            const dirY = height > 0 ? -1 : 1;
+            ctx.beginPath();
+            ctx.moveTo(x, tipY);
+            ctx.lineTo(x - 6, tipY - (6 * dirY)); 
+            ctx.lineTo(x + 6, tipY - (6 * dirY));
+            ctx.closePath(); ctx.fill();
+
+            ctx.setLineDash([]); 
+            ctx.font = "bold 14px Noto Sans TC";
+            ctx.textAlign = "center";
+            ctx.fillText(label, x, originY + (height > 0 ? 40 : -40));
+        }
+
+        function drawRays(cx, cy, objX, objY, imgV, m) {
+            if (imgV === Infinity) {
+                drawParallelRays(cx, cy, objX, objY);
+                return;
+            }
+            const imgX = cx + imgV;
+            const imgY = cy - (state.h * m); 
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "#eab308"; 
+
+            // Ray 1
+            ctx.beginPath(); ctx.moveTo(objX, objY); ctx.lineTo(cx, objY); ctx.lineTo(imgX, imgY); 
+            if (imgV < 0) {
+                const slope = (cy - objY) / state.f; 
+                ctx.lineTo(cx + canvas.width, objY + slope * canvas.width);
+            } else {
+                 const dx = imgX - cx; const dy = imgY - objY;
+                 ctx.lineTo(imgX + dx*0.5, imgY + dy*0.5);
+            }
+            ctx.stroke();
+            if (imgV < 0) {
+                ctx.setLineDash([5, 5]); ctx.strokeStyle = "#fbbf24"; ctx.beginPath();
+                ctx.moveTo(cx, objY); ctx.lineTo(imgX, imgY); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // Ray 2
+            ctx.strokeStyle = "#eab308"; ctx.beginPath(); ctx.moveTo(objX, objY); ctx.lineTo(cx, cy);
+            if (imgV > 0) {
+                 ctx.lineTo(imgX, imgY);
+                 const dx = imgX - cx; const dy = imgY - cy;
+                 ctx.lineTo(imgX + dx*0.5, imgY + dy*0.5);
+            } else {
+                const slope = (cy - objY) / (cx - objX);
+                ctx.lineTo(cx + canvas.width, cy + slope * canvas.width);
+            }
+            ctx.stroke();
+            if (imgV < 0) {
+                ctx.setLineDash([5, 5]); ctx.strokeStyle = "#fbbf24"; ctx.beginPath();
+                ctx.moveTo(cx, cy); ctx.lineTo(imgX, imgY); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // Ray 3
+            ctx.strokeStyle = "#eab308"; ctx.beginPath(); ctx.moveTo(objX, objY); ctx.lineTo(cx, imgY); 
+            if (imgV > 0) {
+                 ctx.lineTo(imgX, imgY); ctx.lineTo(imgX + 100, imgY); 
+            } else {
+                ctx.lineTo(cx + canvas.width, imgY); 
+            }
+            ctx.stroke();
+             if (imgV < 0) {
+                ctx.setLineDash([5, 5]); ctx.strokeStyle = "#fbbf24"; ctx.beginPath();
+                ctx.moveTo(cx, imgY); ctx.lineTo(imgX, imgY); ctx.stroke(); ctx.setLineDash([]);
+                
+                ctx.setLineDash([2, 2]); ctx.lineWidth = 1; ctx.strokeStyle = "#d1d5db"; 
+                ctx.beginPath(); ctx.moveTo(cx - state.f, cy); ctx.lineTo(objX, objY); ctx.lineTo(cx, imgY);
+                ctx.stroke(); ctx.setLineDash([]);
+            }
+        }
+
+        function drawParallelRays(cx, cy, objX, objY) {
+             ctx.strokeStyle = "#eab308"; ctx.lineWidth = 2;
+             ctx.beginPath(); ctx.moveTo(objX, objY); ctx.lineTo(cx, objY);
+             ctx.lineTo(cx + state.f, cy); ctx.lineTo(cx + state.f + 200, cy + 200*(cy-objY)/state.f ); ctx.stroke();
+             ctx.beginPath(); ctx.moveTo(objX, objY); ctx.lineTo(cx, cy);
+             ctx.lineTo(cx + 200, cy + 200*(cy-objY)/(cx-objX)); ctx.stroke();
+        }
+
+        init();
+    </script>
+</body>
+</html>
