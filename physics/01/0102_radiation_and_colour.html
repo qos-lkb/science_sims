@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熱輻射實驗模擬器</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for Graphing -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Markdown Parser for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* 自定義樣式 */
+        .bottle-shine {
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%);
+        }
+        /* 模擬熱氣動畫 */
+        @keyframes rise {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(-20px); opacity: 0; }
+        }
+        .steam {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+            filter: blur(3px);
+            animation: rise 2s infinite;
+        }
+        /* Slider Styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid currentColor;
+            cursor: pointer;
+            margin-top: -6px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        /* Markdown Styles */
+        .prose p { margin-bottom: 0.5em; }
+        .prose strong { font-weight: bold; color: #1e293b; }
+        .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">物理實驗室：熱傳遞與輻射</h1>
+                <p class="text-sm opacity-90">探究表面顏色對熱輻射散熱速率的影響</p>
+            </div>
+            <div class="text-right text-sm hidden md:block">
+                <p>公平測試條件：</p>
+                <p>相同體積、相同初始溫度、相同容器材質(僅顏色不同)</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto p-4 gap-6 flex flex-col lg:flex-row">
+        
+        <!-- Left Column: Controls & Visuals -->
+        <div class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <!-- Control Panel -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    實驗參數設定
+                </h2>
+                
+                <div class="space-y-5 mb-6">
+                    <!-- Initial Temp Slider -->
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label for="rngStartTemp" class="text-slate-700">初始溫度 (Initial)</label>
+                            <span id="valStartTemp" class="text-red-600 font-mono">80°C</span>
+                        </div>
+                        <input type="range" id="rngStartTemp" min="40" max="100" value="80" class="w-full text-red-500 accent-red-500">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>40°C</span>
+                            <span>100°C</span>
+                        </div>
+                    </div>
+
+                    <!-- Room Temp Slider -->
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label for="rngEnvTemp" class="text-slate-700">室溫 (Room)</label>
+                            <span id="valEnvTemp" class="text-blue-600 font-mono">25°C</span>
+                        </div>
+                        <input type="range" id="rngEnvTemp" min="0" max="40" value="25" class="w-full text-blue-500 accent-blue-500">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>0°C</span>
+                            <span>40°C</span>
+                        </div>
+                    </div>
+
+                    <!-- Speed Slider -->
+                    <div class="pt-2 border-t border-slate-100">
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label for="rngSpeed" class="text-slate-700">模擬速度 (Speed)</label>
+                            <span id="valSpeed" class="text-green-600 font-mono">1x</span>
+                        </div>
+                        <input type="range" id="rngSpeed" min="1" max="10" step="0.5" value="1" class="w-full text-green-500 accent-green-500">
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="btnStart" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded transition shadow flex justify-center items-center">
+                        <span id="btnStartText">開始實驗</span>
+                    </button>
+                    <button id="btnReset" class="flex-1 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded transition shadow">
+                        重置
+                    </button>
+                </div>
+                
+                <div class="mt-4 text-center bg-slate-50 rounded p-2">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide">經過時間 (模擬)</p>
+                    <p id="timerDisplay" class="text-2xl font-mono font-bold text-slate-700">00:00</p>
+                </div>
+            </div>
+
+            <!-- Bottles Visualization -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex justify-around items-end h-64 relative">
+                
+                <!-- Silver Bottle -->
+                <div class="flex flex-col items-center relative z-10">
+                    <div class="text-sm font-bold mb-2 bg-gray-200 px-2 py-1 rounded border border-gray-300 text-gray-700">銀色表面</div>
+                    <!-- Bottle Body -->
+                    <div class="w-24 h-32 rounded-lg border-2 border-gray-400 relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-300 shadow-md transition-colors duration-500">
+                        <!-- Liquid -->
+                        <div id="silverLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear" style="height: 85%; background-color: rgb(255, 0, 0);"></div>
+                        <!-- Shine Effect -->
+                        <div class="absolute inset-0 bottle-shine pointer-events-none"></div>
+                    </div>
+                    <div class="mt-2 font-mono font-bold text-lg" id="silverTempDisplay">80.0°C</div>
+                    <!-- Steam Elements -->
+                    <div id="silverSteam" class="absolute -top-4 w-full flex justify-center opacity-0 transition-opacity duration-500">
+                        <div class="steam" style="animation-delay: 0s; left: 40%;"></div>
+                        <div class="steam" style="animation-delay: 0.5s; left: 50%;"></div>
+                        <div class="steam" style="animation-delay: 1s; left: 60%;"></div>
+                    </div>
+                </div>
+
+                <!-- Black Bottle -->
+                <div class="flex flex-col items-center relative z-10">
+                    <div class="text-sm font-bold mb-2 bg-gray-800 px-2 py-1 rounded text-white">啞黑表面</div>
+                    <!-- Bottle Body -->
+                    <div class="w-24 h-32 rounded-lg border-2 border-gray-800 relative overflow-hidden bg-gradient-to-br from-gray-700 to-gray-900 shadow-md">
+                         <!-- Liquid -->
+                         <div id="blackLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear" style="height: 85%; background-color: rgb(255, 0, 0);"></div>
+                         <!-- Shine Effect (Less shiny for black) -->
+                         <div class="absolute inset-0 bottle-shine opacity-20 pointer-events-none"></div>
+                    </div>
+                    <div class="mt-2 font-mono font-bold text-lg" id="blackTempDisplay">80.0°C</div>
+                     <!-- Steam Elements -->
+                     <div id="blackSteam" class="absolute -top-4 w-full flex justify-center opacity-0 transition-opacity duration-500">
+                        <div class="steam" style="animation-delay: 0.2s; left: 40%;"></div>
+                        <div class="steam" style="animation-delay: 0.7s; left: 50%;"></div>
+                        <div class="steam" style="animation-delay: 1.2s; left: 60%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Graph & Data & AI -->
+        <div class="w-full lg:w-2/3 flex flex-col gap-6">
+            
+            <!-- Graph Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
+                <div class="mb-4 flex justify-between items-center border-b pb-2">
+                    <h2 class="text-xl font-bold text-slate-700">溫度-時間 關係圖</h2>
+                    <div class="flex gap-4 text-sm">
+                        <div class="flex items-center">
+                            <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> 銀色瓶
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-3 h-3 rounded-full bg-black mr-2"></span> 黑色瓶
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative flex-grow min-h-[300px]">
+                    <canvas id="coolingChart"></canvas>
+                </div>
+            </div>
+
+            <!-- AI Assistant Section -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl shadow-lg border border-indigo-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-indigo-900 flex items-center">
+                        <span class="text-2xl mr-2">✨</span> AI 物理實驗助教
+                    </h2>
+                    <div class="flex space-x-2">
+                        <button id="tabAnalyze" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm border border-indigo-100 hover:bg-indigo-50 transition active-tab">
+                            分析實驗數據
+                        </button>
+                        <button id="tabAsk" class="px-4 py-2 rounded-lg text-sm font-medium bg-transparent text-slate-600 hover:bg-white transition">
+                            我有問題
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Analysis View -->
+                <div id="viewAnalyze" class="block">
+                    <p class="text-slate-600 mb-4 text-sm">當實驗進行一段時間後，點擊下方按鈕，AI 將根據當前的溫度曲線為你分析物理現象。</p>
+                    
+                    <button id="btnAnalyze" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center justify-center gap-2">
+                        <span>✨ 分析當前結果</span>
+                        <svg id="iconAnalyze" class="w-5 h-5 hidden animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </button>
+
+                    <div id="analysisResult" class="mt-4 p-4 bg-white rounded-lg border border-indigo-100 text-slate-700 prose text-sm hidden">
+                        <!-- AI Response goes here -->
+                    </div>
+                </div>
+
+                <!-- Ask Question View -->
+                <div id="viewAsk" class="hidden">
+                    <p class="text-slate-600 mb-4 text-sm">對熱輻射有疑問？輸入你的問題，AI 老師會為你解答。</p>
+                    <div class="flex gap-2 mb-3">
+                        <input id="inputQuestion" type="text" placeholder="例如：為什麼黑色表面散熱比較快？" class="flex-1 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                        <button id="btnAsk" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow transition whitespace-nowrap flex items-center gap-2">
+                            <span>✨ 發問</span>
+                            <svg id="iconAsk" class="w-4 h-4 hidden animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </button>
+                    </div>
+                    <div id="qaResult" class="p-4 bg-white rounded-lg border border-purple-100 text-slate-700 prose text-sm hidden">
+                        <!-- AI Answer goes here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-slate-200 text-center p-4 text-xs text-slate-500">
+        &copy; 熱輻射教學演示工具 | Powered by Gemini API
+    </footer>
+
+    <script>
+        // --- Configuration ---
+        const UPDATE_INTERVAL_MS = 200; 
+        const BASE_TIME_SCALE = 30; 
+        const K_SILVER = 0.02; 
+        const K_BLACK = 0.05; 
+        const apiKey = ""; // Gemini API Key injected by environment
+
+        // --- State ---
+        let state = {
+            isRunning: false,
+            currentTime: 0,
+            startTemp: 80.0,
+            envTemp: 25.0,
+            speedMultiplier: 1.0,
+            tempSilver: 80.0,
+            tempBlack: 80.0,
+            timerId: null
+        };
+
+        // --- Elements ---
+        const els = {
+            btnStart: document.getElementById('btnStart'),
+            btnStartText: document.getElementById('btnStartText'),
+            btnReset: document.getElementById('btnReset'),
+            timerDisplay: document.getElementById('timerDisplay'),
+            silverTemp: document.getElementById('silverTempDisplay'),
+            blackTemp: document.getElementById('blackTempDisplay'),
+            silverLiquid: document.getElementById('silverLiquid'),
+            blackLiquid: document.getElementById('blackLiquid'),
+            silverSteam: document.getElementById('silverSteam'),
+            blackSteam: document.getElementById('blackSteam'),
+            // Inputs
+            rngStartTemp: document.getElementById('rngStartTemp'),
+            rngEnvTemp: document.getElementById('rngEnvTemp'),
+            rngSpeed: document.getElementById('rngSpeed'),
+            valStartTemp: document.getElementById('valStartTemp'),
+            valEnvTemp: document.getElementById('valEnvTemp'),
+            valSpeed: document.getElementById('valSpeed'),
+            // AI Section
+            tabAnalyze: document.getElementById('tabAnalyze'),
+            tabAsk: document.getElementById('tabAsk'),
+            viewAnalyze: document.getElementById('viewAnalyze'),
+            viewAsk: document.getElementById('viewAsk'),
+            btnAnalyze: document.getElementById('btnAnalyze'),
+            iconAnalyze: document.getElementById('iconAnalyze'),
+            analysisResult: document.getElementById('analysisResult'),
+            inputQuestion: document.getElementById('inputQuestion'),
+            btnAsk: document.getElementById('btnAsk'),
+            iconAsk: document.getElementById('iconAsk'),
+            qaResult: document.getElementById('qaResult')
+        };
+
+        // --- Chart Setup ---
+        const ctx = document.getElementById('coolingChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [0],
+                datasets: [
+                    {
+                        label: '銀色瓶子 (Silver)',
+                        data: [80],
+                        borderColor: '#94a3b8', 
+                        backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointRadius: 0
+                    },
+                    {
+                        label: '黑色瓶子 (Black)',
+                        data: [80],
+                        borderColor: '#0f172a', 
+                        backgroundColor: 'rgba(15, 23, 42, 0.2)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: '時間 (分鐘)' },
+                        grid: { display: false }
+                    },
+                    y: {
+                        title: { display: true, text: '溫度 (°C)' },
+                        min: 20,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
+        });
+
+        // --- Simulation Logic ---
+
+        function getTempColor(temp) {
+            const maxT = 100;
+            const minT = 0;
+            const percent = Math.max(0, Math.min(1, (temp - minT) / (maxT - minT)));
+            const hue = (1 - percent) * 240; 
+            return `hsl(${hue}, 90%, 50%)`;
+        }
+
+        function formatTime(mins) {
+            const m = Math.floor(mins);
+            const s = Math.floor((mins - m) * 60);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function updateSimulation() {
+            const dt = (UPDATE_INTERVAL_MS / 1000) * (BASE_TIME_SCALE * state.speedMultiplier);
+            state.currentTime += dt;
+
+            // Physics
+            state.tempSilver = state.envTemp + (state.startTemp - state.envTemp) * Math.exp(-K_SILVER * state.currentTime);
+            state.tempBlack = state.envTemp + (state.startTemp - state.envTemp) * Math.exp(-K_BLACK * state.currentTime);
+
+            updateUI(true);
+
+            // Auto-stop
+            if (state.tempSilver < state.envTemp + 0.1 && state.tempBlack < state.envTemp + 0.1) {
+                pauseSimulation();
+            }
+        }
+
+        function updateUI(appendChart = false) {
+            els.timerDisplay.textContent = formatTime(state.currentTime);
+            els.silverTemp.textContent = state.tempSilver.toFixed(1) + "°C";
+            els.blackTemp.textContent = state.tempBlack.toFixed(1) + "°C";
+            els.silverLiquid.style.backgroundColor = getTempColor(state.tempSilver);
+            els.blackLiquid.style.backgroundColor = getTempColor(state.tempBlack);
+
+            const isHot = (state.tempSilver > state.envTemp + 15);
+            els.silverSteam.style.opacity = isHot ? '1' : '0';
+            els.blackSteam.style.opacity = (state.tempBlack > state.envTemp + 15) ? '1' : '0';
+
+            if (appendChart) {
+                chart.data.labels.push(Math.floor(state.currentTime));
+                chart.data.datasets[0].data.push(state.tempSilver);
+                chart.data.datasets[1].data.push(state.tempBlack);
+                chart.update();
+            }
+        }
+
+        function startSimulation() {
+            if (state.isRunning) return;
+            state.isRunning = true;
+            els.btnStart.classList.replace('bg-green-500', 'bg-yellow-500');
+            els.btnStart.classList.replace('hover:bg-green-600', 'hover:bg-yellow-600');
+            els.btnStartText.textContent = "暫停";
+            els.rngStartTemp.disabled = true;
+            els.rngEnvTemp.disabled = true;
+            els.rngStartTemp.classList.add('opacity-50');
+            els.rngEnvTemp.classList.add('opacity-50');
+            state.timerId = setInterval(updateSimulation, UPDATE_INTERVAL_MS);
+        }
+
+        function pauseSimulation() {
+            state.isRunning = false;
+            clearInterval(state.timerId);
+            els.btnStart.classList.replace('bg-yellow-500', 'bg-green-500');
+            els.btnStart.classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+            els.btnStartText.textContent = "繼續";
+        }
+
+        function resetSimulation() {
+            pauseSimulation();
+            state.currentTime = 0;
+            state.startTemp = parseFloat(els.rngStartTemp.value);
+            state.envTemp = parseFloat(els.rngEnvTemp.value);
+            state.tempSilver = state.startTemp;
+            state.tempBlack = state.startTemp;
+            
+            els.rngStartTemp.disabled = false;
+            els.rngEnvTemp.disabled = false;
+            els.rngStartTemp.classList.remove('opacity-50');
+            els.rngEnvTemp.classList.remove('opacity-50');
+
+            chart.data.labels = [0];
+            chart.data.datasets[0].data = [state.startTemp];
+            chart.data.datasets[1].data = [state.startTemp];
+            chart.options.scales.y.min = Math.max(0, state.envTemp - 5);
+            chart.options.scales.y.max = state.startTemp + 10;
+            chart.update();
+
+            els.btnStartText.textContent = "開始實驗";
+            
+            // Reset AI results
+            els.analysisResult.classList.add('hidden');
+            els.analysisResult.innerHTML = "";
+            els.qaResult.classList.add('hidden');
+            
+            updateUI(false);
+        }
+
+        // --- Gemini API Logic ---
+
+        async function callGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error(error);
+                return "抱歉，AI 目前無法回應，請稍後再試。(Error connecting to Gemini API)";
+            }
+        }
+
+        // 1. Analyze Experiment
+        els.btnAnalyze.addEventListener('click', async () => {
+            const prompt = `
+                你是一位中學物理老師。學生剛剛進行了一個關於「熱輻射」的實驗模擬。
+                數據如下：
+                - 環境溫度 (室溫): ${state.envTemp}°C
+                - 初始溫度: ${state.startTemp}°C
+                - 經過時間: ${state.currentTime.toFixed(1)} 分鐘
+                - 目前銀色瓶溫度: ${state.tempSilver.toFixed(1)}°C
+                - 目前黑色瓶溫度: ${state.tempBlack.toFixed(1)}°C
+                
+                請根據以上數據，用繁體中文回答：
+                1. 比較兩個瓶子的溫度變化。
+                2. 解釋為什麼黑色表面比銀色表面降溫更快（請提及「輻射率/Emissivity」和熱輻射吸收/發射的特性）。
+                3. 給予學生正面的鼓勵。
+                請保持回答簡潔生動，適合中學生閱讀。
+            `;
+
+            els.btnAnalyze.disabled = true;
+            els.iconAnalyze.classList.remove('hidden');
+            els.analysisResult.classList.remove('hidden');
+            els.analysisResult.innerHTML = "<p class='animate-pulse text-slate-400'>AI 正在分析數據中...</p>";
+
+            const result = await callGemini(prompt);
+            
+            els.analysisResult.innerHTML = marked.parse(result);
+            els.btnAnalyze.disabled = false;
+            els.iconAnalyze.classList.add('hidden');
+        });
+
+        // 2. Ask Question
+        els.btnAsk.addEventListener('click', async () => {
+            const question = els.inputQuestion.value.trim();
+            if (!question) return;
+
+            const prompt = `
+                你是一位熱心的物理老師。學生在進行「熱輻射」實驗（黑色瓶 vs 銀色瓶冷卻實驗）時提出了問題。
+                
+                學生問題："${question}"
+                
+                請用繁體中文回答，解釋物理原理，並嘗試與本次實驗（顏色與熱輻射的關係）做連結。
+            `;
+
+            els.btnAsk.disabled = true;
+            els.iconAsk.classList.remove('hidden');
+            els.qaResult.classList.remove('hidden');
+            els.qaResult.innerHTML = "<p class='animate-pulse text-slate-400'>AI 正在思考中...</p>";
+
+            const result = await callGemini(prompt);
+            
+            els.qaResult.innerHTML = marked.parse(result);
+            els.btnAsk.disabled = false;
+            els.iconAsk.classList.add('hidden');
+        });
+
+        // --- UI Tabs ---
+        function switchTab(tab) {
+            if (tab === 'analyze') {
+                els.viewAnalyze.classList.remove('hidden');
+                els.viewAsk.classList.add('hidden');
+                els.tabAnalyze.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
+                els.tabAnalyze.classList.remove('bg-transparent', 'text-slate-600');
+                els.tabAsk.classList.add('bg-transparent', 'text-slate-600');
+                els.tabAsk.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
+            } else {
+                els.viewAnalyze.classList.add('hidden');
+                els.viewAsk.classList.remove('hidden');
+                els.tabAsk.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
+                els.tabAsk.classList.remove('bg-transparent', 'text-slate-600');
+                els.tabAnalyze.classList.add('bg-transparent', 'text-slate-600');
+                els.tabAnalyze.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
+            }
+        }
+
+        els.tabAnalyze.addEventListener('click', () => switchTab('analyze'));
+        els.tabAsk.addEventListener('click', () => switchTab('ask'));
+
+        // --- Base Event Listeners ---
+        els.rngStartTemp.addEventListener('input', (e) => {
+            els.valStartTemp.textContent = e.target.value + "°C";
+            resetSimulation();
+        });
+        els.rngEnvTemp.addEventListener('input', (e) => {
+            els.valEnvTemp.textContent = e.target.value + "°C";
+            resetSimulation();
+        });
+        els.rngSpeed.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            state.speedMultiplier = val;
+            els.valSpeed.textContent = val + "x";
+        });
+        els.btnStart.addEventListener('click', () => {
+            if (state.isRunning) pauseSimulation();
+            else startSimulation();
+        });
+        els.btnReset.addEventListener('click', resetSimulation);
+
+        // Init
+        resetSimulation();
+
+    </script>
+</body>
+</html>
