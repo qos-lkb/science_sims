@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>同位素與相對原子質量模擬器</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for formatting formulas -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global',
+        scale: 0.9  /* Global scaling for MathJax SVG output */
+      },
+      startup: {
+        pageReady: () => {
+          return MathJax.startup.defaultPageReady();
+        }
+      }
+    };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
+    <style>
+        /* Custom styles for atom animations */
+        .atom {
+            transition: all 0.3s ease;
+        }
+        .atom:hover {
+            transform: scale(1.2);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        /* Custom scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">🧪 同位素與相對原子質量模擬器</h1>
+            <span class="text-sm opacity-80">化學教學輔助工具</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 flex-grow flex flex-col gap-6">
+        
+        <!-- Top Section: Controls & Visualization -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            <!-- Left Column: Controls & Data (4 cols) -->
+            <div class="md:col-span-4 flex flex-col gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                
+                <!-- 1. Dropdown Menu -->
+                <div>
+                    <label for="elementSelect" class="block text-sm font-medium text-slate-700 mb-2">
+                        1. 選擇元素種類 (按原子序排列)
+                    </label>
+                    <div class="relative">
+                        <!-- Added appearance-none to remove default browser arrow -->
+                        <select id="elementSelect" class="appearance-none block w-full p-3 pl-4 border border-slate-300 rounded-lg bg-slate-50 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold text-slate-800 cursor-pointer transition hover:bg-slate-100">
+                            <!-- Options will be populated by JS -->
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-slate-100 my-2">
+
+                <!-- 2. Isotope Data Display -->
+                <div class="flex-grow">
+                    <h3 class="text-sm font-medium text-slate-700 mb-3">2. 同位素相對豐度數據</h3>
+                    <div class="overflow-hidden rounded-lg border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">同位素</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">質量數</th>
+                                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">豐度 (%)</th>
+                                    <th scope="col" class="px-2 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">顏色</th>
+                                </tr>
+                            </thead>
+                            <tbody id="isotopeTableBody" class="bg-white divide-y divide-slate-200">
+                                <!-- Rows generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2 italic">
+                        * 假設樣本中有 100 顆原子
+                    </p>
+                </div>
+
+                <!-- Legend/Key Summary -->
+                <div id="legendContainer" class="mt-auto pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+                    <!-- Legend items generated by JS -->
+                </div>
+            </div>
+
+            <!-- Right Column: Atom Visualization (8 cols) -->
+            <div class="md:col-span-8 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
+                <div class="w-full flex justify-between items-end mb-4">
+                    <h3 class="text-lg font-semibold text-slate-800">3. & 4. 原子模型模擬 (100顆原子)</h3>
+                    <div class="text-sm text-slate-500">10 x 10 方陣</div>
+                </div>
+                
+                <!-- The 10x10 Grid -->
+                <div class="aspect-square w-full max-w-[500px] bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
+                    <div id="atomGrid" class="grid grid-cols-10 grid-rows-10 gap-1 sm:gap-2 w-full h-full">
+                        <!-- Atoms generated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Section: Calculation -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-800 mb-4">5. 相對原子質量 (R.A.M.) 計算步驟</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Formula Explanation -->
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 class="font-semibold text-blue-800 text-sm mb-2">通用公式</h4>
+                        <!-- Changed text-lg to text-base for smaller font size -->
+                        <div class="text-base text-slate-800 overflow-x-auto">
+                            $$ \text{Ar} = \sum (\text{同位素質量} \times \text{相對豐度}) $$
+                            $$ \text{Ar} = \frac{(M_1 \times \%_1) + (M_2 \times \%_2) + ...}{100} $$
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Calculation -->
+                <div class="space-y-4">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+                        <h4 class="font-semibold text-green-800 text-sm mb-2">本題計算 (<span id="calcElementName">Element</span>)</h4>
+                        <!-- Changed text-lg to text-base for smaller font size -->
+                        <div id="calculationSteps" class="text-base text-slate-800 overflow-x-auto min-h-[100px] flex items-center">
+                            <!-- MathJax Formula generated by JS -->
+                            正在計算...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 py-6 mt-6">
+        <div class="container mx-auto text-center text-sm">
+            <p>化學教學模擬 Web App</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- Data: Element and Isotope Definitions ---
+        // Added Atomic Number (Z) for sorting
+        const elementsData = [
+            {
+                id: 'Li',
+                atomicNumber: 3,
+                name: '鋰 (Lithium)',
+                symbol: 'Li',
+                isotopes: [
+                    { mass: 6, abundance: 8, color: 'bg-fuchsia-500', colorHex: '#d946ef' },
+                    { mass: 7, abundance: 92, color: 'bg-red-500', colorHex: '#ef4444' }
+                ]
+            },
+            {
+                id: 'B',
+                atomicNumber: 5,
+                name: '硼 (Boron)',
+                symbol: 'B',
+                isotopes: [
+                    { mass: 10, abundance: 20, color: 'bg-rose-500', colorHex: '#f43f5e' },
+                    { mass: 11, abundance: 80, color: 'bg-blue-500', colorHex: '#3b82f6' }
+                ]
+            },
+            {
+                id: 'C',
+                atomicNumber: 6,
+                name: '碳 (Carbon)',
+                symbol: 'C',
+                isotopes: [
+                    { mass: 12, abundance: 99, color: 'bg-gray-700', colorHex: '#374151' },
+                    { mass: 13, abundance: 1, color: 'bg-blue-400', colorHex: '#60a5fa' }
+                ]
+            },
+            {
+                id: 'Ne',
+                atomicNumber: 10,
+                name: '氖 (Neon)',
+                symbol: 'Ne',
+                isotopes: [
+                    { mass: 20, abundance: 90, color: 'bg-red-400', colorHex: '#f87171' },
+                    { mass: 21, abundance: 1, color: 'bg-indigo-400', colorHex: '#818cf8' },
+                    { mass: 22, abundance: 9, color: 'bg-pink-400', colorHex: '#f472b6' }
+                ]
+            },
+            {
+                id: 'Mg',
+                atomicNumber: 12,
+                name: '鎂 (Magnesium)',
+                symbol: 'Mg',
+                isotopes: [
+                    { mass: 24, abundance: 79, color: 'bg-orange-500', colorHex: '#f97316' },
+                    { mass: 25, abundance: 10, color: 'bg-purple-500', colorHex: '#a855f7' },
+                    { mass: 26, abundance: 11, color: 'bg-teal-500', colorHex: '#14b8a6' }
+                ]
+            },
+            {
+                id: 'Si',
+                atomicNumber: 14,
+                name: '矽 (Silicon)',
+                symbol: 'Si',
+                isotopes: [
+                    { mass: 28, abundance: 92, color: 'bg-slate-500', colorHex: '#64748b' },
+                    { mass: 29, abundance: 5, color: 'bg-amber-500', colorHex: '#f59e0b' },
+                    { mass: 30, abundance: 3, color: 'bg-green-500', colorHex: '#22c55e' }
+                ]
+            },
+            {
+                id: 'Cl',
+                atomicNumber: 17,
+                name: '氯 (Chlorine)',
+                symbol: 'Cl',
+                isotopes: [
+                    { mass: 35, abundance: 75, color: 'bg-green-500', colorHex: '#22c55e' },
+                    { mass: 37, abundance: 25, color: 'bg-yellow-500', colorHex: '#eab308' }
+                ]
+            },
+            {
+                id: 'K',
+                atomicNumber: 19,
+                name: '鉀 (Potassium)',
+                symbol: 'K',
+                isotopes: [
+                    { mass: 39, abundance: 93, color: 'bg-violet-600', colorHex: '#7c3aed' },
+                    { mass: 41, abundance: 7, color: 'bg-fuchsia-400', colorHex: '#e879f9' }
+                ]
+            },
+            {
+                id: 'Cu',
+                atomicNumber: 29,
+                name: '銅 (Copper)',
+                symbol: 'Cu',
+                isotopes: [
+                    { mass: 63, abundance: 69, color: 'bg-amber-600', colorHex: '#d97706' },
+                    { mass: 65, abundance: 31, color: 'bg-cyan-600', colorHex: '#0891b2' }
+                ]
+            },
+            {
+                id: 'Ga',
+                atomicNumber: 31,
+                name: '鎵 (Gallium)',
+                symbol: 'Ga',
+                isotopes: [
+                    { mass: 69, abundance: 60, color: 'bg-pink-600', colorHex: '#db2777' },
+                    { mass: 71, abundance: 40, color: 'bg-lime-500', colorHex: '#84cc16' }
+                ]
+            },
+            {
+                id: 'Br',
+                atomicNumber: 35,
+                name: '溴 (Bromine)',
+                symbol: 'Br',
+                isotopes: [
+                    { mass: 79, abundance: 51, color: 'bg-red-700', colorHex: '#b91c1c' },
+                    { mass: 81, abundance: 49, color: 'bg-orange-700', colorHex: '#c2410c' }
+                ]
+            },
+            {
+                id: 'Ag',
+                atomicNumber: 47,
+                name: '銀 (Silver)',
+                symbol: 'Ag',
+                isotopes: [
+                    { mass: 107, abundance: 52, color: 'bg-gray-400', colorHex: '#9ca3af' },
+                    { mass: 109, abundance: 48, color: 'bg-zinc-600', colorHex: '#52525b' }
+                ]
+            }
+        ];
+
+        // --- DOM Elements ---
+        const elementSelect = document.getElementById('elementSelect');
+        const isotopeTableBody = document.getElementById('isotopeTableBody');
+        const atomGrid = document.getElementById('atomGrid');
+        const calculationSteps = document.getElementById('calculationSteps');
+        const calcElementName = document.getElementById('calcElementName');
+        const legendContainer = document.getElementById('legendContainer');
+
+        // --- Initialization ---
+        function init() {
+            // Sort by Atomic Number (Z)
+            elementsData.sort((a, b) => a.atomicNumber - b.atomicNumber);
+
+            // Populate Dropdown
+            elementsData.forEach((el, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${el.atomicNumber}. ${el.name}`; // Added atomic number to display
+                elementSelect.appendChild(option);
+            });
+
+            // Add Event Listener
+            elementSelect.addEventListener('change', (e) => {
+                render(elementsData[e.target.value]);
+            });
+
+            // Initial Render (First element)
+            render(elementsData[0]);
+        }
+
+        // --- Core Render Logic ---
+        function render(element) {
+            calcElementName.textContent = element.name;
+
+            // 1. Render Isotope Table
+            isotopeTableBody.innerHTML = '';
+            element.isotopes.forEach(iso => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-slate-900">
+                        <sup>${iso.mass}</sup>${element.symbol}
+                    </td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-slate-500">${iso.mass}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-slate-700 font-bold">${iso.abundance}%</td>
+                    <td class="px-2 py-2 whitespace-nowrap text-center">
+                        <span class="inline-block w-4 h-4 rounded-full ${iso.color} shadow-sm border border-white"></span>
+                    </td>
+                `;
+                isotopeTableBody.appendChild(row);
+            });
+
+            // 2. Render Legend Summary
+            legendContainer.innerHTML = '';
+            element.isotopes.forEach(iso => {
+                const badge = document.createElement('div');
+                badge.className = "flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-md border border-slate-200";
+                badge.innerHTML = `
+                    <div class="w-3 h-3 rounded-full ${iso.color}"></div>
+                    <span class="text-xs font-medium text-slate-700"><sup>${iso.mass}</sup>${element.symbol}: ${iso.abundance}個</span>
+                `;
+                legendContainer.appendChild(badge);
+            });
+
+            // 3. Render 10x10 Grid
+            // Create an array representing the 100 atoms
+            let atomsArray = [];
+            element.isotopes.forEach(iso => {
+                for (let i = 0; i < iso.abundance; i++) {
+                    atomsArray.push(iso);
+                }
+            });
+
+            // Verify total is 100 (handling slight data imperfections if any, though data is hardcoded to 100)
+            while(atomsArray.length < 100) atomsArray.push(element.isotopes[0]);
+            while(atomsArray.length > 100) atomsArray.pop();
+
+            atomGrid.innerHTML = '';
+            atomsArray.forEach((iso, index) => {
+                const atomDiv = document.createElement('div');
+                // Use Tailwind utility classes combined with dynamic color
+                atomDiv.className = `atom w-full h-full rounded-full ${iso.color} shadow-md border border-white/30 relative flex items-center justify-center group cursor-help`;
+                
+                // Tooltip content
+                atomDiv.title = `Mass: ${iso.mass}`;
+                
+                // Inner text (Mass number)
+                atomDiv.innerHTML = `<span class="text-[8px] sm:text-[10px] text-white font-bold opacity-0 group-hover:opacity-100 select-none">${iso.mass}</span>`;
+                
+                atomGrid.appendChild(atomDiv);
+            });
+
+            // 4. Render Calculation (MathJax)
+            let numeratorString = element.isotopes.map(iso => `(${iso.mass} \\times ${iso.abundance})`).join(' + ');
+            
+            let totalMass = 0;
+            element.isotopes.forEach(iso => {
+                totalMass += (iso.mass * iso.abundance);
+            });
+            let result = totalMass / 100;
+            
+            // Format to max 2 decimal places if needed, usually exact for these examples
+            let finalResult = Math.round(result * 100) / 100;
+
+            const latexString = `
+                $$ \\begin{align} 
+                \\text{相對原子質量} &= \\frac{${numeratorString}}{100} \\\\
+                &= \\frac{${totalMass}}{100} \\\\
+                &= \\mathbf{${finalResult}}
+                \\end{align} $$
+            `;
+
+            calculationSteps.innerHTML = latexString;
+
+            // Trigger MathJax update safely
+            // Check if MathJax is loaded AND if typesetPromise is actually a function
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([calculationSteps]).catch((err) => console.log(err));
+            } 
+            // If MathJax is present but typesetPromise is NOT a function, it means it's still the config object.
+            // The script is still loading. When it finishes, it will auto-typeset the page (including our initial content).
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>
