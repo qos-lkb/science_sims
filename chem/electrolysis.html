@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>虛擬電解實驗室</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            },
+            startup: {
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                }
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        /* Custom styles for range sliders */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        /* Vertical ECS Gradient Bar */
+        .ecs-gradient-vertical {
+            background: linear-gradient(to bottom, #fca5a5 0%, #cbd5e1 60%, #cbd5e1 100%);
+            width: 8px;
+            border-radius: 4px;
+            margin: 0 10px;
+            position: relative;
+            height: 300px;
+        }
+        .ecs-arrow-up {
+            position: absolute;
+            top: -8px;
+            left: -6px;
+            color: #fca5a5;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans relative">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                虛擬電解實驗室 (Virtual Electrolysis Lab)
+            </h1>
+            <span class="text-sm bg-blue-700 px-3 py-1 rounded-full">中學化學模擬</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-4 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Left Panel: Controls -->
+        <aside class="w-full lg:w-1/3 space-y-6">
+            
+            <!-- Electrolyte Selection -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">1. 選擇電解質</h2>
+                <label class="block mb-2 text-sm font-medium text-gray-600">溶液種類</label>
+                <select id="electrolyteSelect" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="NaCl">氯化鈉溶液 (NaCl aq)</option>
+                    <option value="CuSO4">硫酸銅溶液 (CuSO4 aq)</option>
+                    <option value="H2SO4">稀硫酸 (H2SO4 aq)</option>
+                    <option value="HCl">鹽酸 (HCl aq)</option>
+                    <option value="HNO3">硝酸 (HNO3 aq)</option>
+                    <option value="NaNO3">硝酸鈉溶液 (NaNO3 aq)</option>
+                    <option value="CaOH2">氫氧化鈣溶液 (Ca(OH)2 aq)</option>
+                    <option value="AgNO3">硝酸銀溶液 (AgNO3 aq)</option>
+                    <option value="KI">碘化鉀溶液 (KI aq)</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-2">註：假設使用惰性電極 (石墨/鉑)。</p>
+            </div>
+
+            <!-- Parameters -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">2. 實驗參數</h2>
+                
+                <!-- Concentration Slider -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-gray-600">摩爾濃度 (Molarity)</label>
+                        <span id="molarityValue" class="text-sm font-bold text-blue-600">1.000 M</span>
+                    </div>
+                    <input type="range" id="molaritySlider" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>稀 (Dilute)</span>
+                        <span>濃 (Conc.)</span>
+                    </div>
+                </div>
+
+                <!-- Voltage Slider -->
+                <div class="mb-2">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-gray-600">電源電壓 (Voltage)</label>
+                        <span id="voltageValue" class="text-sm font-bold text-red-600">12 V</span>
+                    </div>
+                    <input type="range" id="voltageSlider" min="0" max="30" step="1" value="12" class="w-full">
+                </div>
+                
+                <div class="bg-yellow-50 p-3 rounded mt-4 border border-yellow-100">
+                    <h3 class="font-bold text-xs text-yellow-800 uppercase mb-1">狀態監控</h3>
+                    <div class="flex justify-between text-sm">
+                        <span>電流強度 (模擬):</span>
+                        <span id="currentDisplay" class="font-mono">-- A</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="space-y-3">
+                 <!-- Reset Button -->
+                <button id="resetBtn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    重置實驗 (Reset)
+                </button>
+
+                <!-- Reference Button -->
+                <button id="openEcsBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    查看陰離子放電次序 (E.C.S.)
+                </button>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 border border-blue-100">
+                <p><strong>操作提示：</strong> 調節電壓可改變反應速率。注意濃度對 Cl⁻ 放電的影響 (例如 NaCl 或 HCl)。長時間電解會導致濃度下降。</p>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Visualization & Data -->
+        <main class="w-full lg:w-2/3 space-y-6">
+            
+            <!-- Canvas Simulation -->
+            <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                <div class="bg-gray-100 px-4 py-2 border-b flex justify-between items-center">
+                    <h2 class="font-bold text-gray-700">微觀模擬視圖</h2>
+                    <div class="flex gap-4 text-xs font-mono">
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-red-500 rounded-full"></span> 陽極 (Anode +)</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-gray-800 rounded-full"></span> 陰極 (Cathode −)</div>
+                    </div>
+                </div>
+                <div class="canvas-container bg-white relative">
+                    <canvas id="simCanvas"></canvas>
+                    <!-- Overlay Labels -->
+                    <div class="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/80 px-2 py-1 rounded text-xs font-bold border border-gray-300 shadow-sm">
+                        直流電源 DC
+                    </div>
+                    <div class="absolute top-10 left-10 bg-yellow-100/90 px-2 py-1 rounded text-xs border border-yellow-300 font-mono shadow-sm" id="voltmeterOverlay">
+                        V = 12.0V
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reaction Analysis Panel -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Anode Analysis -->
+                <div class="bg-red-50 p-5 rounded-lg border border-red-100 shadow-sm transition-all duration-300" id="anodeCard">
+                    <h3 class="text-red-800 font-bold text-lg mb-2 flex items-center justify-between">
+                        <span>陽極 (Anode +)</span>
+                        <span class="text-xs px-2 py-0.5 bg-red-200 rounded-full text-red-800">氧化反應</span>
+                    </h3>
+                    <div class="space-y-3">
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">吸引離子 (Anions)</span>
+                            <div id="anodeIons" class="text-sm font-mono text-gray-800 mt-1">--</div>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">優先放電</span>
+                            <div id="anodeDischarge" class="font-bold text-red-700">--</div>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">觀察 (Observation)</span>
+                            <div id="anodeObs" class="text-sm text-gray-700">--</div>
+                        </div>
+                        <div class="bg-white p-2 rounded border border-red-100 mt-2">
+                            <div id="anodeEq" class="text-sm overflow-x-auto">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cathode Analysis -->
+                <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 shadow-sm transition-all duration-300" id="cathodeCard">
+                    <h3 class="text-slate-800 font-bold text-lg mb-2 flex items-center justify-between">
+                        <span>陰極 (Cathode −)</span>
+                        <span class="text-xs px-2 py-0.5 bg-slate-200 rounded-full text-slate-800">還原反應</span>
+                    </h3>
+                    <div class="space-y-3">
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">吸引離子 (Cations)</span>
+                            <div id="cathodeIons" class="text-sm font-mono text-gray-800 mt-1">--</div>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">優先放電</span>
+                            <div id="cathodeDischarge" class="font-bold text-blue-700">--</div>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 uppercase">觀察 (Observation)</span>
+                            <div id="cathodeObs" class="text-sm text-gray-700">--</div>
+                        </div>
+                        <div class="bg-white p-2 rounded border border-slate-200 mt-2">
+                            <div id="cathodeEq" class="text-sm overflow-x-auto">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal (Pop-out) -->
+    <div id="ecsModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]" id="ecsModalContent">
+            <!-- Header -->
+            <div class="bg-indigo-600 px-6 py-4 rounded-t-xl flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-bold text-white">陰離子優先放電次序 (Anions E.C.S.)</h3>
+                <button id="closeEcsBtn" class="text-white hover:text-gray-200 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto">
+                <p class="text-gray-600 mb-4 text-sm">位置越<strong>高</strong>，越容易失去電子（氧化）。</p>
+                
+                <div class="flex items-stretch justify-center gap-4">
+                    <!-- Vertical Gradient Bar -->
+                    <div class="flex flex-col items-center justify-between py-2">
+                        <span class="text-xs font-bold text-red-500 uppercase writing-mode-vertical">易放電 (Easy)</span>
+                        <div class="ecs-gradient-vertical">
+                            <div class="ecs-arrow-up">▲</div>
+                        </div>
+                        <span class="text-xs font-bold text-gray-400 uppercase writing-mode-vertical">難放電 (Hard)</span>
+                    </div>
+
+                    <!-- List of Ions -->
+                    <div class="flex flex-col gap-2 w-full max-w-[200px]">
+                        <!-- Easy -->
+                        <div class="p-3 bg-red-100 rounded text-red-700 font-mono text-lg font-bold ring-2 ring-red-300 text-center shadow-sm">
+                            OH⁻
+                        </div>
+                        <div class="h-4"></div> <!-- Spacer -->
+                        
+                        <!-- Medium -->
+                        <div class="p-2 bg-blue-50 rounded text-blue-700 font-mono text-base font-bold border border-blue-200 text-center">
+                            I⁻
+                        </div>
+                        <div class="p-2 bg-blue-50 rounded text-blue-700 font-mono text-base font-bold border border-blue-200 text-center">
+                            Br⁻
+                        </div>
+                        <div class="p-2 bg-blue-50 rounded text-blue-700 font-mono text-base font-bold border border-blue-200 text-center">
+                            Cl⁻
+                        </div>
+                        
+                        <div class="h-4"></div> <!-- Spacer -->
+
+                        <!-- Hard -->
+                        <div class="p-2 bg-gray-100 rounded text-gray-500 font-mono text-sm border border-gray-200 text-center">
+                            OH⁻ (Dilute)
+                        </div>
+                         <div class="p-2 bg-gray-100 rounded text-gray-400 font-mono text-sm border border-gray-200 text-center">
+                            NO₃⁻
+                        </div>
+                        <div class="p-2 bg-gray-100 rounded text-gray-400 font-mono text-sm border border-gray-200 text-center">
+                            SO₄²⁻
+                        </div>
+                         <div class="p-2 bg-gray-100 rounded text-gray-400 font-mono text-sm border border-gray-200 text-center">
+                            F⁻
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-sm space-y-2 mt-6">
+                    <h4 class="font-bold text-yellow-800 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        重要提示 (濃度效應)
+                    </h4>
+                    <p class="text-gray-700">
+                        雖然 <strong>OH⁻</strong> 在電化序中比 <strong>Cl⁻</strong> 容易放電，但在<strong>濃鹽水</strong>或<strong>濃鹽酸</strong>中，由於 Cl⁻ 離子的濃度遠高於 OH⁻，<strong>Cl⁻ 會優先放電</strong>產生氯氣。
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-3 rounded-b-xl flex justify-end shrink-0">
+                <button id="closeEcsBtnSecondary" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none transition">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        // --- State Management ---
+        const state = {
+            electrolyte: 'NaCl',
+            molarity: 1.0,
+            voltage: 12,
+            isRunning: true
+        };
+
+        // --- Data Definitions ---
+        // Using "−" (Mathematical minus) instead of hyphen "-" in displays
+        const electrolytesData = {
+            'NaCl': {
+                name: "氯化鈉溶液",
+                cations: ["Na⁺", "H⁺"],
+                anions: ["Cl⁻", "OH⁻"],
+                color: "rgba(224, 242, 254, 0.6)",
+                getReactions: (m, v) => {
+                    const isConc = m >= 2.0;
+                    return {
+                        anode: {
+                            ion: isConc ? "Cl⁻" : "OH⁻",
+                            product: isConc ? "Cl₂" : "O₂",
+                            color: isConc ? "rgba(163, 230, 53, 0.8)" : "rgba(255, 255, 255, 0.8)",
+                            obs: isConc ? "有綠色氣體產生 (氯氣)" : "有無色氣體產生 (氧氣)",
+                            eq: isConc ? 
+                                "$$2Cl^-_{(aq)} \\rightarrow Cl_{2(g)} + 2e^-$$" : 
+                                "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'CuSO4': {
+                name: "硫酸銅溶液",
+                cations: ["Cu²⁺", "H⁺"],
+                anions: ["SO₄²⁻", "OH⁻"],
+                color: "rgba(59, 130, 246, 0.5)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "Cu²⁺",
+                            product: "Cu",
+                            type: "solid",
+                            solidColor: "#b45309", // Copper
+                            obs: "電極表面有紅棕色固體積聚 (銅)",
+                            eq: "$$Cu^{2+}_{(aq)} + 2e^- \\rightarrow Cu_{(s)}$$"
+                        }
+                    };
+                }
+            },
+            'H2SO4': {
+                name: "稀硫酸",
+                cations: ["H⁺"],
+                anions: ["SO₄²⁻", "OH⁻"],
+                color: "rgba(241, 245, 249, 0.4)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'HCl': {
+                name: "鹽酸",
+                cations: ["H⁺"],
+                anions: ["Cl⁻", "OH⁻"],
+                color: "rgba(255, 255, 255, 0.2)",
+                getReactions: (m, v) => {
+                    const isConc = m >= 2.0;
+                    return {
+                        anode: {
+                            ion: isConc ? "Cl⁻" : "OH⁻",
+                            product: isConc ? "Cl₂" : "O₂",
+                            color: isConc ? "rgba(163, 230, 53, 0.8)" : "rgba(255, 255, 255, 0.8)",
+                            obs: isConc ? "有綠色氣體產生 (氯氣)" : "有無色氣體產生 (氧氣)",
+                            eq: isConc ? 
+                                "$$2Cl^-_{(aq)} \\rightarrow Cl_{2(g)} + 2e^-$$" : 
+                                "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'HNO3': {
+                name: "硝酸",
+                cations: ["H⁺"],
+                anions: ["NO₃⁻", "OH⁻"],
+                color: "rgba(255, 255, 255, 0.2)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'NaNO3': {
+                name: "硝酸鈉溶液",
+                cations: ["Na⁺", "H⁺"],
+                anions: ["NO₃⁻", "OH⁻"],
+                color: "rgba(240, 248, 255, 0.4)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'CaOH2': {
+                name: "氫氧化鈣溶液",
+                cations: ["Ca²⁺", "H⁺"],
+                anions: ["OH⁻"],
+                color: "rgba(255, 250, 240, 0.4)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            },
+            'AgNO3': {
+                name: "硝酸銀溶液",
+                cations: ["Ag⁺", "H⁺"],
+                anions: ["NO₃⁻", "OH⁻"],
+                color: "rgba(245, 245, 245, 0.3)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "OH⁻",
+                            product: "O₂",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            obs: "有無色氣體產生 (氧氣)",
+                            eq: "$$4OH^-_{(aq)} \\rightarrow O_{2(g)} + 2H_2O_{(l)} + 4e^-$$"
+                        },
+                        cathode: {
+                            ion: "Ag⁺",
+                            product: "Ag",
+                            type: "solid",
+                            solidColor: "#C0C0C0", // Silver
+                            obs: "電極表面有銀灰色固體積聚 (銀)",
+                            eq: "$$Ag^+_{(aq)} + e^- \\rightarrow Ag_{(s)}$$"
+                        }
+                    };
+                }
+            },
+            'KI': {
+                name: "碘化鉀溶液",
+                cations: ["K⁺", "H⁺"],
+                anions: ["I⁻", "OH⁻"],
+                color: "rgba(255, 253, 208, 0.3)",
+                getReactions: (m, v) => {
+                    return {
+                        anode: {
+                            ion: "I⁻",
+                            product: "I₂",
+                            type: "gas", 
+                            color: "rgba(139, 69, 19, 0.8)", 
+                            obs: "溶液變為啡色 (碘產生)",
+                            eq: "$$2I^-_{(aq)} \\rightarrow I_{2(aq)} + 2e^-$$"
+                        },
+                        cathode: {
+                            ion: "H⁺",
+                            product: "H₂",
+                            type: "gas",
+                            obs: "有無色氣體產生 (氫氣)",
+                            eq: "$$2H^+_{(aq)} + 2e^- \\rightarrow H_{2(g)}$$"
+                        }
+                    };
+                }
+            }
+        };
+
+        // --- Elements ---
+        const elSelect = document.getElementById('electrolyteSelect');
+        const mSlider = document.getElementById('molaritySlider');
+        const vSlider = document.getElementById('voltageSlider');
+        const mVal = document.getElementById('molarityValue');
+        const vVal = document.getElementById('voltageValue');
+        const currentDisp = document.getElementById('currentDisplay');
+        const vmOverlay = document.getElementById('voltmeterOverlay');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // UI Text Elements
+        const uiElems = {
+            anodeIons: document.getElementById('anodeIons'),
+            anodeDis: document.getElementById('anodeDischarge'),
+            anodeObs: document.getElementById('anodeObs'),
+            anodeEq: document.getElementById('anodeEq'),
+            cathodeIons: document.getElementById('cathodeIons'),
+            cathodeDis: document.getElementById('cathodeDischarge'),
+            cathodeObs: document.getElementById('cathodeObs'),
+            cathodeEq: document.getElementById('cathodeEq'),
+        };
+
+        // Modal Elements
+        const modal = document.getElementById('ecsModal');
+        const modalContent = document.getElementById('ecsModalContent');
+        const openBtn = document.getElementById('openEcsBtn');
+        const closeBtn = document.getElementById('closeEcsBtn');
+        const closeBtnSec = document.getElementById('closeEcsBtnSecondary');
+
+        // --- Event Listeners ---
+        elSelect.addEventListener('change', (e) => {
+            state.electrolyte = e.target.value;
+            sim.resetAccumulation();
+            // Force redraw of ions on change
+            sim.populateIons();
+            updateUI();
+        });
+
+        mSlider.addEventListener('input', (e) => {
+            state.molarity = parseFloat(e.target.value);
+            mVal.innerText = state.molarity.toFixed(3) + " M";
+            updateUI();
+        });
+
+        vSlider.addEventListener('input', (e) => {
+            state.voltage = parseInt(e.target.value);
+            vVal.innerText = state.voltage + " V";
+            vmOverlay.innerText = `V = ${state.voltage.toFixed(1)}V`;
+            updateUI();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            // Reset to defaults
+            state.molarity = 1.0;
+            state.voltage = 12;
+            mSlider.value = 1.0;
+            vSlider.value = 12;
+            mVal.innerText = "1.000 M";
+            vVal.innerText = "12 V";
+            vmOverlay.innerText = "V = 12.0V";
+            sim.resetAccumulation();
+            sim.populateIons();
+            updateUI();
+        });
+
+        // Modal Logic
+        function toggleModal(show) {
+            if (show) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0'); 
+                    modalContent.classList.remove('opacity-0', 'scale-95');
+                    modalContent.classList.add('opacity-100', 'scale-100');
+                }, 10);
+            } else {
+                modalContent.classList.remove('opacity-100', 'scale-100');
+                modalContent.classList.add('opacity-0', 'scale-95');
+                modal.classList.add('opacity-0'); 
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300); 
+            }
+        }
+
+        openBtn.addEventListener('click', () => toggleModal(true));
+        closeBtn.addEventListener('click', () => toggleModal(false));
+        closeBtnSec.addEventListener('click', () => toggleModal(false));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) toggleModal(false);
+        });
+
+        // --- Simulation Core (Canvas) ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const sim = {
+            width: 0,
+            height: 0,
+            bubbles: [],
+            ions: [],
+            solidLayer: 0, 
+            lastFrame: 0,
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.populateIons();
+                requestAnimationFrame((t) => this.loop(t));
+            },
+
+            resize() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                    this.width = rect.width;
+                    this.height = rect.height;
+                    this.populateIons();
+                }
+            },
+
+            resetAccumulation() {
+                this.solidLayer = 0;
+            },
+
+            populateIons() {
+                this.ions = [];
+                const data = electrolytesData[state.electrolyte];
+                const density = 10 + (state.molarity * 5); 
+                
+                // Add Cations
+                for(let i=0; i<density; i++) {
+                    this.ions.push({
+                        type: 'cation',
+                        label: data.cations[i % data.cations.length],
+                        x: Math.random() * (this.width - 100) + 50,
+                        y: Math.random() * (this.height - 150) + 120,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5
+                    });
+                }
+                // Add Anions
+                for(let i=0; i<density; i++) {
+                    this.ions.push({
+                        type: 'anion',
+                        label: data.anions[i % data.anions.length],
+                        x: Math.random() * (this.width - 100) + 50,
+                        y: Math.random() * (this.height - 150) + 120,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5
+                    });
+                }
+            },
+
+            drawEquipment() {
+                const w = this.width;
+                const h = this.height;
+                const beakerY = 100;
+                const beakerH = h - 120;
+                
+                // Beaker
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(w * 0.15, beakerY);
+                ctx.lineTo(w * 0.15, h - 20);
+                ctx.lineTo(w * 0.85, h - 20);
+                ctx.lineTo(w * 0.85, beakerY);
+                ctx.stroke();
+
+                // Solution Liquid
+                ctx.fillStyle = electrolytesData[state.electrolyte].color;
+                ctx.fillRect(w * 0.15 + 2, beakerY + 30, w * 0.7 - 4, beakerH - 30);
+
+                // Electrodes (Carbon/Graphite look)
+                ctx.fillStyle = '#334155'; // Dark Slate
+                // Anode (Left)
+                ctx.fillRect(w * 0.3, beakerY - 20, 20, beakerH - 60);
+                // Cathode (Right)
+                ctx.fillRect(w * 0.7 - 20, beakerY - 20, 20, beakerH - 60);
+
+                // Solid accumulation
+                const reaction = electrolytesData[state.electrolyte].getReactions(state.molarity, state.voltage);
+                if (reaction.cathode.type === 'solid' && this.solidLayer > 0) {
+                    ctx.fillStyle = reaction.cathode.solidColor || '#b45309'; 
+                    const thickness = Math.min(15, this.solidLayer);
+                    ctx.fillRect((w * 0.7 - 20) - thickness/2, beakerY + 30, 20 + thickness, beakerH - 110);
+                }
+
+                // Wires & Battery
+                const cx = w * 0.5;
+                const gap = 8; 
+
+                ctx.lineWidth = 3;
+                // Red Wire (Anode +)
+                ctx.strokeStyle = '#ef4444'; 
+                ctx.beginPath();
+                ctx.moveTo(w * 0.3 + 10, beakerY - 20);
+                ctx.lineTo(w * 0.3 + 10, 40);
+                ctx.lineTo(cx - gap, 40); 
+                ctx.stroke();
+
+                // Black Wire (Cathode -)
+                ctx.strokeStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.moveTo(w * 0.7 - 10, beakerY - 20);
+                ctx.lineTo(w * 0.7 - 10, 40);
+                ctx.lineTo(cx + gap, 40); 
+                ctx.stroke();
+
+                // Battery Symbol
+                ctx.fillStyle = '#000';
+                // Long line (+)
+                ctx.fillRect(cx - gap, 30, 2, 20);
+                // Short thick line (-)
+                ctx.fillRect(cx + gap, 35, 6, 10);
+                
+                // Labels (+ / -)
+                ctx.font = "bold 16px Arial";
+                ctx.fillStyle = "#ef4444";
+                ctx.fillText("+", w * 0.3 - 10, 80);
+                ctx.fillStyle = "#1e293b";
+                ctx.fillText("−", w * 0.7 + 25, 80); // Using minus sign
+            },
+
+            drawIons() {
+                const w = this.width;
+                const h = this.height;
+                const anodeCenter = w * 0.3 + 10;
+                const cathodeCenter = w * 0.7 - 10;
+                const electrodeBottom = h - 80; // Approximate visual bottom of electrode
+                const eField = state.voltage / 30; 
+
+                ctx.font = "10px monospace";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                this.ions.forEach(ion => {
+                    ctx.beginPath();
+                    ctx.arc(ion.x, ion.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = ion.type === 'cation' ? '#fee2e2' : '#dbeafe'; 
+                    ctx.fill();
+                    ctx.strokeStyle = ion.type === 'cation' ? '#991b1b' : '#1e40af';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(ion.label, ion.x, ion.y);
+
+                    // Brownian motion
+                    ion.x += (Math.random() - 0.5) * 0.5;
+                    ion.y += (Math.random() - 0.5) * 0.5;
+
+                    // Electrical Attraction - Updated for Y-axis movement
+                    if (state.voltage > 0) {
+                        const speed = eField * 2;
+                        const verticalSpeed = speed * 0.5; // Slightly slower vertically
+
+                        // Move ions UP if they are below electrode area
+                        if (ion.y > electrodeBottom) {
+                             ion.y -= verticalSpeed;
+                        }
+
+                        if (ion.type === 'anion') {
+                            // Move towards Anode Center (Horizontal)
+                            if (ion.x > anodeCenter + 12) {
+                                ion.x -= speed;
+                            } else if (ion.x < anodeCenter - 12) {
+                                ion.x += speed;
+                            }
+                        } else {
+                            // Move towards Cathode Center (Horizontal)
+                            if (ion.x > cathodeCenter + 12) {
+                                ion.x -= speed;
+                            } else if (ion.x < cathodeCenter - 12) {
+                                ion.x += speed;
+                            }
+                        }
+                    }
+
+                    // Boundaries
+                    if (ion.x < w * 0.15 + 10) ion.x = w * 0.15 + 10;
+                    if (ion.x > w * 0.85 - 10) ion.x = w * 0.85 - 10;
+                    if (ion.y > this.height - 30) ion.y = this.height - 30;
+                    if (ion.y < 130) ion.y = 130;
+                });
+            },
+
+            generateBubbles() {
+                if (state.voltage < 0.5) return; 
+
+                const reaction = electrolytesData[state.electrolyte].getReactions(state.molarity, state.voltage);
+                const w = this.width;
+                const rate = (state.voltage / 30) * (state.molarity / 2) + 0.05;
+
+                // Helper to remove ion and decrease molarity
+                const consumeIon = (ionLabel, side) => {
+                    // side: 'anode' (left) or 'cathode' (right)
+                    const boundary = w * 0.5;
+                    const idx = this.ions.findIndex(i => 
+                        i.label === ionLabel && 
+                        (side === 'anode' ? i.x < boundary : i.x > boundary)
+                    );
+                    
+                    if (idx > -1) {
+                        this.ions.splice(idx, 1);
+                        // Decrease molarity slightly to simulate consumption
+                        state.molarity = Math.max(0, state.molarity - 0.0005);
+                        // Update text directly
+                        mVal.innerText = state.molarity.toFixed(3) + " M";
+                        mSlider.value = state.molarity; // Update slider position
+                        
+                        // Force UI update to check critical concentrations (e.g. Cl- vs OH-)
+                        if (state.molarity < 2.0 && reaction.anode.ion === 'Cl⁻' && state.electrolyte === 'NaCl') {
+                             updateUI(); 
+                        }
+                    }
+                };
+
+                // Anode Product
+                if (reaction.anode.product && reaction.anode.product !== '') {
+                     if (Math.random() < rate) {
+                        this.bubbles.push({
+                            x: w * 0.3 + (Math.random() * 20),
+                            y: Math.random() * 100 + 150,
+                            r: Math.random() * 2 + 1,
+                            color: reaction.anode.color,
+                            speed: 1 + Math.random()
+                        });
+                        // Consume Anion - Slowed down
+                        if (Math.random() < 0.02) consumeIon(reaction.anode.ion, 'anode');
+                    }
+                }
+
+                // Cathode Product
+                const cathodeEvent = (Math.random() < rate);
+                if (cathodeEvent) {
+                    if (reaction.cathode.type === 'gas') {
+                        this.bubbles.push({
+                            x: w * 0.7 - 20 + (Math.random() * 20),
+                            y: Math.random() * 100 + 150,
+                            r: Math.random() * 2 + 1,
+                            color: "rgba(255, 255, 255, 0.7)",
+                            speed: 1 + Math.random()
+                        });
+                    } else if (reaction.cathode.type === 'solid') {
+                        this.solidLayer += rate * 0.05;
+                    }
+                    // Consume Cation - Slowed down
+                    if (Math.random() < 0.02) consumeIon(reaction.cathode.ion, 'cathode');
+                }
+            },
+
+            drawBubbles() {
+                for (let i = this.bubbles.length - 1; i >= 0; i--) {
+                    let b = this.bubbles[i];
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    ctx.fillStyle = b.color;
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.stroke();
+
+                    b.y -= b.speed;
+                    if (b.y < 130) {
+                        this.bubbles.splice(i, 1);
+                    }
+                }
+            },
+
+            loop(timestamp) {
+                if (this.width > 0 && this.height > 0) {
+                    ctx.clearRect(0, 0, this.width, this.height);
+                    
+                    this.drawEquipment();
+                    this.generateBubbles();
+                    this.drawBubbles();
+                    this.drawIons();
+                }
+                requestAnimationFrame((t) => this.loop(t));
+            }
+        };
+
+        // --- UI Update Logic ---
+        function updateUI() {
+            const data = electrolytesData[state.electrolyte];
+            const reaction = data.getReactions(state.molarity, state.voltage);
+
+            if (state.voltage === 0) {
+                currentDisp.innerText = "0.00 A";
+            } else {
+                const resistance = 10 / state.molarity; 
+                const current = state.voltage / resistance;
+                currentDisp.innerText = current.toFixed(2) + " A";
+            }
+
+            uiElems.anodeIons.textContent = data.anions.join(", ");
+            uiElems.cathodeIons.textContent = data.cations.join(", ");
+
+            uiElems.anodeDis.textContent = reaction.anode.ion;
+            uiElems.anodeObs.textContent = reaction.anode.obs;
+            uiElems.anodeEq.innerHTML = reaction.anode.eq;
+
+            uiElems.cathodeDis.textContent = reaction.cathode.ion;
+            uiElems.cathodeObs.textContent = reaction.cathode.obs;
+            uiElems.cathodeEq.innerHTML = reaction.cathode.eq;
+            
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([
+                    uiElems.anodeEq, 
+                    uiElems.cathodeEq
+                ]).catch((err) => console.log('MathJax typesetting failed: ' + err.message));
+            }
+            
+            // Auto-population logic modified:
+            // Only repopulate if density INCREASES significantly (user dragging slider up)
+            // If density DECREASES (simulation consumption), we let it drop naturally
+            const targetDensity = 10 + state.molarity * 5;
+            // But we still need to populate if switching electrolytes (ions length is 0 or labels wrong)
+            if (sim.ions.length > 0) {
+                 // Check if first ion matches current electrolyte to detect switch if not handled elsewhere
+                 // (handled in event listener now)
+                 
+                 // If User increased Molarity via slider significantly, add ions
+                 if (sim.ions.length < targetDensity - 5) {
+                     sim.populateIons();
+                 }
+            } else {
+                sim.populateIons();
+            }
+        }
+
+        updateUI();
+        sim.init();
+
+    </script>
+</body>
+</html>
