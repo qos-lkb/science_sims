@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>細胞分裂過程演示 (有絲分裂)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center py-8">
+
+    <!-- 標題區 -->
+    <header class="text-center mb-6 px-4">
+        <h1 class="text-3xl md:text-4xl font-bold text-indigo-800 mb-2">細胞分裂實驗室</h1>
+        <p class="text-slate-600">互動式有絲分裂 (Mitosis) 過程演示</p>
+    </header>
+
+    <!-- 主應用容器 -->
+    <main class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+        
+        <!-- 左側/上方：動畫畫布 -->
+        <div class="relative w-full md:w-2/3 h-[400px] bg-slate-100 flex items-center justify-center border-b md:border-b-0 md:border-r border-slate-200">
+            <canvas id="mitosisCanvas"></canvas>
+            
+            <!-- 階段標籤 (浮動) -->
+            <div class="absolute top-4 left-4 bg-white/90 px-3 py-1 rounded-full shadow-sm border border-slate-200">
+                <span class="text-sm font-bold text-indigo-600" id="stageLabel">間期 (Interphase)</span>
+            </div>
+        </div>
+
+        <!-- 右側/下方：控制與資訊面板 -->
+        <div class="w-full md:w-1/3 p-6 flex flex-col justify-between">
+            
+            <!-- 資訊卡片 -->
+            <div>
+                <h2 class="text-xl font-bold text-slate-800 mb-3 border-l-4 border-indigo-500 pl-3" id="stageTitle">準備開始</h2>
+                <div class="text-slate-600 text-sm leading-relaxed space-y-2 h-40 overflow-y-auto" id="stageDescription">
+                    <p>細胞處於間期。此時細胞進行生長，DNA 進行複製，為分裂做準備。染色質鬆散，核膜完整。</p>
+                </div>
+            </div>
+
+            <!-- 控制按鈕區 -->
+            <div class="mt-6 flex flex-col gap-3">
+                <div class="flex justify-between items-center bg-slate-100 rounded-lg p-2 mb-2">
+                    <div class="text-xs text-slate-500 font-bold ml-1">進度</div>
+                    <div class="flex gap-1">
+                        <div class="w-2 h-2 rounded-full bg-indigo-500 transition-all step-dot" data-step="0"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-300 transition-all step-dot" data-step="1"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-300 transition-all step-dot" data-step="2"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-300 transition-all step-dot" data-step="3"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-300 transition-all step-dot" data-step="4"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="prevBtn" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        < 上一步
+                    </button>
+                    <button id="nextBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        下一步 >
+                    </button>
+                </div>
+                
+                <button id="autoPlayBtn" class="w-full py-3 border-2 border-indigo-100 text-indigo-600 font-bold rounded-lg hover:bg-indigo-50 transition flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                    </svg>
+                    自動播放演示
+                </button>
+                
+                <button id="resetBtn" class="w-full text-xs text-slate-400 hover:text-slate-600 mt-2">
+                    重置模擬
+                </button>
+                
+                <button id="moreInfoBtn" class="w-full text-xs text-indigo-500 hover:text-indigo-700 mt-3 flex items-center justify-center gap-1 underline">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    觀看教學影片與詳解
+                </button>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="mt-8 text-slate-400 text-sm text-center">
+        <p>由您的生物科老師設計 | 使用 HTML5 Canvas 與 Tailwind CSS 構建</p>
+    </footer>
+
+    <!-- 資源 Modal (隱藏狀態) -->
+    <div id="infoModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col transform transition-all scale-100">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white/95 backdrop-blur z-10">
+                <h3 class="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-600 p-1 rounded-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </span>
+                    有絲分裂：深度解析
+                </h3>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-red-500 transition p-1 hover:bg-slate-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="p-6 space-y-8">
+                <!-- Text Content -->
+                <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-2">為什麼細胞需要分裂？</h4>
+                    <p class="text-slate-600 leading-relaxed text-sm mb-4">
+                        有絲分裂（Mitosis）是真核細胞將其細胞核中的染色體分配到兩個子核中的過程。這個過程確保了遺傳物質（DNA）精確地複製並均等地分配給兩個子細胞，這對於生物體的以下功能至關重要：
+                    </p>
+                    <ul class="grid md:grid-cols-3 gap-4 text-sm">
+                        <li class="bg-white p-3 rounded shadow-sm border border-slate-100">
+                            <strong class="text-indigo-600 block mb-1">生長 (Growth)</strong>
+                            增加細胞數量，使生物體體積增大。
+                        </li>
+                        <li class="bg-white p-3 rounded shadow-sm border border-slate-100">
+                            <strong class="text-indigo-600 block mb-1">修復 (Repair)</strong>
+                            更換受損或死亡的細胞（如皮膚癒合）。
+                        </li>
+                        <li class="bg-white p-3 rounded shadow-sm border border-slate-100">
+                            <strong class="text-indigo-600 block mb-1">無性繁殖</strong>
+                            單細胞生物藉此產生後代。
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Videos Grid -->
+                <div>
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 001.553.894l-4.553-2.276A1 1 0 0111 10.276V9.724a1 1 0 01-4.553-2.276z" />
+                        </svg>
+                        精選教學影片 (點擊開啟)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Video 1 -->
+                        <a href="https://youtu.be/e1HsJLnQ4No" target="_blank" rel="noopener noreferrer" class="space-y-2 group block cursor-pointer">
+                            <div class="aspect-video bg-slate-900 rounded-lg overflow-hidden shadow-lg group-hover:shadow-xl transition-all relative border border-slate-200">
+                                <!-- Thumbnail Image -->
+                                <img src="https://img.youtube.com/vi/e1HsJLnQ4No/hqdefault.jpg" alt="有絲分裂動畫演示縮圖" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+                                <!-- Play Button Overlay -->
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <div class="bg-red-600/90 text-white p-3 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-300 backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                    前往 YouTube
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <p class="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">有絲分裂動畫演示</p>
+                                <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    外部連結
+                                </span>
+                            </div>
+                        </a>
+                        
+                        <!-- Video 2 -->
+                        <a href="https://youtu.be/g7iAVCLZWuM" target="_blank" rel="noopener noreferrer" class="space-y-2 group block cursor-pointer">
+                            <div class="aspect-video bg-slate-900 rounded-lg overflow-hidden shadow-lg group-hover:shadow-xl transition-all relative border border-slate-200">
+                                <!-- Thumbnail Image -->
+                                <img src="https://img.youtube.com/vi/g7iAVCLZWuM/hqdefault.jpg" alt="顯微鏡下的真實細胞分裂縮圖" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+                                <!-- Play Button Overlay -->
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <div class="bg-red-600/90 text-white p-3 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-300 backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                    前往 YouTube
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <p class="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">顯微鏡下的真實細胞分裂</p>
+                                <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    外部連結
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-4 border-t bg-slate-50 flex justify-end rounded-b-xl">
+                <button id="closeModalBtnFooter" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md shadow-indigo-200">
+                    理解了，回到實驗室
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 細胞分裂動畫邏輯
+         * 使用 Vanilla JS 和 Canvas API
+         */
+
+        const canvas = document.getElementById('mitosisCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI 元素
+        const stageTitle = document.getElementById('stageTitle');
+        const stageDesc = document.getElementById('stageDescription');
+        const stageLabel = document.getElementById('stageLabel');
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const autoPlayBtn = document.getElementById('autoPlayBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const moreInfoBtn = document.getElementById('moreInfoBtn');
+        const infoModal = document.getElementById('infoModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const closeModalBtnFooter = document.getElementById('closeModalBtnFooter');
+        const stepDots = document.querySelectorAll('.step-dot');
+
+        // 狀態管理
+        let currentStep = 0; // 0: 間期, 1: 前期, 2: 中期, 3: 後期, 4: 末期
+        let targetStep = 0;
+        let animationId;
+        let isAutoPlaying = false;
+        
+        // 動畫插值變數 (0.0 到 1.0)
+        let transitionProgress = 0;
+        let animationSpeed = 0.02;
+
+        // 數據定義
+        const stages = [
+            {
+                title: "間期 (Interphase)",
+                label: "間期",
+                desc: "細胞處於正常生理狀態。染色質（Chromatin）呈絲狀散亂分佈。DNA 已經完成複製，中心體（Centrosomes）也已複製，準備進入分裂期。"
+            },
+            {
+                title: "前期 (Prophase)",
+                label: "前期",
+                desc: "1. 染色質濃縮捲曲成可見的染色體（Chromosomes）。<br>2. 核膜和核仁逐漸消失。<br>3. 中心體移向細胞兩極，並發出紡錘絲（Spindle fibers）。"
+            },
+            {
+                title: "中期 (Metaphase)",
+                label: "中期",
+                desc: "1. 這是觀察染色體最佳的時期。<br>2. 染色體整齊排列在細胞中央的赤道板（Equatorial plane）上。<br>3. 紡錘絲附著在染色體的著絲點上。"
+            },
+            {
+                title: "後期 (Anaphase)",
+                label: "後期",
+                desc: "1. 著絲點分裂，姐妹染色單體分離。<br>2. 紡錘絲收縮，將分離後的染色體拉向細胞兩極。<br>3. 細胞略微拉長。"
+            },
+            {
+                title: "末期 (Telophase) & 胞質分裂",
+                label: "末期",
+                desc: "1. 染色體到達兩極，重新伸展成染色質。<br>2. 核膜重新形成。<br>3. 細胞膜向內凹陷（動物細胞），將細胞質一分為二，最終形成兩個獨立的子細胞。"
+            }
+        ];
+
+        // 染色體對象 (4條)
+        // 初始位置隨機化一點，讓間期看起來自然
+        const chromosomes = [
+            { color: '#4f46e5', angle: 45, size: 20, offsetX: -20, offsetY: -20 },
+            { color: '#db2777', angle: -30, size: 22, offsetX: 20, offsetY: -15 },
+            { color: '#4f46e5', angle: 10, size: 20, offsetX: -10, offsetY: 25 },
+            { color: '#db2777', angle: 80, size: 22, offsetX: 15, offsetY: 10 }
+        ];
+
+        // 設置 Canvas 尺寸
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- 繪圖輔助函數 ---
+
+        function lerp(start, end, t) {
+            return start * (1 - t) + end * t;
+        }
+
+        // 繪製細胞本體
+        // separationDistance: 兩個圓心的距離
+        function drawCell(width, height, pinch, separationDistance) {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const r = Math.min(canvas.width, canvas.height) * 0.35; // 半徑
+
+            ctx.fillStyle = '#f0f9ff'; // 淺藍色細胞質
+            ctx.strokeStyle = '#3b82f6'; // 藍色細胞膜
+            ctx.lineWidth = 4;
+
+            // 左半圓
+            // 使用傳入的 separationDistance 確保與核的位置同步
+            const sep = separationDistance; 
+            
+            // 如果是末期，我們畫兩個逐漸分開的圓
+            if (pinch > 0.1) {
+                // 左細胞
+                ctx.save();
+                ctx.translate(-sep/2, 0);
+                
+                // 變形邏輯：從圓形變成類似水滴形
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * (1 - pinch * 0.2), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 右細胞
+                ctx.restore();
+                ctx.save();
+                ctx.translate(sep/2, 0);
+                
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * (1 - pinch * 0.2), 0, Math.PI * 2);
+                ctx.fillStyle = '#f0f9ff';
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            } else {
+                // 間期到後期，稍微拉長
+                ctx.beginPath();
+                const elongation = pinch * 50; 
+                ctx.ellipse(cx, cy, r + elongation, r - elongation * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        // 繪製核膜
+        function drawNucleus(opacity) {
+            if (opacity <= 0) return;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const r = Math.min(canvas.width, canvas.height) * 0.22; // 稍微加大一點細胞核半徑 (0.2 -> 0.22)
+
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            
+            // 1. 繪製細胞核背景 (新增)
+            // 使用比細胞質稍深一點的顏色，營造「容器」的感覺
+            ctx.fillStyle = '#e2e8f0'; 
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. 繪製核膜邊框 (虛線)
+            ctx.strokeStyle = '#475569'; // 加深邊框顏色
+            ctx.setLineDash([6, 4]); // 調整虛線間隔
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 3. 繪製核仁 (Nucleolus)
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            // 確保核仁在核內
+            ctx.arc(cx - r*0.3, cy - r*0.3, r * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 繪製中心體和紡錘絲
+        function drawCentrosomesAndSpindles(progress, separationStrength, cellPinch) {
+            // 如果完全進入末期 (Step 4)，則不繪製任何中心體或紡錘絲
+            if (currentStep === 4 && targetStep === 4) return;
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const r = Math.min(canvas.width, canvas.height) * 0.3; // 細胞半徑參考
+
+            // 計算中心體位置
+            // Step 0: 在一起
+            // Step 1: 開始分開
+            // Step 2-4: 在兩極
+            
+            let offset = 20;
+            if (currentStep >= 1) {
+                // 使用平滑過渡移動到兩極
+                // 在前期(1)時移動，在中期(2)時到達最大距離
+                const moveProgress = (currentStep === 1) ? transitionProgress : 1;
+                offset = lerp(20, r + 20, moveProgress);
+            }
+            // 如果到了末期(4)，跟隨細胞分裂移動
+            if (currentStep === 3 && targetStep === 4) {
+                 // 當細胞分開時，中心體也跟著細胞核移動
+                 offset = r + 20 + (transitionProgress * 60);
+            } 
+
+            const leftX = cx - offset;
+            const rightX = cx + offset;
+            
+            // 繪製紡錘絲 (Spindles)
+            // 只在前期後期到末期初期顯示
+            let spindleOpacity = 0;
+            if (currentStep === 1) spindleOpacity = transitionProgress;
+            else if (currentStep === 2 || currentStep === 3) spindleOpacity = 1;
+            else if (currentStep === 4) spindleOpacity = 0; // 末期靜止時消失
+            else if (currentStep === 3 && targetStep === 4) spindleOpacity = 1 - transitionProgress; // 過渡時淡出
+
+            if (spindleOpacity > 0) {
+                ctx.save();
+                ctx.globalAlpha = spindleOpacity * 0.6; // 稍微增加透明度
+                ctx.strokeStyle = '#fbbf24'; // 黃色紡錘絲
+                ctx.lineWidth = 1;
+                
+                // 修改：大幅增加紡錘絲的垂直分佈範圍 (-80 到 80)
+                // 讓它們拉得更闊
+                for(let i = -80; i <= 80; i+=12) {
+                    ctx.beginPath();
+                    ctx.moveTo(leftX, cy);
+                    // 控制點的 Y 軸也稍微外擴一點，讓線條看起來更飽滿
+                    ctx.quadraticCurveTo(cx, cy + i * 1.2, rightX, cy);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // 繪製中心體 (小T字或圓點)
+            // 在進入末期過渡時，也讓中心體淡出
+            let centrioleOpacity = 1;
+            if (currentStep === 3 && targetStep === 4) {
+                centrioleOpacity = 1 - transitionProgress;
+            }
+
+            if (centrioleOpacity > 0) {
+                ctx.save();
+                ctx.globalAlpha = centrioleOpacity;
+                ctx.fillStyle = '#d97706';
+                
+                // 左
+                ctx.fillRect(leftX - 4, cy - 4, 8, 8);
+                // 右
+                ctx.fillRect(rightX - 4, cy - 4, 8, 8);
+                ctx.restore();
+            }
+        }
+
+        // 繪製單個染色體
+        // x, y: 中心位置
+        // angle: 旋轉角度
+        // split: 是否分離 (0 = X形狀, 1 = 分離成 ||)
+        // separation: 分離距離
+        // condensed: 濃縮程度 (0 = 絲狀, 1 = 棒狀)
+        function drawChromosome(c, x, y, angle, split, separation, condensed) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            if (condensed < 0.5) {
+                // 間期：絲狀 (Chromatin) - 模擬更像絲一樣的自然捲曲
+                ctx.globalAlpha = 1 - condensed;
+                ctx.strokeStyle = c.color;
+                ctx.lineWidth = 1.8;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                
+                ctx.beginPath();
+                
+                // 利用 c.angle 作為變數，讓每條染色質的捲曲形狀都不一樣
+                // 調整參數：減小振幅，讓線條更收斂在中心附近
+                const s = Math.sin(c.angle * 0.05) * 6; // 8 -> 6
+                const k = Math.cos(c.angle * 0.05) * 6; // 8 -> 6
+                
+                // 起點
+                ctx.moveTo(-8 + s, -4 + k);
+                
+                // 貝茲曲線模擬絲狀纏繞
+                // 大幅縮小控制點的擴散範圍 (原本約 25-30px，改為 12-18px)
+                // 這樣可以確保 DNA 乖乖待在細胞核內
+                ctx.bezierCurveTo(-18 + k, 4 + s, -10 - s, 18 + k, 4 + k, 8 - s);
+                ctx.bezierCurveTo(15 + s, -4 + k, 20 - k, -18 + s, 4 + s, -15 - k);
+                ctx.bezierCurveTo(-10 - k, -18 + s, -15 + s, -8 - k, -8 + s, -4 + k);
+
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+            
+            if (condensed > 0) {
+                // 有絲分裂期：棒狀
+                ctx.globalAlpha = condensed;
+                ctx.rotate(angle * Math.PI / 180);
+                ctx.fillStyle = c.color;
+                
+                const w = 7;   // 稍微加寬一點
+                const h = 28;  // 稍微加長
+
+                // 判斷是否為「前期/中期」(X形狀) 或 「後期開始」(平行分離)
+                // 當 split 幾乎為 0 時，畫出 X 形狀
+                if (split < 0.1) {
+                    // --- 繪製 X 形狀 ---
+                    
+                    // 左側姐妹染色單體 (稍微向左傾斜)
+                    ctx.save();
+                    ctx.rotate(-15 * Math.PI / 180); // 向左旋轉 15 度
+                    ctx.beginPath();
+                    // 在中心點稍微收窄，模擬 X 型
+                    ctx.roundRect(-w/2, -h/2, w, h, 4); 
+                    ctx.fill();
+                    ctx.restore();
+
+                    // 右側姐妹染色單體 (稍微向右傾斜)
+                    ctx.save();
+                    ctx.rotate(15 * Math.PI / 180); // 向右旋轉 15 度
+                    ctx.beginPath();
+                    ctx.roundRect(-w/2, -h/2, w, h, 4);
+                    ctx.fill();
+                    ctx.restore();
+
+                } else {
+                    // --- 繪製平行分離 (過渡到後期) ---
+                    // 這裡用於動畫過渡的一瞬間，隨後主循環的 draw 會接管後期的 V 型繪製
+                    let leftX = -split * separation;
+                    let rightX = split * separation;
+
+                    // 左臂
+                    ctx.beginPath();
+                    ctx.roundRect(leftX - w/2, -h/2, w, h, 4);
+                    ctx.fill();
+
+                    // 右臂
+                    ctx.beginPath();
+                    ctx.roundRect(rightX - w/2, -h/2, w, h, 4);
+                    ctx.fill();
+                }
+                
+                // 著絲點 (Centromere)
+                if (split < 0.5) {
+                    ctx.fillStyle = '#fcd34d'; // 黃色
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 加一個高光讓它更立體
+                    ctx.fillStyle = '#ffffff';
+                    ctx.globalAlpha = 0.6 * condensed;
+                    ctx.beginPath();
+                    ctx.arc(-1.5, -1.5, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            } else {
+                ctx.restore();
+            }
+        }
+
+        // 主繪圖循環
+        function draw() {
+            // 清除畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const cellR = Math.min(canvas.width, canvas.height) * 0.35;
+
+            // 計算當前動畫的混合係數
+            let nucleusOpacity = 1;
+            let condensed = 0; // 0=染色質, 1=染色體
+            let alignment = 0; // 0=隨機, 1=赤道板
+            let split = 0; // 0=X型, 1=分離
+            let separationDist = 0; // 分離多遠 (從中心點到單側的距離 offset)
+            let cellPinch = 0; // 細胞分裂程度
+
+            // 根據步驟定義變數
+            if (currentStep === 0 && targetStep === 0) {
+                // 間期
+                nucleusOpacity = 1;
+                condensed = 0;
+            } else if (currentStep === 0 && targetStep === 1) {
+                // 間期 -> 前期
+                nucleusOpacity = 1 - transitionProgress;
+                condensed = transitionProgress;
+            } else if (currentStep === 1 && targetStep === 1) {
+                // 前期靜止
+                nucleusOpacity = 0;
+                condensed = 1;
+            } else if (currentStep === 1 && targetStep === 2) {
+                // 前期 -> 中期
+                nucleusOpacity = 0;
+                condensed = 1;
+                alignment = transitionProgress;
+            } else if (currentStep === 2 && targetStep === 2) {
+                // 中期靜止
+                nucleusOpacity = 0;
+                condensed = 1;
+                alignment = 1;
+            } else if (currentStep === 2 && targetStep === 3) {
+                // 中期 -> 後期
+                nucleusOpacity = 0;
+                condensed = 1;
+                alignment = 1;
+                split = transitionProgress; // 開始分開
+                separationDist = transitionProgress * 60; // 拉開距離
+            } else if (currentStep === 3 && targetStep === 3) {
+                // 後期靜止
+                nucleusOpacity = 0;
+                condensed = 1;
+                alignment = 1;
+                split = 1;
+                separationDist = 60;
+                cellPinch = 0.1;
+            } else if (currentStep === 3 && targetStep === 4) {
+                // 後期 -> 末期
+                nucleusOpacity = transitionProgress; // 核膜重現
+                condensed = 1 - transitionProgress; // 變回染色質
+                alignment = 1;
+                split = 1;
+                // 分離距離要足夠大，大於兩個半徑的和
+                // 目標 separationDist 為 cellR * 1.3 (總距離 2.6R) - 增加距離避免重疊
+                separationDist = 60 + (transitionProgress * (cellR * 1.3)); 
+                cellPinch = 0.1 + (transitionProgress * 0.9); // 掐斷
+            } else if (currentStep === 4) {
+                // 末期結束 (修正這裡)
+                nucleusOpacity = 1;
+                condensed = 0;
+                cellPinch = 1.0;
+                alignment = 1; 
+                split = 1; // 關鍵修正：確保分離狀態保持為 1，否則 DNA 會跳回中間
+                separationDist = 60 + (cellR * 1.3); // 確保距離保持在分開的位置
+            }
+
+            // 統一的細胞中心距離 (Total distance between centers)
+            const cellCenterSeparation = separationDist * 2; 
+
+            // 1. 繪製細胞
+            // 注意：separationDist 是從畫面中心到細胞中心的距離
+            drawCell(canvas.width, canvas.height, cellPinch, cellCenterSeparation);
+
+            // 2. 繪製核膜 (如果有)
+            // 末期要畫兩個核
+            if (currentStep === 3 && targetStep === 4 || currentStep === 4) {
+                // 畫兩個核
+                const offset = separationDist; // 偏移量
+                ctx.save();
+                ctx.translate(-offset, 0); 
+                drawNucleus(nucleusOpacity);
+                ctx.restore();
+                
+                ctx.save();
+                ctx.translate(offset, 0); 
+                drawNucleus(nucleusOpacity);
+                ctx.restore();
+            } else {
+                drawNucleus(nucleusOpacity);
+            }
+
+            // 3. 繪製中心體和紡錘絲 (現在末期會隱藏)
+            drawCentrosomesAndSpindles(transitionProgress, separationDist, cellPinch);
+
+            // 4. 繪製染色體
+            chromosomes.forEach((c, index) => {
+                let x = cx + c.offsetX;
+                let y = cy + c.offsetY;
+                let angle = c.angle;
+
+                // 位置邏輯
+                if (alignment > 0) {
+                    // 移動到赤道板 (x = cx, y 排列整齊)
+                    const targetX = cx;
+                    const targetY = cy - 60 + (index * 40); // 垂直排列
+                    
+                    // 修改：將角度設為 0，讓染色體直立 (垂直)，而非橫躺 (90度)
+                    const targetAngle = 0; 
+
+                    x = lerp(x, targetX, alignment);
+                    y = lerp(y, targetY, alignment);
+                    angle = lerp(angle, targetAngle, alignment);
+                }
+
+                // 分離邏輯
+                if (split > 0) {
+                    const dist = separationDist;
+                    
+                    if (condensed < 0.5) {
+                        // --- 末期 (Telophase) / 染色質狀態 ---
+                        // 強制畫兩組絲狀 DNA，分別位於左右細胞核
+                        
+                        // 我們重新計算位置，忽略之前的 alignment，確保它們精確地位於新核的中心
+                        // Y 軸也重置為中心附近的隨機分佈 (cy + c.offsetY)
+                        const resetY = cy + c.offsetY;
+                        
+                        const leftNucleusX = cx - dist;
+                        const rightNucleusX = cx + dist;
+                        
+                        // 左細胞核中的 DNA
+                        drawChromosome(c, leftNucleusX + c.offsetX, resetY, angle, 0, 0, condensed);
+                        
+                        // 右細胞核中的 DNA
+                        drawChromosome(c, rightNucleusX + c.offsetX, resetY, angle, 0, 0, condensed);
+
+                    } else {
+                        // --- 後期 (Anaphase) / 棒狀狀態 ---
+                        // 繼續使用原本的分離邏輯，畫出 V 型被拉扯的樣子
+                        
+                        ctx.fillStyle = c.color;
+                        
+                        // 左邊那條 (被拉向左)
+                        ctx.save();
+                        ctx.translate(x - dist, y);
+                        ctx.beginPath();
+                        ctx.roundRect(-3, -12, 6, 25, 2);
+                        ctx.fill();
+                        ctx.restore();
+
+                        // 右邊那條 (被拉向右)
+                        ctx.save();
+                        ctx.translate(x + dist, y);
+                        ctx.beginPath();
+                        ctx.roundRect(-3, -12, 6, 25, 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                } else {
+                    // 間期、前期、中期
+                    drawChromosome(c, x, y, angle, 0, 0, condensed);
+                }
+            });
+        }
+
+        // 動畫循環
+        function animate() {
+            // 更新進度
+            if (currentStep !== targetStep) {
+                transitionProgress += animationSpeed;
+                if (transitionProgress >= 1) {
+                    transitionProgress = 0;
+                    currentStep = targetStep;
+                    updateUI(); // 確保 UI 狀態同步
+                    
+                    // 自動播放邏輯
+                    if (isAutoPlaying) {
+                        setTimeout(() => {
+                            if (currentStep < 4) {
+                                goToStep(currentStep + 1);
+                            } else {
+                                isAutoPlaying = false;
+                                autoPlayBtn.innerHTML = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                    </svg> 自動播放演示`;
+                            }
+                        }, 1000); // 停頓一秒
+                    }
+                }
+            }
+            
+            draw();
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // --- 邏輯控制 ---
+
+        function updateUI() {
+            const info = stages[targetStep];
+            stageTitle.textContent = info.title;
+            stageLabel.textContent = info.label;
+            stageDesc.innerHTML = `<p>${info.desc}</p>`;
+            
+            // 按鈕狀態
+            prevBtn.disabled = targetStep === 0;
+            nextBtn.disabled = targetStep === 4;
+
+            // 進度點
+            stepDots.forEach((dot, idx) => {
+                if (idx <= targetStep) {
+                    dot.classList.remove('bg-slate-300');
+                    dot.classList.add('bg-indigo-500');
+                } else {
+                    dot.classList.remove('bg-indigo-500');
+                    dot.classList.add('bg-slate-300');
+                }
+            });
+        }
+
+        function goToStep(step) {
+            if (step < 0 || step > 4) return;
+            // 如果正在轉換中，快速完成
+            if (currentStep !== targetStep) {
+                currentStep = targetStep;
+                transitionProgress = 0;
+            }
+            
+            targetStep = step;
+            updateUI();
+        }
+
+        // 事件監聽
+        nextBtn.addEventListener('click', () => {
+            isAutoPlaying = false;
+            goToStep(targetStep + 1);
+        });
+
+        prevBtn.addEventListener('click', () => {
+            isAutoPlaying = false;
+            // 回退邏輯特殊處理：立即跳轉，因為反向動畫比較複雜
+            targetStep = Math.max(0, targetStep - 1);
+            currentStep = targetStep; 
+            transitionProgress = 0;
+            updateUI();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            isAutoPlaying = false;
+            targetStep = 0;
+            currentStep = 0;
+            transitionProgress = 0;
+            updateUI();
+        });
+
+        autoPlayBtn.addEventListener('click', () => {
+            if (isAutoPlaying) {
+                isAutoPlaying = false;
+                autoPlayBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                    </svg> 自動播放演示`;
+            } else {
+                // 如果已經結束，從頭開始
+                if (targetStep === 4) {
+                    targetStep = 0;
+                    currentStep = 0;
+                }
+                isAutoPlaying = true;
+                autoPlayBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg> 暫停播放`;
+                
+                // 如果當前靜止，觸發下一步
+                if (currentStep === targetStep && targetStep < 4) {
+                    goToStep(targetStep + 1);
+                }
+            }
+        });
+
+        // Modal 控制邏輯
+        function toggleModal(show) {
+            if (show) {
+                infoModal.classList.remove('hidden');
+                // 停止自動播放，避免干擾
+                if (isAutoPlaying) {
+                    isAutoPlaying = false;
+                    autoPlayBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                    </svg> 自動播放演示`;
+                }
+            } else {
+                infoModal.classList.add('hidden');
+            }
+        }
+
+        moreInfoBtn.addEventListener('click', () => toggleModal(true));
+        closeModalBtn.addEventListener('click', () => toggleModal(false));
+        closeModalBtnFooter.addEventListener('click', () => toggleModal(false));
+        
+        // 點擊背景關閉
+        infoModal.addEventListener('click', (e) => {
+            if (e.target === infoModal) {
+                toggleModal(false);
+            }
+        });
+
+        // 初始化
+        updateUI();
+        animate();
+
+    </script>
+</body>
+</html>
