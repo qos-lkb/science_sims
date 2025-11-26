@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlgoViz Pro | 演算法教學平台</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        algo: {
+                            bg: '#0f172a', // slate-900
+                            panel: '#1e293b', // slate-800
+                            primary: '#3b82f6', // blue-500
+                            accent: '#10b981', // emerald-500
+                            danger: '#ef4444', // red-500
+                            compare: '#f59e0b', // amber-500
+                            sorted: '#8b5cf6', // violet-500
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+        .bar { transition: height 0.1s ease, background-color 0.1s ease; }
+        
+        /* Modal Animation */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
+        .modal-exit { opacity: 1; transform: scale(1); }
+        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-in; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="h-16 bg-algo-panel border-b border-slate-700 flex items-center justify-between px-6 shadow-lg z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-layer-group text-white text-sm"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-wide">AlgoViz <span class="text-blue-400">Pro</span></h1>
+            <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded ml-2 border border-slate-600">教學版</span>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <button id="toggleRaceModeBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-700 hover:bg-slate-600 text-sm transition border border-slate-600 group">
+                <i class="fa-solid fa-columns text-slate-400 group-hover:text-yellow-400 transition"></i>
+                <span>雙欄競速: <span id="raceModeStatus" class="font-bold text-slate-300">關閉</span></span>
+            </button>
+            <button onclick="document.getElementById('helpModal').classList.remove('hidden')" class="text-slate-400 hover:text-white transition">
+                <i class="fa-regular fa-circle-question text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar: Controls -->
+        <aside class="w-80 bg-algo-panel border-r border-slate-700 flex flex-col z-10 shadow-xl overflow-y-auto custom-scrollbar">
+            
+            <!-- Algorithm Selection -->
+            <div class="p-5 border-b border-slate-700">
+                <label class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-2 block">選擇演算法</label>
+                <select id="algoSelect" class="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-md p-2.5 focus:outline-none focus:border-blue-500 text-sm">
+                    <option value="bubble">氣泡排序 (Bubble Sort)</option>
+                    <option value="selection">選擇排序 (Selection Sort)</option>
+                    <option value="insertion">插入排序 (Insertion Sort)</option>
+                    <option value="shell">希爾排序 (Shell Sort)</option>
+                    <option value="merge">合併排序 (Merge Sort)</option>
+                    <option value="heap">堆積排序 (Heap Sort)</option>
+                    <option value="quick">快速排序 (Quick Sort)</option>
+                    <option value="radix">基數排序 (Radix Sort)</option>
+                </select>
+                
+                <!-- Info Card -->
+                <div id="algoInfo" class="mt-4 p-3 bg-slate-900/50 rounded border border-slate-700/50 text-xs text-slate-400">
+                    <div class="flex justify-between mb-1">
+                        <span>時間複雜度 (平均):</span>
+                        <span id="infoTime" class="font-mono text-yellow-400">O(n²)</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>空間複雜度:</span>
+                        <span id="infoSpace" class="font-mono text-purple-400">O(1)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="p-5 border-b border-slate-700 space-y-6">
+                <!-- Playback -->
+                <div>
+                    <label class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3 block">播放控制</label>
+                    <div class="flex gap-2 justify-center">
+                        <button id="stepBtn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded border border-slate-600 transition" title="單步執行">
+                            <i class="fa-solid fa-forward-step"></i>
+                        </button>
+                        <button id="playBtn" class="flex-[2] bg-blue-600 hover:bg-blue-500 text-white py-2 rounded shadow-lg shadow-blue-900/50 transition font-medium flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play"></i> <span>開始</span>
+                        </button>
+                        <button id="resetBtn" class="flex-1 bg-slate-700 hover:bg-red-500/80 hover:border-red-500 hover:text-white text-slate-300 py-2 rounded border border-slate-600 transition" title="重置">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Speed & Size -->
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>速度</span>
+                            <span id="speedVal">1x</span>
+                        </div>
+                        <input type="range" id="speedInput" min="1" max="100" value="60" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>數據量 (Max 100)</span>
+                            <span id="sizeVal">30</span>
+                        </div>
+                        <input type="range" id="sizeInput" min="5" max="100" value="30" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Algorithm Info Grid (New Feature) -->
+            <div class="flex-1 p-5 overflow-y-auto">
+                <label class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3 block">演算法原理與分析</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="showInfo('bubble')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">氣泡排序</button>
+                    <button onclick="showInfo('selection')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">選擇排序</button>
+                    <button onclick="showInfo('insertion')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">插入排序</button>
+                    <button onclick="showInfo('shell')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">希爾排序</button>
+                    <button onclick="showInfo('merge')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">合併排序</button>
+                    <button onclick="showInfo('heap')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">堆積排序</button>
+                    <button onclick="showInfo('quick')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">快速排序</button>
+                    <button onclick="showInfo('radix')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 px-1 rounded transition text-center hover:text-white hover:border-blue-500">基數排序</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Visualization Area -->
+        <main class="flex-1 bg-algo-bg relative flex flex-col">
+            
+            <!-- Standard Mode View -->
+            <div id="standardView" class="flex-1 p-8 flex flex-col items-center justify-center transition-opacity duration-300">
+                <!-- Stats Header -->
+                <div class="w-full max-w-4xl flex justify-between items-end mb-4 px-4">
+                    <div class="text-sm font-bold text-slate-300">
+                        <span class="text-blue-400 mr-2"><i class="fa-solid fa-chart-simple"></i> 單一檢視</span>
+                    </div>
+                    <div class="flex gap-6 text-xs font-mono">
+                        <div class="text-slate-400">操作次數: <span id="stdOps" class="text-white font-bold text-sm">0</span></div>
+                        <div class="text-slate-400">耗時: <span id="stdTime" class="text-yellow-400 font-bold text-sm">0.00s</span></div>
+                    </div>
+                </div>
+
+                <div id="mainCanvasContainer" class="w-full h-full max-h-[600px] flex items-end justify-center gap-[1px] p-4 bg-slate-800/30 rounded-xl border border-slate-700/50 relative">
+                    <!-- Bars generated by JS -->
+                </div>
+                
+                <!-- Legend -->
+                <div class="mt-4 flex gap-6 text-xs font-mono text-slate-400">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded-sm"></span> 未排序</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 bg-amber-500 rounded-sm"></span> 比較中</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-sm"></span> 交換/寫入</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 bg-violet-500 rounded-sm"></span> 已排序</div>
+                </div>
+            </div>
+
+            <!-- Race Mode View (Hidden by default) -->
+            <div id="raceView" class="hidden flex-1 p-4 flex flex-col md:flex-row gap-4">
+                <!-- Left Racer -->
+                <div class="flex-1 bg-slate-800/30 rounded-xl border border-slate-700/50 p-3 flex flex-col relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-2 px-1 border-b border-slate-700/50 pb-2">
+                        <div>
+                            <span class="font-bold text-blue-400 block text-sm" id="racer1Name">Bubble Sort</span>
+                            <span class="text-[10px] text-slate-500">Player 1</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-400">Ops: <span id="racer1Stats" class="text-white font-bold">0</span></div>
+                            <div class="text-[10px] text-slate-400">Time: <span id="racer1Time" class="text-yellow-400 font-mono">0.00s</span></div>
+                        </div>
+                    </div>
+                    <div id="raceCanvas1" class="flex-1 flex items-end justify-center gap-[1px]"></div>
+                </div>
+                
+                <!-- VS Badge -->
+                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900 border-2 border-slate-600 rounded-full w-12 h-12 flex items-center justify-center z-10 font-black italic text-red-500 text-lg shadow-xl hidden md:flex">
+                    VS
+                </div>
+
+                <!-- Right Racer -->
+                <div class="flex-1 bg-slate-800/30 rounded-xl border border-slate-700/50 p-3 flex flex-col relative overflow-hidden">
+                     <div class="flex justify-between items-start mb-2 px-1 border-b border-slate-700/50 pb-2">
+                         <div>
+                             <select id="raceAlgoSelect" class="bg-transparent border-none text-emerald-400 font-bold text-sm focus:ring-0 cursor-pointer p-0 m-0">
+                                 <option value="bubble">Bubble Sort</option>
+                                 <option value="selection">Selection Sort</option>
+                                 <option value="insertion">Insertion Sort</option>
+                                 <option value="shell">Shell Sort</option>
+                                 <option value="merge">Merge Sort</option>
+                                 <option value="heap">Heap Sort</option>
+                                 <option value="quick" selected>Quick Sort</option>
+                                 <option value="radix">Radix Sort</option>
+                             </select>
+                             <span class="text-[10px] text-slate-500 block">Player 2 (點擊切換)</span>
+                         </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-400">Ops: <span id="racer2Stats" class="text-white font-bold">0</span></div>
+                            <div class="text-[10px] text-slate-400">Time: <span id="racer2Time" class="text-yellow-400 font-mono">0.00s</span></div>
+                        </div>
+                    </div>
+                    <div id="raceCanvas2" class="flex-1 flex items-end justify-center gap-[1px]"></div>
+                </div>
+            </div>
+
+            <!-- Status Overlay -->
+            <div id="statusOverlay" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/80 backdrop-blur border border-slate-600 px-4 py-2 rounded-full text-sm text-slate-300 shadow-lg hidden">
+                正在排序...
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Help Modal (General) -->
+    <div id="helpModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg w-[500px] shadow-2xl p-6 relative">
+            <button onclick="document.getElementById('helpModal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h2 class="text-xl font-bold mb-4 text-blue-400">關於 AlgoViz Pro</h2>
+            <p class="text-sm text-slate-300 mb-4 leading-relaxed">
+                這是一個為電腦及資訊科技科設計的教學輔助工具。主要功能包括：
+            </p>
+            <ul class="list-disc list-inside text-sm text-slate-300 space-y-2 mb-6">
+                <li><b class="text-white">多種演算法</b>：支援氣泡、選擇、插入、希爾、合併、堆積、快速、基數排序。</li>
+                <li><b class="text-white">雙欄競速</b>：將畫面切分為左右兩欄，同時比較兩種演算法的效率與時間。</li>
+                <li><b class="text-white">演算法分析</b>：側邊欄提供 8 種演算法的原理、強項與弱項分析。</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Algorithm Info Modal -->
+    <div id="infoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center transition-opacity duration-200">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg w-[600px] max-h-[80vh] overflow-y-auto shadow-2xl p-0 relative transform scale-95 transition-transform duration-200" id="infoModalContent">
+            <!-- Header -->
+            <div class="bg-slate-900/50 p-6 border-b border-slate-700 flex justify-between items-start sticky top-0 backdrop-blur-md z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-1" id="infoTitle">演算法名稱</h2>
+                    <span class="text-xs bg-blue-900/50 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded" id="infoComplexity">O(n²)</span>
+                </div>
+                <button onclick="closeInfo()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 space-y-6">
+                <!-- Principle -->
+                <div>
+                    <h3 class="flex items-center gap-2 text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-lightbulb"></i> 原理 (Principle)
+                    </h3>
+                    <p class="text-slate-300 text-sm leading-relaxed" id="infoDesc">
+                        描述文字...
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Pros -->
+                    <div class="bg-slate-900/30 p-4 rounded-lg border border-emerald-900/30">
+                        <h3 class="flex items-center gap-2 text-sm font-bold text-emerald-400 uppercase tracking-wider mb-3">
+                            <i class="fa-solid fa-thumbs-up"></i> 強項 (Strengths)
+                        </h3>
+                        <ul class="space-y-2" id="infoPros">
+                            <!-- List items -->
+                        </ul>
+                    </div>
+
+                    <!-- Cons -->
+                    <div class="bg-slate-900/30 p-4 rounded-lg border border-red-900/30">
+                        <h3 class="flex items-center gap-2 text-sm font-bold text-red-400 uppercase tracking-wider mb-3">
+                            <i class="fa-solid fa-thumbs-down"></i> 弱項 (Weaknesses)
+                        </h3>
+                        <ul class="space-y-2" id="infoCons">
+                            <!-- List items -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- Configuration & State ---
+        const CONFIG = {
+            colors: {
+                default: '#3b82f6', // blue-500
+                compare: '#f59e0b', // amber-500
+                swap: '#ef4444',    // red-500
+                sorted: '#8b5cf6',  // violet-500
+                pivot: '#10b981'    // emerald-500
+            }
+        };
+
+        const STATE = {
+            array: [],
+            arrayCopy: [],
+            isSorting: false,
+            isPaused: false,
+            isRaceMode: false,
+            speed: 60,
+            size: 30,
+            algo: 'bubble',
+            raceAlgo: 'quick',
+            resolveNextStep: null,
+            abortController: null,
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            container: document.getElementById('mainCanvasContainer'),
+            raceContainer1: document.getElementById('raceCanvas1'),
+            raceContainer2: document.getElementById('raceCanvas2'),
+            standardView: document.getElementById('standardView'),
+            raceView: document.getElementById('raceView'),
+            playBtn: document.getElementById('playBtn'),
+            stepBtn: document.getElementById('stepBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            speedInput: document.getElementById('speedInput'),
+            sizeInput: document.getElementById('sizeInput'),
+            algoSelect: document.getElementById('algoSelect'),
+            raceAlgoSelect: document.getElementById('raceAlgoSelect'),
+            raceModeBtn: document.getElementById('toggleRaceModeBtn'),
+            infoTime: document.getElementById('infoTime'),
+            infoSpace: document.getElementById('infoSpace'),
+            statusOverlay: document.getElementById('statusOverlay'),
+            // Stats
+            stdOps: document.getElementById('stdOps'),
+            stdTime: document.getElementById('stdTime'),
+            racer1Stats: document.getElementById('racer1Stats'),
+            racer1Time: document.getElementById('racer1Time'),
+            racer2Stats: document.getElementById('racer2Stats'),
+            racer2Time: document.getElementById('racer2Time'),
+            // Info Modal
+            infoModal: document.getElementById('infoModal'),
+            infoTitle: document.getElementById('infoTitle'),
+            infoComplexity: document.getElementById('infoComplexity'),
+            infoDesc: document.getElementById('infoDesc'),
+            infoPros: document.getElementById('infoPros'),
+            infoCons: document.getElementById('infoCons')
+        };
+
+        // --- Core Functions ---
+
+        function init() {
+            generateArray();
+            updateUIInfo();
+            setupEventListeners();
+        }
+
+        function generateArray() {
+            stopSorting();
+            STATE.array = [];
+            for (let i = 0; i < STATE.size; i++) {
+                STATE.array.push(Math.floor(Math.random() * 95) + 5);
+            }
+            STATE.arrayCopy = [...STATE.array];
+            
+            resetStatsDisplay();
+            
+            render(STATE.array, els.container);
+            if (STATE.isRaceMode) {
+                render(STATE.arrayCopy, els.raceContainer1);
+                render(STATE.arrayCopy, els.raceContainer2);
+            }
+        }
+
+        function resetStatsDisplay() {
+            const zeros = ['stdOps', 'racer1Stats', 'racer2Stats'];
+            const times = ['stdTime', 'racer1Time', 'racer2Time'];
+            zeros.forEach(id => document.getElementById(id).innerText = '0');
+            times.forEach(id => document.getElementById(id).innerText = '0.00s');
+        }
+
+        function render(arr, container, activeIndices = [], swapIndices = [], sortedIndices = []) {
+            container.innerHTML = '';
+            if (!arr || arr.length === 0) return;
+
+            const maxVal = Math.max(...arr, 100);
+            const isCrowded = arr.length > 40;
+            
+            arr.forEach((val, idx) => {
+                const bar = document.createElement('div');
+                const height = (val / maxVal) * 100;
+                bar.style.height = `${height}%`;
+                
+                let margin = isCrowded ? 'mx-0' : 'mx-[1px]';
+                if(arr.length > 80) margin = 'mx-0 border-r border-slate-900/20';
+
+                bar.className = `bar flex-1 ${margin} rounded-t-sm relative group`;
+                
+                if (sortedIndices.includes(idx)) bar.style.backgroundColor = CONFIG.colors.sorted;
+                else if (swapIndices.includes(idx)) bar.style.backgroundColor = CONFIG.colors.swap;
+                else if (activeIndices.includes(idx)) bar.style.backgroundColor = CONFIG.colors.compare;
+                else bar.style.backgroundColor = CONFIG.colors.default;
+
+                if (!isCrowded) {
+                    const label = document.createElement('span');
+                    label.innerText = val;
+                    label.className = 'absolute -top-5 left-1/2 transform -translate-x-1/2 text-[10px] text-slate-300 font-mono opacity-0 group-hover:opacity-100 transition-opacity';
+                    bar.appendChild(label);
+                }
+                container.appendChild(bar);
+            });
+        }
+
+        // --- Animation Control ---
+
+        function getDelay() {
+            const val = parseInt(els.speedInput.value);
+            if (val === 100) return 0; 
+            return Math.floor(800 / (1 + (val/10)**2));
+        }
+
+        async function sleep() {
+            if (STATE.abortController && STATE.abortController.signal.aborted) throw new Error('Aborted');
+            if (STATE.isPaused) {
+                els.statusOverlay.innerText = "已暫停";
+                els.statusOverlay.classList.remove('hidden');
+                await new Promise(resolve => STATE.resolveNextStep = resolve);
+                els.statusOverlay.classList.add('hidden');
+            }
+            const delay = getDelay();
+            if (delay > 0) await new Promise(r => setTimeout(r, delay));
+        }
+
+        async function step() {
+            if (STATE.isPaused && STATE.resolveNextStep) STATE.resolveNextStep();
+        }
+
+        function stopSorting() {
+            if (STATE.abortController) STATE.abortController.abort();
+            STATE.isSorting = false;
+            STATE.isPaused = false;
+            updateControlState();
+        }
+
+        // --- Algorithms (Expanded) ---
+
+        const Algorithms = {
+            bubble: async (arr, renderFn, signal, updateStats) => {
+                let len = arr.length;
+                let ops = 0;
+                for (let i = 0; i < len; i++) {
+                    for (let j = 0; j < len - i - 1; j++) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        renderFn(arr, [j, j+1], [], []); 
+                        ops++; updateStats(ops); await sleep();
+
+                        if (arr[j] > arr[j+1]) {
+                            renderFn(arr, [], [j, j+1], []);
+                            [arr[j], arr[j+1]] = [arr[j+1], arr[j]];
+                            ops++; updateStats(ops); await sleep();
+                        }
+                    }
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            selection: async (arr, renderFn, signal, updateStats) => {
+                let len = arr.length;
+                let ops = 0;
+                for (let i = 0; i < len; i++) {
+                    let min = i;
+                    for (let j = i + 1; j < len; j++) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        renderFn(arr, [min, j], [], Array.from({length:i},(_,k)=>k));
+                        ops++; updateStats(ops); await sleep();
+                        if (arr[j] < arr[min]) min = j;
+                    }
+                    if (min !== i) {
+                        renderFn(arr, [], [i, min], Array.from({length:i},(_,k)=>k));
+                        [arr[i], arr[min]] = [arr[min], arr[i]];
+                        ops++; updateStats(ops); await sleep();
+                    }
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+            
+            insertion: async (arr, renderFn, signal, updateStats) => {
+                let len = arr.length;
+                let ops = 0;
+                for (let i = 1; i < len; i++) {
+                    let key = arr[i];
+                    let j = i - 1;
+                    if (signal.aborted) throw new Error('Aborted');
+                    renderFn(arr, [i], [j], []);
+                    await sleep();
+
+                    while (j >= 0 && arr[j] > key) {
+                         if (signal.aborted) throw new Error('Aborted');
+                         ops++; updateStats(ops);
+                         renderFn(arr, [i], [j, j+1], []);
+                         arr[j + 1] = arr[j];
+                         j = j - 1;
+                         await sleep();
+                    }
+                    arr[j + 1] = key;
+                    ops++; updateStats(ops);
+                    renderFn(arr, [], [j+1], []); 
+                    await sleep();
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            shell: async (arr, renderFn, signal, updateStats) => {
+                let n = arr.length;
+                let ops = 0;
+                for (let gap = Math.floor(n/2); gap > 0; gap = Math.floor(gap/2)) {
+                    for (let i = gap; i < n; i += 1) {
+                        let temp = arr[i];
+                        let j;
+                        renderFn(arr, [i], [i-gap], []);
+                        if (signal.aborted) throw new Error('Aborted');
+                        await sleep();
+
+                        for (j = i; j >= gap && arr[j - gap] > temp; j -= gap) {
+                            ops++; updateStats(ops);
+                            if (signal.aborted) throw new Error('Aborted');
+                            renderFn(arr, [j], [j-gap], []);
+                            arr[j] = arr[j - gap];
+                            await sleep();
+                        }
+                        arr[j] = temp;
+                        ops++; updateStats(ops);
+                        renderFn(arr, [], [j], []);
+                        await sleep();
+                    }
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            quick: async (arr, renderFn, signal, updateStats) => {
+                let ops = 0;
+                async function partition(low, high) {
+                    let pivot = arr[high];
+                    let i = (low - 1);
+                    for (let j = low; j <= high - 1; j++) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        renderFn(arr, [j, high], [i+1], []); 
+                        ops++; updateStats(ops); await sleep();
+                        
+                        if (arr[j] < pivot) {
+                            i++;
+                            [arr[i], arr[j]] = [arr[j], arr[i]];
+                            renderFn(arr, [], [i, j], []);
+                            ops++; updateStats(ops); await sleep();
+                        }
+                    }
+                    [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+                    renderFn(arr, [], [i+1, high], []);
+                    ops++; updateStats(ops); await sleep();
+                    return (i + 1);
+                }
+                async function quickSort(low, high) {
+                    if (low < high) {
+                        let pi = await partition(low, high);
+                        await quickSort(low, pi - 1);
+                        await quickSort(pi + 1, high);
+                    }
+                }
+                await quickSort(0, arr.length - 1);
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            heap: async (arr, renderFn, signal, updateStats) => {
+                let ops = 0;
+                let n = arr.length;
+
+                async function heapify(n, i) {
+                    if (signal.aborted) throw new Error('Aborted');
+                    let largest = i;
+                    let l = 2 * i + 1;
+                    let r = 2 * i + 2;
+
+                    if (l < n) {
+                        renderFn(arr, [largest, l], [], []);
+                        await sleep();
+                        ops++; updateStats(ops);
+                        if (arr[l] > arr[largest]) largest = l;
+                    }
+
+                    if (r < n) {
+                        renderFn(arr, [largest, r], [], []);
+                        await sleep();
+                        ops++; updateStats(ops);
+                        if (arr[r] > arr[largest]) largest = r;
+                    }
+
+                    if (largest != i) {
+                        renderFn(arr, [], [i, largest], []); 
+                        [arr[i], arr[largest]] = [arr[largest], arr[i]];
+                        await sleep();
+                        ops++; updateStats(ops);
+                        await heapify(n, largest);
+                    }
+                }
+
+                for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+                    await heapify(n, i);
+                }
+
+                for (let i = n - 1; i > 0; i--) {
+                    renderFn(arr, [], [0, i], []); 
+                    [arr[0], arr[i]] = [arr[i], arr[0]];
+                    await sleep();
+                    ops++; updateStats(ops);
+                    await heapify(i, 0);
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            merge: async (arr, renderFn, signal, updateStats) => {
+                let ops = 0;
+                async function merge(l, m, r) {
+                    let n1 = m - l + 1;
+                    let n2 = r - m;
+                    let L = new Array(n1);
+                    let R = new Array(n2);
+
+                    for (let i = 0; i < n1; i++) L[i] = arr[l + i];
+                    for (let j = 0; j < n2; j++) R[j] = arr[m + 1 + j];
+
+                    let i = 0, j = 0, k = l;
+                    while (i < n1 && j < n2) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        renderFn(arr, [l+i, m+1+j], [k], []); 
+                        await sleep();
+                        ops++; updateStats(ops);
+
+                        if (L[i] <= R[j]) {
+                            arr[k] = L[i];
+                            i++;
+                        } else {
+                            arr[k] = R[j];
+                            j++;
+                        }
+                        renderFn(arr, [], [k], []); 
+                        await sleep();
+                        k++;
+                    }
+
+                    while (i < n1) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        arr[k] = L[i];
+                        renderFn(arr, [], [k], []);
+                        await sleep();
+                        ops++; updateStats(ops);
+                        i++; k++;
+                    }
+                    while (j < n2) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        arr[k] = R[j];
+                        renderFn(arr, [], [k], []);
+                        await sleep();
+                        ops++; updateStats(ops);
+                        j++; k++;
+                    }
+                }
+
+                async function mergeSort(l, r) {
+                    if (l >= r) return;
+                    let m = l + parseInt((r - l) / 2);
+                    await mergeSort(l, m);
+                    await mergeSort(m + 1, r);
+                    await merge(l, m, r);
+                }
+
+                await mergeSort(0, arr.length - 1);
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            },
+
+            radix: async (arr, renderFn, signal, updateStats) => {
+                // LSD Radix Sort
+                let ops = 0;
+                const getMax = (arr) => {
+                    let mx = arr[0];
+                    for (let i = 1; i < arr.length; i++) if (arr[i] > mx) mx = arr[i];
+                    return mx;
+                };
+
+                let m = getMax(arr);
+
+                for (let exp = 1; Math.floor(m / exp) > 0; exp *= 10) {
+                    let output = new Array(arr.length).fill(0);
+                    let count = new Array(10).fill(0);
+
+                    // Count occurrences
+                    for (let i = 0; i < arr.length; i++) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        let index = Math.floor(arr[i] / exp) % 10;
+                        count[index]++;
+                        // Visualize reading
+                        renderFn(arr, [i], [], []);
+                        ops++; updateStats(ops);
+                        // Fast visual update, no sleep to keep radix snappy
+                        if (i % 5 === 0) await sleep(); 
+                    }
+
+                    for (let i = 1; i < 10; i++) count[i] += count[i - 1];
+
+                    // Build output array
+                    for (let i = arr.length - 1; i >= 0; i--) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        let index = Math.floor(arr[i] / exp) % 10;
+                        output[count[index] - 1] = arr[i];
+                        count[index]--;
+                        ops++; updateStats(ops);
+                    }
+
+                    // Copy back
+                    for (let i = 0; i < arr.length; i++) {
+                        if (signal.aborted) throw new Error('Aborted');
+                        arr[i] = output[i];
+                        renderFn(arr, [], [i], []);
+                        ops++; updateStats(ops);
+                        await sleep();
+                    }
+                }
+                renderFn(arr, [], [], arr.map((_, i) => i));
+            }
+        };
+
+        // --- Info Data ---
+        const ALGO_INFO = {
+            'bubble': {
+                name: '氣泡排序 (Bubble Sort)',
+                complexity: 'O(n²)',
+                desc: '一種簡單的排序演算法。它重複地走訪過要排序的數列，一次比較兩個元素，如果它們的順序錯誤就把它們交換過來。走訪數列的工作是重複地進行直到沒有再需要交換。',
+                pros: ['實作非常簡單', '對於幾乎已排序的數據效率很高 (O(n))', '空間複雜度 O(1)'],
+                cons: ['效率極低，平均時間複雜度 O(n²)', '不適合大數據量']
+            },
+            'selection': {
+                name: '選擇排序 (Selection Sort)',
+                complexity: 'O(n²)',
+                desc: '首先在未排序序列中找到最小（大）元素，存放到排序序列的起始位置，然後，再從剩餘未排序元素中繼續尋找最小（大）元素，然後放到已排序序列的末尾。',
+                pros: ['交換次數最少 (O(n))', '空間複雜度 O(1)', '簡單易懂'],
+                cons: ['時間複雜度總是 O(n²)，即使已排序', '不穩定排序 (通常實作)']
+            },
+            'insertion': {
+                name: '插入排序 (Insertion Sort)',
+                complexity: 'O(n²)',
+                desc: '透過構建有序序列，對於未排序數據，在已排序序列中從後向前掃描，找到相應位置並插入。類似於整理撲克牌的方式。',
+                pros: ['對於小數據量或幾乎已排序的數據非常高效', '穩定排序', '空間複雜度 O(1)'],
+                cons: ['平均時間複雜度 O(n²)', '數據量大時效率低']
+            },
+            'shell': {
+                name: '希爾排序 (Shell Sort)',
+                complexity: 'O(n log n) ~ O(n²)',
+                desc: '插入排序的改進版。它將數據按下標的一定增量分組，對每組使用直接插入排序演算法排序；隨著增量逐漸減少，每組包含的關鍵詞越來越多，當增量減至 1 時，整個文件恰被分成一組，算法便終止。',
+                pros: ['比插入排序快，解決了小元素在尾端移動緩慢的問題', '空間複雜度 O(1)'],
+                cons: ['不穩定排序', '效率取決於增量序列的選擇', '最壞情況仍可能較慢']
+            },
+            'merge': {
+                name: '合併排序 (Merge Sort)',
+                complexity: 'O(n log n)',
+                desc: '採用分治法 (Divide and Conquer)。將陣列分成兩半，對每半部分遞迴地應用合併排序，最後將兩個已排序的半部分合併成一個有序序列。',
+                pros: ['穩定排序', '時間複雜度穩定為 O(n log n)', '適合大數據量'],
+                cons: ['需要額外的 O(n) 空間', '對於小數據量可能比插入排序慢']
+            },
+            'heap': {
+                name: '堆積排序 (Heap Sort)',
+                complexity: 'O(n log n)',
+                desc: '利用堆積 (Heap) 這種資料結構所設計的一種排序演算法。將陣列轉換為最大堆積 (Max Heap)，將堆頂最大值與末尾交換，縮小堆範圍並重新堆化，重複直到完成。',
+                pros: ['時間複雜度穩定為 O(n log n)', '空間複雜度 O(1) (原地排序)'],
+                cons: ['不穩定排序', '局部性差，快取命中率較低']
+            },
+            'quick': {
+                name: '快速排序 (Quick Sort)',
+                complexity: 'O(n log n)',
+                desc: '採用分治法。從數列中挑出一個元素作為「基準」(pivot)，重新排序數列，所有比基準值小的元素擺放在基準前面，所有比基準值大的元素擺在基準後面。',
+                pros: ['平均速度最快', '原地排序 (空間 O(log n))'],
+                cons: ['不穩定排序', '最壞情況 O(n²)', '對 Pivot 選擇敏感']
+            },
+            'radix': {
+                name: '基數排序 (Radix Sort)',
+                complexity: 'O(nk)',
+                desc: '非比較型排序演算法。將整數按位數切割成不同的數字，然後按每個位數分別比較。通常使用計數排序作為子程序。',
+                pros: ['時間複雜度 O(nk)，通常快於比較排序', '穩定排序'],
+                cons: ['空間複雜度較高', '只適用於整數或特定格式數據', '數據範圍大時效率下降']
+            }
+        };
+
+        // --- Execution Managers ---
+
+        async function startSorting() {
+            if (STATE.isSorting && STATE.isPaused) {
+                STATE.isPaused = false;
+                if (STATE.resolveNextStep) STATE.resolveNextStep();
+                updateControlState();
+                return;
+            }
+
+            STATE.isSorting = true;
+            STATE.abortController = new AbortController();
+            resetStatsDisplay();
+            updateControlState();
+
+            try {
+                if (STATE.isRaceMode) await runRaceMode();
+                else await runStandardMode();
+            } catch (e) {
+                if (e.message !== 'Aborted') console.error(e);
+            } finally {
+                STATE.isSorting = false;
+                updateControlState();
+            }
+        }
+
+        async function runStandardMode() {
+            const startTime = performance.now();
+            
+            const timerInterval = setInterval(() => {
+                const elapsed = (performance.now() - startTime) / 1000;
+                els.stdTime.innerText = elapsed.toFixed(2) + 's';
+            }, 100);
+
+            const renderFn = (arr, a, b, c) => render(arr, els.container, a, b, c);
+            const updateStats = (ops) => els.stdOps.innerText = ops;
+
+            try {
+                await Algorithms[STATE.algo](STATE.array, renderFn, STATE.abortController.signal, updateStats);
+            } finally {
+                clearInterval(timerInterval);
+                const finalTime = (performance.now() - startTime) / 1000;
+                els.stdTime.innerText = finalTime.toFixed(2) + 's';
+            }
+        }
+
+        async function runRaceMode() {
+            const arr1 = [...STATE.arrayCopy];
+            const arr2 = [...STATE.arrayCopy];
+            const startT = performance.now();
+            let done1 = false, done2 = false;
+
+            const timer = setInterval(() => {
+                const now = performance.now();
+                if(!done1) els.racer1Time.innerText = ((now - startT)/1000).toFixed(2) + 's';
+                if(!done2) els.racer2Time.innerText = ((now - startT)/1000).toFixed(2) + 's';
+                if(done1 && done2) clearInterval(timer);
+            }, 100);
+
+            const p1 = Algorithms[STATE.algo](arr1, 
+                (arr, a, b, c) => render(arr, els.raceContainer1, a, b, c), 
+                STATE.abortController.signal,
+                (ops) => els.racer1Stats.innerText = ops
+            ).then(() => done1 = true);
+
+            const p2 = Algorithms[STATE.raceAlgo](arr2, 
+                (arr, a, b, c) => render(arr, els.raceContainer2, a, b, c), 
+                STATE.abortController.signal,
+                (ops) => els.racer2Stats.innerText = ops
+            ).then(() => done2 = true);
+
+            await Promise.all([p1, p2]);
+            clearInterval(timer);
+        }
+
+        function togglePause() {
+            if (!STATE.isSorting) return;
+            STATE.isPaused = !STATE.isPaused;
+            updateControlState();
+            if (!STATE.isPaused && STATE.resolveNextStep) STATE.resolveNextStep();
+        }
+
+        // --- Helpers & UI Updaters ---
+
+        function getAlgoName(key) {
+            const map = {
+                'bubble': '氣泡排序', 'selection': '選擇排序', 'insertion': '插入排序',
+                'shell': '希爾排序', 'merge': '合併排序', 'heap': '堆積排序', 'quick': '快速排序', 'radix': '基數排序'
+            };
+            return map[key] || key;
+        }
+
+        function updateUIInfo() {
+            const info = ALGO_INFO[STATE.algo];
+            if (info) {
+                els.infoTime.innerText = info.complexity;
+                els.infoSpace.innerText = info.name.includes('Merge') ? 'O(n)' : (info.name.includes('Quick') || info.name.includes('Radix') ? 'Varied' : 'O(1)');
+            }
+        }
+
+        function updateControlState() {
+            const isRunning = STATE.isSorting;
+            const isPaused = STATE.isPaused;
+
+            if (isRunning && !isPaused) {
+                els.playBtn.innerHTML = '<i class="fa-solid fa-pause"></i> <span>暫停</span>';
+                els.playBtn.classList.replace('bg-blue-600', 'bg-amber-600');
+                els.playBtn.onclick = togglePause;
+            } else if (isRunning && isPaused) {
+                els.playBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>繼續</span>';
+                els.playBtn.classList.replace('bg-amber-600', 'bg-blue-600');
+                els.playBtn.onclick = startSorting;
+            } else {
+                els.playBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>開始</span>';
+                els.playBtn.classList.replace('bg-amber-600', 'bg-blue-600');
+                els.playBtn.onclick = startSorting;
+            }
+
+            [els.algoSelect, els.raceAlgoSelect, els.sizeInput, els.raceModeBtn].forEach(el => el.disabled = isRunning);
+            els.stepBtn.disabled = !(isRunning && isPaused);
+            els.stepBtn.classList.toggle('opacity-50', els.stepBtn.disabled);
+        }
+
+        function log(msg) { console.log(msg); } // No-op for removed log console
+
+        // --- Info Modal Logic ---
+        function showInfo(algoKey) {
+            const data = ALGO_INFO[algoKey];
+            if (!data) return;
+
+            els.infoTitle.innerText = data.name;
+            els.infoComplexity.innerText = data.complexity;
+            els.infoDesc.innerText = data.desc;
+            
+            els.infoPros.innerHTML = data.pros.map(p => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-check text-emerald-500 mt-0.5"></i> <span>${p}</span></li>`).join('');
+            els.infoCons.innerHTML = data.cons.map(c => `<li class="flex items-start gap-2 text-xs text-slate-300"><i class="fa-solid fa-xmark text-red-500 mt-0.5"></i> <span>${c}</span></li>`).join('');
+
+            els.infoModal.classList.remove('hidden');
+        }
+
+        function closeInfo() {
+            els.infoModal.classList.add('hidden');
+        }
+
+        // --- Event Listeners ---
+
+        function setupEventListeners() {
+            els.resetBtn.onclick = () => generateArray();
+            els.stepBtn.onclick = () => step();
+            els.speedInput.oninput = (e) => {
+                STATE.speed = e.target.value;
+                document.getElementById('speedVal').innerText = STATE.speed == 100 ? 'MAX' : `${Math.floor(STATE.speed/10)}x`;
+            };
+            els.sizeInput.oninput = (e) => {
+                STATE.size = parseInt(e.target.value);
+                document.getElementById('sizeVal').innerText = STATE.size;
+                generateArray();
+            };
+            els.algoSelect.onchange = (e) => {
+                STATE.algo = e.target.value;
+                updateUIInfo();
+                document.getElementById('racer1Name').innerText = getAlgoName(STATE.algo);
+                generateArray(); 
+            };
+            els.raceAlgoSelect.onchange = (e) => {
+                STATE.raceAlgo = e.target.value;
+                generateArray();
+            }
+            els.raceModeBtn.onclick = () => {
+                STATE.isRaceMode = !STATE.isRaceMode;
+                if (STATE.isRaceMode) {
+                    els.standardView.classList.add('hidden');
+                    els.raceView.classList.remove('hidden');
+                    els.raceView.classList.add('flex');
+                    document.getElementById('raceModeStatus').innerText = "開啟";
+                    document.getElementById('raceModeStatus').classList.replace('text-slate-300', 'text-emerald-400');
+                } else {
+                    els.standardView.classList.remove('hidden');
+                    els.raceView.classList.add('hidden');
+                    els.raceView.classList.remove('flex');
+                    document.getElementById('raceModeStatus').innerText = "關閉";
+                    document.getElementById('raceModeStatus').classList.replace('text-emerald-400', 'text-slate-300');
+                }
+                generateArray();
+            };
+            
+            // Close modal on outside click
+            els.infoModal.onclick = (e) => {
+                if (e.target === els.infoModal) closeInfo();
+            }
+        }
+
+        // --- Init ---
+        init();
+    </script>
+</body>
+</html>
