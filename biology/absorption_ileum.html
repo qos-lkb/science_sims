@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迴腸絨毛營養吸收模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        canvas { touch-action: none; }
+        
+        /* Modal Animation */
+        .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; }
+        .modal.active { pointer-events: auto; opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-teal-700 text-white p-4 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center z-20 relative gap-3">
+        <div class="flex flex-col text-center md:text-left">
+            <h1 class="text-xl md:text-2xl font-bold" id="app-title">生物科教材：迴腸絨毛的吸收作用</h1>
+            <div class="text-sm text-teal-200" id="app-subtitle">單元：人體的營養</div>
+        </div>
+        
+        <!-- Top Right Controls -->
+        <div class="flex gap-2 flex-wrap justify-center">
+            <button onclick="toggleAdaptationModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded border border-emerald-400 text-sm font-bold transition flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span id="btn-adaptation">適應特徵</span>
+            </button>
+            <button onclick="toggleModal()" class="bg-yellow-500 hover:bg-yellow-400 text-teal-900 px-3 py-1.5 rounded border border-yellow-600 text-sm font-bold transition flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span id="btn-explain">原理解說</span>
+            </button>
+            <button onclick="toggleLang()" class="bg-teal-800 hover:bg-teal-600 text-white px-3 py-1.5 rounded border border-teal-500 text-sm font-bold transition">
+                中 / Eng
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col md:flex-row relative">
+        
+        <!-- Controls & Legend Panel -->
+        <aside class="w-full md:w-80 bg-white border-r border-gray-200 p-5 flex flex-col gap-4 shadow-lg z-10 overflow-y-auto shrink-0">
+            
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h3 class="font-bold text-gray-700 mb-2" id="legend-struct-title">結構圖例</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-pink-300 border border-pink-500 mr-2"></span> <span id="legend-epithelium">單層上皮細胞</span></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-yellow-200 border border-yellow-400 mr-2"></span> <span id="legend-lacteal">中央乳糜管 (淋巴)</span></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-red-500 mr-2"></span> <span id="legend-artery">微血管 (動脈端)</span></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-500 mr-2"></span> <span id="legend-vein">微血管 (靜脈端)</span></li>
+                </ul>
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+                <h3 class="font-bold text-gray-700 mb-2" id="legend-nutrient-title">營養粒子圖例</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex items-center">
+                        <span class="w-3 h-3 rounded-sm bg-blue-600 mr-2"></span> 
+                        <span id="legend-water">葡萄糖 / 氨基酸 (入血管)</span>
+                    </li>
+                    <li class="flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span> 
+                        <span id="legend-lipid">脂肪酸 / 甘油 (入乳糜管)</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="mt-auto space-y-3">
+                <p class="text-sm text-gray-600 mb-2" id="control-title">控制台：</p>
+                <button onclick="spawnNutrients('water')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition shadow" id="btn-water">
+                    投放水溶性營養
+                </button>
+                <button onclick="spawnNutrients('lipid')" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition shadow" id="btn-lipid">
+                    投放脂溶性營養
+                </button>
+                <button onclick="resetSim()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded transition" id="btn-clear">
+                    清除所有粒子
+                </button>
+            </div>
+        </aside>
+
+        <!-- Simulation Canvas -->
+        <div class="flex-grow relative bg-orange-50 overflow-hidden" id="canvas-container">
+            <canvas id="simCanvas" class="absolute inset-0 w-full h-full"></canvas>
+            
+            <div class="absolute top-5 left-5 bg-white/80 backdrop-blur px-3 py-1 rounded border border-gray-300 text-gray-700 font-bold pointer-events-none" id="label-lumen">
+                腸腔 (Lumen)
+            </div>
+        </div>
+
+        <!-- Explanation Modal -->
+        <div id="explanation-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-teal-800" id="modal-title">吸收原理</h2>
+                    <button onclick="toggleModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4 text-gray-700 leading-relaxed text-sm md:text-base">
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                        <h3 class="font-bold text-blue-800 mb-1" id="modal-water-title">1. 微血管吸收 (水溶性)</h3>
+                        <p id="modal-water-desc">
+                            葡萄糖、氨基酸、礦物質和維生素 B、C 等水溶性物質，透過**擴散作用**或**主動運輸**進入上皮細胞，隨後進入微血管。這些營養會經由**肝門靜脈**運送到肝臟。
+                        </p>
+                    </div>
+
+                    <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+                        <h3 class="font-bold text-yellow-800 mb-1" id="modal-lipid-title">2. 乳糜管吸收 (脂溶性)</h3>
+                        <p id="modal-lipid-desc">
+                            脂肪酸和甘油進入上皮細胞後，會重新組合成微細的脂肪滴。由於體積較大且非水溶性，它們無法直接進入微血管，而是進入**乳糜管**（淋巴管）。淋巴液最終會匯入血液循環。
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-100 p-3 rounded text-xs text-gray-500" id="modal-note">
+                        注意：單層上皮細胞非常薄，加上絨毛增加了表面積，大大提升了吸收效率。
+                    </div>
+
+                </div>
+                <div class="p-4 border-t border-gray-100 text-right">
+                    <button onclick="toggleModal()" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg font-bold transition">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Adaptation Features Modal -->
+        <div id="adaptation-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-emerald-50 rounded-t-xl">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <h2 class="text-2xl font-bold text-emerald-800" id="adapt-title">適應特徵</h2>
+                    </div>
+                    <button onclick="toggleAdaptationModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4 text-gray-700 text-sm md:text-base overflow-y-auto">
+                    
+                    <div class="flex gap-4 items-start">
+                        <div class="bg-emerald-100 p-2 rounded-full shrink-0 mt-1">
+                            <span class="font-bold text-emerald-700">1</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800" id="adapt-1-title">指狀突起 & 微絨毛</h4>
+                            <p class="text-gray-600 mt-1" id="adapt-1-desc">絨毛呈長指狀，且上皮細胞表面有微絨毛，極大地**增加表面積**，從而加快擴散和主動運輸的速率。</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start">
+                        <div class="bg-emerald-100 p-2 rounded-full shrink-0 mt-1">
+                            <span class="font-bold text-emerald-700">2</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800" id="adapt-2-title">單層上皮細胞</h4>
+                            <p class="text-gray-600 mt-1" id="adapt-2-desc">分隔食物與血管的只有一層非常薄的細胞，這大大**縮短了營養物質擴散的距離**。</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start">
+                        <div class="bg-emerald-100 p-2 rounded-full shrink-0 mt-1">
+                            <span class="font-bold text-emerald-700">3</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800" id="adapt-3-title">豐富的微血管網</h4>
+                            <p class="text-gray-600 mt-1" id="adapt-3-desc">微血管能迅速將吸收的營養運走，**維持陡峭的濃度梯度**，這對於擴散作用的持續進行至關重要。</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start">
+                        <div class="bg-emerald-100 p-2 rounded-full shrink-0 mt-1">
+                            <span class="font-bold text-emerald-700">4</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800" id="adapt-4-title">中央乳糜管</h4>
+                            <p class="text-gray-600 mt-1" id="adapt-4-desc">專門負責運輸**脂溶性物質**（如脂肪酸和甘油），防止微血管阻塞，實現高效分流運輸。</p>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="p-4 border-t border-gray-100 text-right">
+                    <button onclick="toggleAdaptationModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold transition">了解</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let nutrients = [];
+        let bloodCells = [];
+        let animationId;
+        let currentLang = 'zh'; // 'zh' or 'en'
+
+        // Villus dimensions
+        let villusBaseX, villusBaseY, villusWidth, villusHeight;
+        let wallHeight = 100; 
+
+        // Text Dictionary
+        const i18n = {
+            zh: {
+                appTitle: "生物科教材：迴腸絨毛的吸收作用",
+                appSubtitle: "單元：人體的營養",
+                btnExplain: "原理解說",
+                btnAdaptation: "適應特徵",
+                legendStructTitle: "結構圖例",
+                legendEpithelium: "單層上皮細胞",
+                legendLacteal: "中央乳糜管 (淋巴)",
+                legendArtery: "微血管 (動脈端)",
+                legendVein: "微血管 (靜脈端)",
+                legendNutrientTitle: "營養粒子圖例",
+                legendWater: "葡萄糖 / 氨基酸 (入血管)",
+                legendLipid: "脂肪酸 / 甘油 (入乳糜管)",
+                controlTitle: "控制台：",
+                btnWater: "投放水溶性營養",
+                btnLipid: "投放脂溶性營養",
+                btnClear: "清除所有粒子",
+                labelLumen: "腸腔 (Lumen)",
+                modalTitle: "吸收原理",
+                modalWaterTitle: "1. 微血管吸收 (水溶性)",
+                modalWaterDesc: "葡萄糖、氨基酸、礦物質和維生素 B、C 等水溶性物質，透過**擴散作用**或**主動運輸**進入上皮細胞，隨後進入微血管。這些營養會經由**肝門靜脈**運送到肝臟。",
+                modalLipidTitle: "2. 乳糜管吸收 (脂溶性)",
+                modalLipidDesc: "脂肪酸和甘油進入上皮細胞後，會重新組合成微細的脂肪滴。由於體積較大且非水溶性，它們無法直接進入微血管，而是進入**乳糜管**（淋巴管）。淋巴液最終會匯入血液循環。",
+                modalNote: "注意：單層上皮細胞非常薄，加上絨毛增加了表面積，大大提升了吸收效率。",
+                canvasArtery: "小動脈",
+                canvasArterySub: "(含氧血)",
+                canvasVein: "小靜脈",
+                canvasVeinSub: "(缺氧/高營養)",
+                canvasWall: "腸壁 / 黏膜下層",
+                // Adaptation Modal
+                adaptTitle: "絨毛的適應特徵",
+                adapt1Title: "指狀突起 & 微絨毛",
+                adapt1Desc: "絨毛呈長指狀，且上皮細胞表面有微絨毛，極大地**增加表面積**，從而加快擴散和主動運輸的速率。",
+                adapt2Title: "單層上皮細胞",
+                adapt2Desc: "分隔食物與血管的只有一層非常薄的細胞，這大大**縮短了營養物質擴散的距離**。",
+                adapt3Title: "豐富的微血管網",
+                adapt3Desc: "微血管能迅速將吸收的營養運走，**維持陡峭的濃度梯度**，這對於擴散作用的持續進行至關重要。",
+                adapt4Title: "中央乳糜管",
+                adapt4Desc: "專門負責運輸**脂溶性物質**（如脂肪酸和甘油），防止微血管阻塞，實現高效分流運輸。"
+            },
+            en: {
+                appTitle: "Ileum Villus Absorption Simulator",
+                appSubtitle: "Unit: Human Nutrition",
+                btnExplain: "Explanation",
+                btnAdaptation: "Adaptations",
+                legendStructTitle: "Structure Key",
+                legendEpithelium: "Single Layer Epithelium",
+                legendLacteal: "Lacteal (Lymph)",
+                legendArtery: "Capillary (Arterial End)",
+                legendVein: "Capillary (Venous End)",
+                legendNutrientTitle: "Nutrient Key",
+                legendWater: "Glucose / Amino Acids (to Blood)",
+                legendLipid: "Fatty Acids / Glycerol (to Lacteal)",
+                controlTitle: "Controls:",
+                btnWater: "Spawn Water-soluble",
+                btnLipid: "Spawn Lipid-soluble",
+                btnClear: "Clear Particles",
+                labelLumen: "Lumen",
+                modalTitle: "Absorption Mechanism",
+                modalWaterTitle: "1. Capillary Absorption (Water-soluble)",
+                modalWaterDesc: "Water-soluble substances like glucose, amino acids, minerals, and vitamins B/C enter epithelial cells via **diffusion** or **active transport**, then pass into blood capillaries. They are transported to the liver via the **hepatic portal vein**.",
+                modalLipidTitle: "2. Lacteal Absorption (Lipid-soluble)",
+                modalLipidDesc: "Fatty acids and glycerol enter epithelial cells and recombine into tiny fat droplets. Being larger and non-water-soluble, they enter the **lacteal** (lymph vessel) instead of capillaries. Lymph eventually drains into the blood circulation.",
+                modalNote: "Note: The single layer of epithelial cells is very thin, and the villus shape increases surface area, greatly enhancing absorption efficiency.",
+                canvasArtery: "Arteriole",
+                canvasArterySub: "(Oxygenated)",
+                canvasVein: "Venule",
+                canvasVeinSub: "(Deoxygenated)",
+                canvasWall: "Intestinal Wall / Submucosa",
+                // Adaptation Modal
+                adaptTitle: "Adaptive Features",
+                adapt1Title: "Finger-like Shape & Microvilli",
+                adapt1Desc: "The villus shape and microvilli on epithelial cells massively **increase surface area** for faster diffusion and active transport.",
+                adapt2Title: "Single-layer Epithelium",
+                adapt2Desc: "The wall is only one cell thick, providing a very **short diffusion distance** for nutrients to reach the blood.",
+                adapt3Title: "Dense Capillary Network",
+                adapt3Desc: "Rapidly transports absorbed nutrients away, **maintaining a steep concentration gradient** essential for continuous diffusion.",
+                adapt4Title: "Lacteal Presence",
+                adapt4Desc: "Specialized for transporting **lipid-soluble substances** (fatty acids/glycerol), preventing capillary blockage and ensuring efficient transport."
+            }
+        };
+
+        function resize() {
+            const container = document.getElementById('canvas-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Taller villus: 75% of screen height instead of 60%
+            villusWidth = Math.min(width * 0.35, 220);
+            villusHeight = Math.min(height * 0.75, 600); 
+            villusBaseX = width / 2;
+            villusBaseY = height - wallHeight; 
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Interaction Logic ---
+        function toggleLang() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateText();
+        }
+
+        function toggleModal() {
+            const modal = document.getElementById('explanation-modal');
+            modal.classList.toggle('active');
+            
+            // Close other modal if open
+            document.getElementById('adaptation-modal').classList.remove('active');
+        }
+        
+        function toggleAdaptationModal() {
+            const modal = document.getElementById('adaptation-modal');
+            modal.classList.toggle('active');
+            
+            // Close other modal if open
+            document.getElementById('explanation-modal').classList.remove('active');
+        }
+
+        function updateText() {
+            const t = i18n[currentLang];
+            document.getElementById('app-title').textContent = t.appTitle;
+            document.getElementById('app-subtitle').textContent = t.appSubtitle;
+            document.getElementById('btn-explain').textContent = t.btnExplain;
+            document.getElementById('btn-adaptation').textContent = t.btnAdaptation;
+            document.getElementById('legend-struct-title').textContent = t.legendStructTitle;
+            document.getElementById('legend-epithelium').textContent = t.legendEpithelium;
+            document.getElementById('legend-lacteal').textContent = t.legendLacteal;
+            document.getElementById('legend-artery').textContent = t.legendArtery;
+            document.getElementById('legend-vein').textContent = t.legendVein;
+            document.getElementById('legend-nutrient-title').textContent = t.legendNutrientTitle;
+            document.getElementById('legend-water').textContent = t.legendWater;
+            document.getElementById('legend-lipid').textContent = t.legendLipid;
+            document.getElementById('control-title').textContent = t.controlTitle;
+            document.getElementById('btn-water').textContent = t.btnWater;
+            document.getElementById('btn-lipid').textContent = t.btnLipid;
+            document.getElementById('btn-clear').textContent = t.btnClear;
+            document.getElementById('label-lumen').textContent = t.labelLumen;
+            
+            // Modal 1
+            document.getElementById('modal-title').textContent = t.modalTitle;
+            document.getElementById('modal-water-title').textContent = t.modalWaterTitle;
+            document.getElementById('modal-water-desc').innerHTML = t.modalWaterDesc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); 
+            document.getElementById('modal-lipid-title').textContent = t.modalLipidTitle;
+            document.getElementById('modal-lipid-desc').innerHTML = t.modalLipidDesc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            document.getElementById('modal-note').textContent = t.modalNote;
+            
+            // Modal 2 (Adaptation)
+            document.getElementById('adapt-title').textContent = t.adaptTitle;
+            document.getElementById('adapt-1-title').textContent = t.adapt1Title;
+            document.getElementById('adapt-1-desc').innerHTML = t.adapt1Desc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            document.getElementById('adapt-2-title').textContent = t.adapt2Title;
+            document.getElementById('adapt-2-desc').innerHTML = t.adapt2Desc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            document.getElementById('adapt-3-title').textContent = t.adapt3Title;
+            document.getElementById('adapt-3-desc').innerHTML = t.adapt3Desc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            document.getElementById('adapt-4-title').textContent = t.adapt4Title;
+            document.getElementById('adapt-4-desc').innerHTML = t.adapt4Desc.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        }
+
+        // --- Classes ---
+
+        class Nutrient {
+            constructor(type) {
+                this.type = type; 
+                this.x = Math.random() * width;
+                // Spawn higher up to give more time to fall
+                this.y = Math.random() * (villusBaseY - villusHeight) - 50; 
+                
+                this.size = 5;
+                this.state = 'floating'; 
+                this.speedX = (Math.random() - 0.5) * 2.0;
+                this.speedY = Math.random() * 2.5 + 1.0; // Faster falling speed
+            }
+
+            update() {
+                const topY = villusBaseY - villusHeight * 0.8;
+                const vesselOffset = villusWidth / 3.5;
+
+                if (this.state === 'floating') {
+                    // Attraction Force (The "Force" requested)
+                    // If particle is roughly above the villus, pull it towards the center slightly
+                    // and accelerate it downwards towards the absorption surface
+                    
+                    const distToCenter = this.x - villusBaseX;
+                    
+                    if (Math.abs(distToCenter) < villusWidth * 1.5) {
+                        // Gently pull towards center X
+                        this.x -= distToCenter * 0.01;
+                        // Accelerate Y if near villus
+                        this.y += 0.5;
+                    }
+
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+
+                    // Bounce off walls
+                    if (this.x < 0 || this.x > width) this.speedX *= -1;
+                    
+                    // Interaction: Expanded hit box for better absorption
+                    const villusLeft = villusBaseX - villusWidth/1.8; // Wider hitbox
+                    const villusRight = villusBaseX + villusWidth/1.8;
+                    const villusTop = villusBaseY - villusHeight - 20; // Higher hitbox
+
+                    if (this.y > villusTop && this.x > villusLeft && this.x < villusRight) {
+                         if (this.y < villusBaseY) {
+                             this.state = 'absorbing';
+                         }
+                    }
+                    
+                    // Reset if falls off bottom
+                    if (this.y > height) {
+                        // Recycle particle to top instead of deleting, to keep density up
+                        this.y = -20;
+                        this.x = Math.random() * width;
+                    }
+                } 
+                else if (this.state === 'absorbing') {
+                    let targetX = villusBaseX;
+                    if (this.type === 'water') {
+                        if (Math.abs(this.x - (villusBaseX - vesselOffset)) < Math.abs(this.x - (villusBaseX + vesselOffset))) {
+                            targetX = villusBaseX - vesselOffset; 
+                        } else {
+                            targetX = villusBaseX + vesselOffset; 
+                        }
+                    } else {
+                        targetX = villusBaseX;
+                    }
+
+                    // Faster absorption animation
+                    this.x += (targetX - this.x) * 0.15;
+                    
+                    if (Math.abs(this.x - targetX) < 5) {
+                        this.state = 'transported';
+                    }
+                }
+                else if (this.state === 'transported') {
+                    if (this.type === 'water') {
+                        const arteryX = villusBaseX - vesselOffset;
+                        const veinX = villusBaseX + vesselOffset;
+                        const isArterySide = Math.abs(this.x - arteryX) < 20;
+                        const isTop = this.y < topY + 20;
+
+                        if (isArterySide && !isTop) {
+                            this.y -= 3;
+                            this.x += (arteryX - this.x) * 0.2;
+                        } 
+                        else if (isTop) {
+                            this.x += 3; 
+                            if (this.x > veinX) this.y += 3;
+                        }
+                        else {
+                            this.y += 3.5;
+                            this.x += (veinX - this.x) * 0.2;
+                        }
+                    } else {
+                        this.y += 3.0;
+                        this.x += (villusBaseX - this.x) * 0.2;
+                    }
+
+                    if (this.y > height + 20) return false; 
+                }
+                return true; 
+            }
+
+            draw() {
+                ctx.beginPath();
+                if (this.type === 'water') {
+                    ctx.fillStyle = '#2563EB'; 
+                    ctx.fillRect(this.x - this.size, this.y - this.size, this.size*2, this.size*2);
+                } else {
+                    ctx.fillStyle = '#EAB308'; 
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        class BloodCell {
+            constructor(type) {
+                this.type = type; 
+                this.progress = Math.random(); 
+                this.speed = 0.005 + Math.random() * 0.002;
+            }
+
+            update() {
+                this.progress += this.speed;
+                if (this.progress > 1) this.progress = 0;
+            }
+
+            draw() {
+                let x, y, color;
+                const topY = villusBaseY - villusHeight * 0.8;
+                const pathLength = height - topY; 
+                
+                const currentY = height - (this.progress * pathLength);
+
+                if (this.type === 'artery') {
+                    color = '#ff6b6b'; 
+                    x = villusBaseX - villusWidth/3.5;
+                    y = currentY; 
+                    if (y < topY) y = height; 
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI*2);
+                    ctx.fill();
+
+                } else if (this.type === 'vein') {
+                    color = '#60a5fa'; 
+                    x = villusBaseX + villusWidth/3.5;
+                    y = topY + (this.progress * pathLength); 
+                    if (y > height) y = topY; 
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI*2);
+                    ctx.fill();
+                } else if (this.type === 'lacteal') {
+                    color = '#fef08a';
+                    x = villusBaseX;
+                    y = topY + (this.progress * pathLength);
+                    if (y > height) y = topY;
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // --- Core Drawing Functions ---
+
+        // Helper for cell drawing
+        const drawCell = (x, y, angle) => {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.fillStyle = '#fda4af'; 
+            ctx.strokeStyle = '#e11d48'; 
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.rect(-6, -4, 12, 8);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#881337';
+            ctx.beginPath();
+            ctx.arc(0, 0, 2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        };
+
+        function drawIntestinalWall() {
+            // Background color for wall
+            ctx.fillStyle = '#fca5a5'; 
+            ctx.fillRect(0, villusBaseY, width, height - villusBaseY);
+            
+            // Texture
+            ctx.strokeStyle = '#f87171';
+            ctx.beginPath();
+            ctx.moveTo(0, villusBaseY);
+            ctx.lineTo(width, villusBaseY);
+            ctx.stroke();
+
+            // Muscle layers
+            ctx.strokeStyle = '#ef4444';
+            ctx.globalAlpha = 0.2;
+            for(let i=villusBaseY+10; i<height; i+=15) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(width, i);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+
+            // DRAW WALL CELLS (Epithelium extending to the sides)
+            const villusRadiusAtBase = villusWidth / 2;
+            
+            // Left side wall cells
+            for(let x = 0; x < villusBaseX - villusRadiusAtBase; x += 12) {
+                drawCell(x, villusBaseY, 0); // Flat
+            }
+            // Right side wall cells
+            for(let x = villusBaseX + villusRadiusAtBase; x < width; x += 12) {
+                drawCell(x, villusBaseY, 0); // Flat
+            }
+        }
+
+        function drawVillusStructure() {
+            const topY = villusBaseY - villusHeight;
+            const radius = villusWidth / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(villusBaseX - radius, villusBaseY); 
+            ctx.lineTo(villusBaseX - radius, topY + radius); 
+            ctx.arc(villusBaseX, topY + radius, radius, Math.PI, 0); 
+            ctx.lineTo(villusBaseX + radius, villusBaseY); 
+            ctx.lineTo(villusBaseX - radius, villusBaseY);
+            
+            ctx.fillStyle = '#ffe4e6'; 
+            ctx.fill();
+            ctx.strokeStyle = '#fecdd3'; 
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Epithelial Cells on Villus
+            // Left side
+            for (let y = villusBaseY; y > topY + radius; y -= 10) {
+                drawCell(villusBaseX - radius, y, 0);
+            }
+            // Right side
+            for (let y = villusBaseY; y > topY + radius; y -= 10) {
+                drawCell(villusBaseX + radius, y, 0);
+            }
+            // Top curve
+            const steps = 40; 
+            for (let i = 0; i <= steps; i++) {
+                const angle = Math.PI + (Math.PI * i / steps); 
+                const px = villusBaseX + Math.cos(angle) * radius;
+                const py = (topY + radius) + Math.sin(angle) * radius;
+                drawCell(px, py, angle + Math.PI/2);
+            }
+
+            // Lacteal
+            ctx.beginPath();
+            ctx.moveTo(villusBaseX - radius/4, height); 
+            ctx.lineTo(villusBaseX - radius/4, topY + radius + 10);
+            ctx.arc(villusBaseX, topY + radius + 10, radius/4, Math.PI, 0);
+            ctx.lineTo(villusBaseX + radius/4, height); 
+            
+            ctx.fillStyle = '#fef9c3'; 
+            ctx.fill();
+            ctx.strokeStyle = '#eab308'; 
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function drawVesselsAndFlow() {
+            ctx.lineWidth = 4;
+            const vesselOffset = villusWidth / 3.5;
+            const topY = villusBaseY - villusHeight * 0.8;
+
+            // Artery
+            ctx.strokeStyle = '#ef4444'; 
+            ctx.beginPath();
+            ctx.moveTo(villusBaseX - vesselOffset, height); 
+            ctx.lineTo(villusBaseX - vesselOffset, topY);
+            ctx.stroke();
+            
+            drawArrow(villusBaseX - vesselOffset, villusBaseY + 40, villusBaseX - vesselOffset, villusBaseY + 20, '#ef4444');
+
+            // Vein
+            ctx.strokeStyle = '#3b82f6'; 
+            ctx.beginPath();
+            ctx.moveTo(villusBaseX + vesselOffset, topY);
+            ctx.lineTo(villusBaseX + vesselOffset, height); 
+            ctx.stroke();
+
+             drawArrow(villusBaseX + vesselOffset, villusBaseY + 20, villusBaseX + vesselOffset, villusBaseY + 40, '#3b82f6');
+
+            // Capillary Network
+            const gradient = ctx.createLinearGradient(villusBaseX - vesselOffset, topY, villusBaseX + vesselOffset, topY);
+            gradient.addColorStop(0, '#ef4444');
+            gradient.addColorStop(1, '#3b82f6');
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            
+            for(let i=0; i<5; i++) {
+                let yPos = topY + (i * 30);
+                if (yPos < villusBaseY) {
+                    ctx.beginPath();
+                    ctx.moveTo(villusBaseX - vesselOffset, yPos);
+                    ctx.bezierCurveTo(villusBaseX, yPos - 10, villusBaseX, yPos + 10, villusBaseX + vesselOffset, yPos);
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.beginPath();
+            ctx.arc(villusBaseX, topY, vesselOffset, Math.PI, 0);
+            ctx.stroke();
+        }
+
+        function drawArrow(fromX, fromY, toX, toY, color) {
+            const headlen = 10;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.fill();
+        }
+
+        function drawLabels() {
+            ctx.font = "bold 14px 'Noto Sans TC'";
+            ctx.fillStyle = "#334155";
+            ctx.textAlign = "center";
+            const t = i18n[currentLang];
+
+            // Artery
+            ctx.fillStyle = "#ef4444";
+            ctx.fillText(t.canvasArtery, villusBaseX - villusWidth/2 - 40, villusBaseY + 40);
+            ctx.fillText(t.canvasArterySub, villusBaseX - villusWidth/2 - 40, villusBaseY + 55);
+
+            // Vein
+            ctx.fillStyle = "#3b82f6";
+            ctx.fillText(t.canvasVein, villusBaseX + villusWidth/2 + 40, villusBaseY + 40);
+            ctx.fillText(t.canvasVeinSub, villusBaseX + villusWidth/2 + 40, villusBaseY + 55);
+
+            // Wall
+            ctx.fillStyle = "#7f1d1d";
+            ctx.fillText(t.canvasWall, villusBaseX, height - 15);
+        }
+
+        // --- Logic & Loop ---
+
+        function initSimulation() {
+            bloodCells = [];
+            for(let i=0; i<15; i++) bloodCells.push(new BloodCell('artery'));
+            for(let i=0; i<15; i++) bloodCells.push(new BloodCell('vein'));
+            for(let i=0; i<10; i++) bloodCells.push(new BloodCell('lacteal'));
+        }
+
+        function spawnNutrients(type) {
+            // Increased from 15 to 50 for more particles
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    nutrients.push(new Nutrient(type));
+                }, i * 50); // Faster spawn rate
+            }
+        }
+
+        function resetSim() {
+            nutrients = [];
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            drawIntestinalWall();
+            drawVillusStructure();
+            drawVesselsAndFlow();
+
+            bloodCells.forEach(cell => {
+                cell.update();
+                cell.draw();
+            });
+
+            nutrients = nutrients.filter(n => {
+                n.draw();
+                return n.update();
+            });
+
+            drawLabels();
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        initSimulation();
+        animate();
+
+    </script>
+</body>
+</html>
