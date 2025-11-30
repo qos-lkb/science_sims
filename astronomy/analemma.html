@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界日行跡觀測儀 (Analemma)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .canvas-container { cursor: crosshair; }
+        
+        /* 滑桿自定義樣式 */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #f59e0b;
+            margin-top: -6px; 
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #475569;
+            border-radius: 2px;
+        }
+        
+        /* Modal 動畫 */
+        .modal-enter { opacity: 0; }
+        .modal-enter-active { opacity: 1; transition: opacity 300ms; }
+        .modal-exit { opacity: 1; }
+        .modal-exit-active { opacity: 0; transition: opacity 300ms; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- 頂部標題 -->
+    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center shadow-lg z-10">
+        <div>
+            <h1 class="text-xl md:text-2xl font-bold text-amber-500 tracking-wider flex items-center">
+                <span class="text-2xl mr-2">☀</span><span data-i18n="appTitle">世界日行跡觀測儀</span>
+            </h1>
+            <p class="text-[10px] md:text-xs text-slate-400 mt-1" data-i18n="appSubtitle">觀測太陽在固定當地時間的軌跡變化 (Local Time)</p>
+        </div>
+        
+        <!-- 右側功能區 -->
+        <div class="flex items-center gap-3">
+             <button id="help-btn" class="bg-slate-800 hover:bg-slate-700 hover:text-sky-300 text-sky-400 text-xs md:text-sm px-3 py-1.5 rounded-full border border-slate-700 transition-all flex items-center gap-1 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="hidden md:inline font-bold" data-i18n="helpBtn">日行跡解說</span>
+                <span class="md:hidden">?</span>
+            </button>
+            
+            <!-- 語言切換按鈕 (移至最右) -->
+            <button id="lang-btn" class="bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full border border-slate-700 transition-all shadow-sm">
+                中 / Eng
+            </button>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- 左側：設定與選單 -->
+        <aside class="w-1/3 md:w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-20 shadow-xl p-5 gap-6 overflow-y-auto">
+            
+            <!-- 1. 城市選擇 -->
+            <div class="flex flex-col gap-2">
+                <label for="city-select" class="text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="cityLabel">觀測城市</label>
+                <select id="city-select" class="bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-amber-500 outline-none text-sm transition-all hover:border-slate-500">
+                    <!-- Javascript 填充 -->
+                </select>
+                <div class="text-[10px] text-slate-500 flex justify-between font-mono px-1">
+                    <span id="city-lat">--</span>
+                    <span>UTC <span id="city-offset">--</span></span>
+                </div>
+            </div>
+
+            <!-- 2. 時間滑桿 -->
+            <div class="flex flex-col gap-3">
+                <div class="flex justify-between items-center">
+                    <label for="time-slider" class="text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="timeLabel">每日觀測時間 (當地)</label>
+                    <span id="time-display" class="text-amber-400 font-mono font-bold text-sm bg-slate-800 px-2 py-0.5 rounded border border-slate-700">18:30</span>
+                </div>
+                <input type="range" id="time-slider" min="16" max="22" step="0.1" value="18.5" class="w-full">
+                <div class="flex justify-between text-[10px] text-slate-500 px-1">
+                    <span>16:00</span>
+                    <span>22:00</span>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- 3. 日期選擇 -->
+            <div class="flex flex-col gap-4">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wide" data-i18n="dateSelectionLabel">日期定位</div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500" data-i18n="monthLabel">月份</label>
+                        <select id="month-select" class="bg-slate-800 text-white border border-slate-600 rounded p-1.5 focus:ring-2 focus:ring-amber-500 outline-none text-sm">
+                            <!-- Javascript 填充 -->
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-slate-500" data-i18n="dayLabel">日期</label>
+                        <select id="day-select" class="bg-slate-800 text-white border border-slate-600 rounded p-1.5 focus:ring-2 focus:ring-amber-500 outline-none text-sm">
+                            <!-- Javascript 填充 -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部說明 -->
+            <div class="mt-auto pt-4 text-[10px] text-slate-600 text-center border-t border-slate-800" data-i18n="footerNote">
+                註：計算採用標準時間，不含夏令時間調整<br>
+                以確保軌跡平滑連續
+            </div>
+        </aside>
+
+        <!-- 右側：可視化畫布 -->
+        <main class="flex-1 relative bg-slate-200 canvas-container flex items-center justify-center overflow-hidden" id="main-area">
+            
+            <!-- Canvas -->
+            <canvas id="skyCanvas" class="absolute inset-0 z-0"></canvas>
+
+            <!-- 數據顯示浮層 -->
+            <div id="info-panel" class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm border border-slate-200 p-4 rounded-lg shadow-2xl w-64 transform transition-all duration-300 opacity-0 translate-y-[-10px] text-slate-800 pointer-events-none">
+                <h3 class="text-amber-600 font-bold text-lg mb-2 border-b border-slate-200 pb-1 flex justify-between">
+                    <span id="info-date">--月--日</span>
+                </h3>
+                <div class="space-y-1.5 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500" data-i18n="azimuth">方位角 (Az):</span>
+                        <span class="font-mono text-emerald-600 font-bold" id="info-az">--°</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500" data-i18n="altitude">仰角 (Alt):</span>
+                        <span class="font-mono text-cyan-600 font-bold" id="info-alt">--°</span>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-slate-100">
+                        <span class="block text-center font-bold text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600" id="info-status">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 提示文字 -->
+            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/90 text-xs pointer-events-none text-center bg-slate-900/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-lg" data-i18n="hint">
+                正西方視角 • 自動置中模式
+            </div>
+        </main>
+    </div>
+
+    <!-- 解說 Modal -->
+    <div id="help-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-slate-900 w-full max-w-2xl max-h-[85vh] mx-4 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300" id="help-content-container">
+            <!-- Modal Header -->
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                <h2 class="text-lg md:text-xl font-bold text-amber-500 flex items-center gap-2" data-i18n="helpTitle">
+                    <span>📚</span> 關於日行跡 (Analemma)
+                </h2>
+                <button id="close-help-btn" class="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Content (Dynamic) -->
+            <div id="help-body" class="p-6 overflow-y-auto text-slate-300 space-y-6 leading-relaxed text-sm md:text-base scroll-smooth">
+                <!-- Javascript will inject content here -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-800 bg-slate-800/50 text-center">
+                <button id="close-help-btn-bottom" class="bg-sky-600 hover:bg-sky-500 text-white px-8 py-2 rounded-lg transition-all font-bold text-sm shadow-lg hover:shadow-sky-500/20 transform hover:-translate-y-0.5" data-i18n="helpClose">
+                    明白了
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 多語言字典
+ */
+const I18N = {
+    zh: {
+        appTitle: "世界日行跡觀測儀",
+        appSubtitle: "觀測太陽在固定當地時間的軌跡變化 (Local Time)",
+        helpBtn: "日行跡解說",
+        cityLabel: "觀測城市",
+        timeLabel: "每日觀測時間 (當地)",
+        dateSelectionLabel: "日期定位",
+        monthLabel: "月份",
+        dayLabel: "日期",
+        footerNote: "註：計算採用標準時間，不含夏令時間調整<br>以確保軌跡平滑連續",
+        azimuth: "方位角 (Az):",
+        altitude: "仰角 (Alt):",
+        hint: "正西方視角 • 自動置中模式",
+        helpTitle: "關於日行跡 (Analemma)",
+        helpClose: "明白了",
+        horizon: "地平線 (0°)",
+        west: "西 (W)",
+        south: "南 (S)",
+        north: "北 (N)",
+        visible: "地平線上 (可見)",
+        invisible: "地平線下 (不可見)",
+        months: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+        daySuffix: "日"
+    },
+    en: {
+        appTitle: "World Analemma Visualizer",
+        appSubtitle: "Observe solar position changes at fixed local time",
+        helpBtn: "Explanation",
+        cityLabel: "Observation City",
+        timeLabel: "Observation Time (Local)",
+        dateSelectionLabel: "Date Selection",
+        monthLabel: "Month",
+        dayLabel: "Date",
+        footerNote: "Note: Standard time used (no DST)<br>to ensure smooth continuity.",
+        azimuth: "Azimuth:",
+        altitude: "Altitude:",
+        hint: "West Facing • Auto-Center Mode",
+        helpTitle: "About Analemma",
+        helpClose: "Got it",
+        horizon: "Horizon (0°)",
+        west: "West (W)",
+        south: "South (S)",
+        north: "North (N)",
+        visible: "Above Horizon (Visible)",
+        invisible: "Below Horizon (Invisible)",
+        months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        daySuffix: ""
+    }
+};
+
+let currentLang = 'zh';
+
+/**
+ * 城市數據庫 (支援雙語)
+ */
+const CITIES = [
+    { nameZh: "香港", nameEn: "Hong Kong", lat: 22.3, lon: 114.2, utcOffset: 8 },
+    { nameZh: "台北", nameEn: "Taipei", lat: 25.03, lon: 121.56, utcOffset: 8 },
+    { nameZh: "東京", nameEn: "Tokyo", lat: 35.68, lon: 139.76, utcOffset: 9 },
+    { nameZh: "北京", nameEn: "Beijing", lat: 39.90, lon: 116.40, utcOffset: 8 },
+    { nameZh: "新加坡", nameEn: "Singapore", lat: 1.35, lon: 103.82, utcOffset: 8 },
+    { nameZh: "赤道 (坤甸)", nameEn: "Equator (Pontianak)", lat: 0.0, lon: 109.33, utcOffset: 7 },
+    { nameZh: "基多", nameEn: "Quito", lat: -0.18, lon: -78.47, utcOffset: -5 },
+    { nameZh: "倫敦", nameEn: "London", lat: 51.50, lon: -0.12, utcOffset: 0 },
+    { nameZh: "巴黎", nameEn: "Paris", lat: 48.85, lon: 2.35, utcOffset: 1 },
+    { nameZh: "莫斯科", nameEn: "Moscow", lat: 55.75, lon: 37.61, utcOffset: 3 },
+    { nameZh: "開普敦", nameEn: "Cape Town", lat: -33.92, lon: 18.42, utcOffset: 2 }, 
+    { nameZh: "紐約", nameEn: "New York", lat: 40.71, lon: -74.00, utcOffset: -5 },
+    { nameZh: "洛杉磯", nameEn: "Los Angeles", lat: 34.05, lon: -118.24, utcOffset: -8 },
+    { nameZh: "里約熱內盧", nameEn: "Rio de Janeiro", lat: -22.90, lon: -43.17, utcOffset: -3 },
+    { nameZh: "雪梨", nameEn: "Sydney", lat: -33.86, lon: 151.20, utcOffset: 10 },
+    { nameZh: "烏斯懷亞", nameEn: "Ushuaia", lat: -54.80, lon: -68.30, utcOffset: -3 }, 
+    { nameZh: "雷克雅維克", nameEn: "Reykjavik", lat: 64.14, lon: -21.90, utcOffset: 0 },
+    { nameZh: "朗伊爾城", nameEn: "Longyearbyen", lat: 78.22, lon: 15.65, utcOffset: 1 },
+    { nameZh: "北極點", nameEn: "North Pole", lat: 89.99, lon: 0, utcOffset: 0 }, 
+    { nameZh: "南極點", nameEn: "South Pole", lat: -89.99, lon: 0, utcOffset: 12 }
+];
+
+/**
+ * 全局配置
+ */
+let CONFIG = {
+    lat: 22.3, 
+    lon: 114.2,
+    utcOffset: 8,
+    year: 2025,
+    hour: 18,   
+    minute: 30, 
+    viewAzimuthCenter: 270,
+    viewAzimuthRange: 60,
+    viewAltMin: -15,       
+    viewAltMax: 35         
+};
+
+let sunData = [];
+let activePointIndex = -1;
+
+/**
+ * 簡易太陽位置計算算法 (無折射)
+ */
+function getSunPosition(date, lat, lon) {
+    const PI = Math.PI;
+    const rad = PI / 180;
+    const deg = 180 / PI;
+
+    const Y = date.getUTCFullYear();
+    const M = date.getUTCMonth() + 1;
+    const D = date.getUTCDate();
+    const UT = date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600;
+
+    let JD = 367*Y - Math.floor(7*(Y + Math.floor((M+9)/12))/4) + Math.floor(275*M/9) + D + 1721013.5 + UT/24;
+    const T = (JD - 2451545.0) / 36525;
+
+    let L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T*T;
+    L0 = L0 % 360;
+
+    const M_sun = 357.52911 + 35999.05029 * T - 0.0001537 * T*T;
+    const C = (1.914602 - 0.004817 * T - 0.000014 * T*T) * Math.sin(M_sun * rad) +
+              (0.019993 - 0.000101 * T) * Math.sin(2 * M_sun * rad) +
+              0.000289 * Math.sin(3 * M_sun * rad);
+
+    const sunTrueLong = L0 + C;
+    const omega = 125.04 - 1934.136 * T;
+    const lambda = sunTrueLong - 0.00569 - 0.00478 * Math.sin(omega * rad);
+    const epsilon = 23.439291 - 0.0130041 * T - 0.000000163 * T*T + 0.0005036 * T*T*T;
+    const obliq = epsilon + 0.00256 * Math.cos(omega * rad);
+
+    const alpha = Math.atan2(Math.cos(obliq * rad) * Math.sin(lambda * rad), Math.cos(lambda * rad)) * deg;
+    const delta = Math.asin(Math.sin(obliq * rad) * Math.sin(lambda * rad)) * deg;
+
+    const GMST0 = 280.46061837 + 360.98564736629 * (JD - 2451545.0) + 0.000387933 * T*T - T*T*T/38710000;
+    const GMST = (GMST0 % 360 + 360) % 360;
+    const LMST = (GMST + lon) % 360;
+
+    let H = LMST - alpha;
+    H = (H + 180) % 360 - 180;
+
+    const sinAlt = Math.sin(lat * rad) * Math.sin(delta * rad) + Math.cos(lat * rad) * Math.cos(delta * rad) * Math.cos(H * rad);
+    const altitude = Math.asin(sinAlt) * deg;
+
+    const cosAz = (Math.sin(delta * rad) - Math.sin(lat * rad) * Math.sin(altitude * rad)) / (Math.cos(lat * rad) * Math.cos(altitude * rad));
+    let azimuth = Math.acos(Math.min(1, Math.max(-1, cosAz))) * deg;
+
+    if (Math.sin(H * rad) > 0) {
+        azimuth = 360 - azimuth;
+    }
+
+    return { az: azimuth, alt: altitude, trueAlt: altitude };
+}
+
+function calculateAndCenter() {
+    sunData = [];
+    const startDate = new Date(CONFIG.year, 0, 1);
+    
+    let minAz = 360;
+    let maxAz = 0;
+
+    for (let i = 0; i < 366; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        if (d.getFullYear() > CONFIG.year) break;
+
+        const targetUTCHour = CONFIG.hour - CONFIG.utcOffset;
+        const targetUTCMinute = CONFIG.minute;
+        
+        d.setUTCHours(targetUTCHour, targetUTCMinute, 0, 0);
+        
+        const pos = getSunPosition(d, CONFIG.lat, CONFIG.lon);
+        
+        if (pos.az < minAz) minAz = pos.az;
+        if (pos.az > maxAz) maxAz = pos.az;
+
+        const displayDate = new Date(CONFIG.year, 0, 1 + i);
+
+        sunData.push({
+            date: d,
+            month: displayDate.getMonth() + 1,
+            day: displayDate.getDate(),
+            az: pos.az,
+            alt: pos.alt,
+            trueAlt: pos.trueAlt,
+            dayOfYear: i
+        });
+    }
+
+    CONFIG.viewAzimuthCenter = (minAz + maxAz) / 2;
+    const range = maxAz - minAz;
+    if (range > CONFIG.viewAzimuthRange - 10) {
+        CONFIG.viewAzimuthRange = range + 20;
+    }
+}
+
+const canvas = document.getElementById('skyCanvas');
+const ctx = canvas.getContext('2d');
+
+function mapCoordinates(az, alt) {
+    const width = canvas.width;
+    const height = canvas.height;
+    const minAz = CONFIG.viewAzimuthCenter - CONFIG.viewAzimuthRange / 2;
+    const maxAz = CONFIG.viewAzimuthCenter + CONFIG.viewAzimuthRange / 2;
+    const minAlt = CONFIG.viewAltMin;
+    const maxAlt = CONFIG.viewAltMax;
+
+    const x = ((az - minAz) / (maxAz - minAz)) * width;
+    const y = height - ((alt - minAlt) / (maxAlt - minAlt)) * height;
+    return { x, y };
+}
+
+function draw() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const dict = I18N[currentLang];
+
+    ctx.clearRect(0, 0, w, h);
+
+    // 背景
+    const horizonY = mapCoordinates(CONFIG.viewAzimuthCenter, 0).y;
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, horizonY);
+    skyGradient.addColorStop(0, '#38bdf8'); 
+    skyGradient.addColorStop(1, '#bae6fd'); 
+    ctx.fillStyle = skyGradient;
+    ctx.fillRect(0, 0, w, horizonY);
+
+    const groundGradient = ctx.createLinearGradient(0, horizonY, 0, h);
+    groundGradient.addColorStop(0, '#4ade80');
+    groundGradient.addColorStop(1, '#22c55e');
+    ctx.fillStyle = groundGradient;
+    ctx.fillRect(0, horizonY, w, h - horizonY);
+
+    // 網格
+    ctx.lineWidth = 1;
+    ctx.textAlign = 'center';
+    
+    // 地平線
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    ctx.lineTo(w, horizonY);
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#15803d';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(dict.horizon, 60, horizonY + 15);
+
+    // 仰角線
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    for (let a = -10; a <= 60; a += 10) {
+        if (a === 0) continue;
+        const y = mapCoordinates(CONFIG.viewAzimuthCenter, a).y;
+        if (y < 0 || y > h) continue;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+        ctx.fillText(`${a}°`, 20, y + 4);
+    }
+
+    // 方位線
+    const startAz = Math.ceil((CONFIG.viewAzimuthCenter - CONFIG.viewAzimuthRange/2) / 10) * 10;
+    const endAz = Math.floor((CONFIG.viewAzimuthCenter + CONFIG.viewAzimuthRange/2) / 10) * 10;
+
+    for (let az = startAz; az <= endAz; az += 10) {
+        const x = mapCoordinates(az, 0).x;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+        
+        let label = `${az}°`;
+        if (az % 90 === 0) {
+            if (az === 270) label = dict.west;
+            if (az === 180) label = dict.south;
+            if (az === 0 || az === 360) label = dict.north;
+        }
+        ctx.fillText(label, x, h - 20);
+    }
+
+    // 8 字軌跡
+    ctx.beginPath();
+    sunData.forEach((p, i) => {
+        const { x, y } = mapCoordinates(p.az, p.alt);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 點
+    sunData.forEach((p, i) => {
+        const { x, y } = mapCoordinates(p.az, p.alt);
+        const isActive = (i === activePointIndex);
+
+        if (p.day === 1 || isActive) {
+            ctx.beginPath();
+            ctx.arc(x, y, isActive ? 8 : 4, 0, Math.PI * 2);
+            ctx.fillStyle = isActive ? '#fff' : '#d97706';
+            ctx.fill();
+            
+            if (isActive) {
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+            }
+
+            if (p.day === 1 && !isActive) {
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                ctx.lineWidth = 2;
+                ctx.strokeText(dict.months[p.month - 1], x + 10, y + 3);
+                ctx.fillText(dict.months[p.month - 1], x + 10, y + 3);
+            }
+        }
+    });
+
+    // 太陽
+    if (activePointIndex !== -1) {
+        const p = sunData[activePointIndex];
+        const { x, y } = mapCoordinates(p.az, p.alt);
+        
+        const sunGradient = ctx.createRadialGradient(x, y, 4, x, y, 25);
+        sunGradient.addColorStop(0, '#fff');
+        sunGradient.addColorStop(0.2, '#fde047');
+        sunGradient.addColorStop(1, 'rgba(251, 146, 60, 0)');
+        
+        ctx.fillStyle = sunGradient;
+        ctx.beginPath();
+        ctx.arc(x, y, 25, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+/**
+ * UI 初始化與事件綁定
+ */
+const citySelect = document.getElementById('city-select');
+const timeSlider = document.getElementById('time-slider');
+const timeDisplay = document.getElementById('time-display');
+const monthSelect = document.getElementById('month-select');
+const daySelect = document.getElementById('day-select');
+const langBtn = document.getElementById('lang-btn');
+
+// Modal Elements
+const helpBtn = document.getElementById('help-btn');
+const closeHelpBtn = document.getElementById('close-help-btn');
+const closeHelpBtnBottom = document.getElementById('close-help-btn-bottom');
+const helpModal = document.getElementById('help-modal');
+const helpContentContainer = document.getElementById('help-content-container');
+const helpBody = document.getElementById('help-body');
+
+function initUI() {
+    // 語言切換
+    langBtn.addEventListener('click', toggleLanguage);
+    
+    // 初始填充
+    populateCities();
+    populateMonths();
+    populateDays(1);
+    updateTexts();
+
+    citySelect.addEventListener('change', () => {
+        const city = CITIES[citySelect.value];
+        CONFIG.lat = city.lat;
+        CONFIG.lon = city.lon;
+        CONFIG.utcOffset = city.utcOffset;
+
+        let latDisplay = Math.abs(city.lat) + "°";
+        if (city.lat > 0) latDisplay += " N";
+        else if (city.lat < 0) latDisplay += " S";
+
+        document.getElementById('city-lat').innerText = `Lat: ${latDisplay}`;
+        const offsetSign = city.utcOffset >= 0 ? '+' : '';
+        document.getElementById('city-offset').innerText = `${offsetSign}${city.utcOffset}`;
+        
+        refreshAll();
+    });
+
+    timeSlider.addEventListener('input', () => {
+        const val = parseFloat(timeSlider.value);
+        const h = Math.floor(val);
+        const m = Math.round((val - h) * 60);
+        
+        CONFIG.hour = h;
+        CONFIG.minute = m;
+        
+        const mStr = m < 10 ? '0' + m : m;
+        timeDisplay.innerText = `${h}:${mStr}`;
+        
+        refreshAll();
+    });
+
+    monthSelect.addEventListener('change', () => {
+        populateDays(parseInt(monthSelect.value));
+        selectDateFromMenu();
+    });
+
+    daySelect.addEventListener('change', selectDateFromMenu);
+
+    // Modal Events
+    function toggleModal(show) {
+        if (show) {
+            generateHelpContent(); // 生成對應語言內容
+            helpModal.classList.remove('opacity-0', 'pointer-events-none');
+            helpContentContainer.classList.remove('scale-95');
+            helpContentContainer.classList.add('scale-100');
+        } else {
+            helpModal.classList.add('opacity-0', 'pointer-events-none');
+            helpContentContainer.classList.remove('scale-100');
+            helpContentContainer.classList.add('scale-95');
+        }
+    }
+
+    helpBtn.addEventListener('click', () => toggleModal(true));
+    closeHelpBtn.addEventListener('click', () => toggleModal(false));
+    closeHelpBtnBottom.addEventListener('click', () => toggleModal(false));
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) toggleModal(false);
+    });
+
+    // 觸發初始計算
+    citySelect.dispatchEvent(new Event('change'));
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+    
+    // 更新所有文字
+    updateTexts();
+    
+    // 重新填充下拉選單 (保持當前選擇)
+    const currentCityIdx = citySelect.value;
+    const currentMonthIdx = monthSelect.value;
+    const currentDayIdx = daySelect.value;
+    
+    populateCities();
+    populateMonths();
+    populateDays(parseInt(currentMonthIdx));
+    
+    citySelect.value = currentCityIdx;
+    monthSelect.value = currentMonthIdx;
+    daySelect.value = currentDayIdx;
+
+    // 更新數據面板和重繪 Canvas
+    refreshAll();
+}
+
+function updateTexts() {
+    const dict = I18N[currentLang];
+    
+    // 更新 data-i18n 元素
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+            if (el.tagName === 'INPUT' && el.type === 'placeholder') {
+                el.placeholder = dict[key];
+            } else {
+                el.innerHTML = dict[key]; // 使用 innerHTML 支援 HTML 標籤
+            }
+        }
+    });
+
+    // 語言按鈕文字
+    langBtn.innerText = '中 / Eng';
+}
+
+function populateCities() {
+    citySelect.innerHTML = '';
+    CITIES.forEach((city, index) => {
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.text = currentLang === 'zh' ? city.nameZh : city.nameEn;
+        citySelect.appendChild(opt);
+    });
+}
+
+function populateMonths() {
+    monthSelect.innerHTML = '';
+    const dict = I18N[currentLang];
+    dict.months.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i + 1;
+        opt.text = m;
+        monthSelect.appendChild(opt);
+    });
+}
+
+function populateDays(month) {
+    const currentDay = parseInt(daySelect.value) || 1;
+    daySelect.innerHTML = '';
+    const daysInMonth = new Date(CONFIG.year, month, 0).getDate();
+    const suffix = I18N[currentLang].daySuffix;
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.text = `${d}${suffix}`;
+        daySelect.appendChild(opt);
+    }
+    daySelect.value = Math.min(currentDay, daysInMonth);
+}
+
+function generateHelpContent() {
+    if (currentLang === 'zh') {
+        helpBody.innerHTML = `
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">1</span>
+                    何謂日行跡？
+                </h3>
+                <p class="pl-8">如果你在一年中每一天的<strong class="text-slate-100">同一時刻</strong>（例如下午 4:00），在同一地點拍攝太陽的位置，並將所有照片疊加，你會發現太陽並不在同一點，而是畫出了一個「8」字形的軌跡，這就是日行跡。</p>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">2</span>
+                    為甚麼形狀像 8 字形？
+                </h3>
+                <div class="pl-8 space-y-2">
+                    <p>這由兩個主要天文因素共同造成：</p>
+                    <ul class="list-disc list-outside ml-4 space-y-2 text-slate-400 marker:text-amber-500">
+                        <li><strong class="text-slate-200">地球自轉軸傾斜 (23.5°)：</strong><br>這導致太陽在天球上的赤緯隨季節南北移動，形成了 8 字形的<strong class="text-amber-500">上下幅度</strong>（高度變化）。</li>
+                        <li><strong class="text-slate-200">地球軌道是橢圓形：</strong><br>地球繞太陽公轉的速度並非恆定（近日點快、遠日點慢）。這導致太陽視運動快慢不均（時差方程），形成了 8 字形的<strong class="text-amber-500">左右寬度</strong>（時間快慢）。</li>
+                    </ul>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">3</span>
+                    為甚麼 8 字不對稱？
+                </h3>
+                <p class="pl-8">8 字形通常「頭小身大」，這是因為地球通過近日點（1月初）和遠日點（7月初）的時間，與二至點（冬至、夏至）的時間並不重合。這兩個週期的錯位導致 8 字形不對稱。</p>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">4</span>
+                    緯度與日行跡的關係
+                </h3>
+                <div class="pl-8">
+                    <p class="mb-2">8 字形的形狀本身是固定的，但它在天空中的<strong class="text-emerald-400">傾斜角度</strong>取決於觀測者的緯度：</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">赤道 (0°)</strong>
+                            <span class="text-xs text-slate-400">8 字形垂直豎立（正午時），或平躺橫臥（日出日落時）。</span>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">中緯度</strong>
+                            <span class="text-xs text-slate-400">8 字形會向南或向北傾斜，這是我們最常見的形態。</span>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">極地 (90°)</strong>
+                            <span class="text-xs text-slate-400">8 字形只有一半露出地平線，或者幾乎垂直於地平線。</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+    } else {
+        helpBody.innerHTML = `
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">1</span>
+                    What is an Analemma?
+                </h3>
+                <p class="pl-8">If you take a picture of the Sun at the <strong class="text-slate-100">same time each day</strong> (e.g., 4:00 PM) from the same location throughout the year and overlay them, the Sun will trace out a figure-8 shape called an Analemma.</p>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">2</span>
+                    Why is it Figure-8 shaped?
+                </h3>
+                <div class="pl-8 space-y-2">
+                    <p>This is caused by two astronomical factors:</p>
+                    <ul class="list-disc list-outside ml-4 space-y-2 text-slate-400 marker:text-amber-500">
+                        <li><strong class="text-slate-200">Earth's Axial Tilt (23.5°):</strong><br>This causes the Sun's declination to move north and south, creating the <strong class="text-amber-500">vertical</strong> height.</li>
+                        <li><strong class="text-slate-200">Eccentricity of Earth's Orbit:</strong><br>Earth orbits faster near perihelion and slower near aphelion. This variation (Equation of Time) creates the <strong class="text-amber-500">horizontal</strong> width.</li>
+                    </ul>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">3</span>
+                    Why is it Asymmetrical?
+                </h3>
+                <p class="pl-8">The loops are different sizes because the dates when Earth is closest/furthest from the Sun do not align with the Solstices. This misalignment creates the "small head, big body" shape.</p>
+            </section>
+            <section>
+                <h3 class="text-sky-400 font-bold text-base md:text-lg mb-2 flex items-center gap-2">
+                    <span class="bg-sky-500/20 text-sky-400 w-6 h-6 rounded flex items-center justify-center text-xs">4</span>
+                    Latitude Effects
+                </h3>
+                <div class="pl-8">
+                    <p class="mb-2">The shape is constant, but its <strong class="text-emerald-400">tilt</strong> depends on your latitude:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">Equator (0°)</strong>
+                            <span class="text-xs text-slate-400">Stands vertically at noon, or lies horizontally at sunrise/sunset.</span>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">Mid-Latitudes</strong>
+                            <span class="text-xs text-slate-400">Tilts south or north. This is the most common view.</span>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded border border-slate-700">
+                            <strong class="block text-slate-200 mb-1">Poles (90°)</strong>
+                            <span class="text-xs text-slate-400">Half of it is hidden below the horizon.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+    }
+}
+
+function refreshAll() {
+    calculateAndCenter();
+    resizeCanvas(); 
+    if (activePointIndex !== -1) {
+        updateInfoPanel(activePointIndex);
+    } else {
+        selectToday();
+    }
+}
+
+function selectDateFromMenu() {
+    const m = parseInt(monthSelect.value);
+    const d = parseInt(daySelect.value);
+    const index = sunData.findIndex(item => item.month === m && item.day === d);
+    if (index !== -1) updateInfoPanel(index);
+}
+
+function selectToday() {
+    const today = new Date();
+    const m = today.getMonth() + 1;
+    const d = today.getDate();
+    let idx = sunData.findIndex(item => item.month === m && item.day === d);
+    if (idx === -1) idx = 0;
+    updateInfoPanel(idx);
+}
+
+function updateInfoPanel(index) {
+    if (index < 0 || index >= sunData.length) return;
+    
+    const data = sunData[index];
+    const dict = I18N[currentLang];
+    
+    document.getElementById('info-date').innerText = `${dict.months[data.month - 1]} ${data.day}${dict.daySuffix}`;
+    document.getElementById('info-az').innerText = data.az.toFixed(2) + '°';
+    document.getElementById('info-alt').innerText = data.alt.toFixed(2) + '°';
+
+    const statusEl = document.getElementById('info-status');
+    if (data.trueAlt > 0) {
+        statusEl.innerText = dict.visible;
+        statusEl.className = 'block text-center font-bold text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700';
+    } else {
+        statusEl.innerText = dict.invisible;
+        statusEl.className = 'block text-center font-bold text-xs px-2 py-1 rounded-full bg-slate-200 text-slate-500';
+    }
+
+    const panel = document.getElementById('info-panel');
+    panel.classList.remove('opacity-0', 'translate-y-[-10px]');
+    
+    activePointIndex = index;
+    draw();
+
+    if (parseInt(monthSelect.value) !== data.month) {
+        monthSelect.value = data.month;
+        populateDays(data.month);
+    }
+    daySelect.value = data.day;
+}
+
+function resizeCanvas() {
+    const parent = canvas.parentElement;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+    draw();
+}
+
+function handleCanvasInteraction(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let minDist = Infinity;
+    let closestIndex = -1;
+
+    sunData.forEach((p, i) => {
+        const { x, y } = mapCoordinates(p.az, p.alt);
+        const dist = Math.hypot(mouseX - x, mouseY - y);
+        if (dist < minDist) {
+            minDist = dist;
+            closestIndex = i;
+        }
+    });
+
+    if (minDist < 100) {
+        updateInfoPanel(closestIndex);
+    }
+}
+
+window.onload = () => {
+    initUI();
+    window.addEventListener('resize', resizeCanvas);
+    canvas.addEventListener('mousemove', (e) => {
+        if(e.buttons === 1) handleCanvasInteraction(e);
+    });
+    canvas.addEventListener('click', handleCanvasInteraction);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleCanvasInteraction(e.touches[0]); }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleCanvasInteraction(e.touches[0]); }, {passive: false});
+};
+</script>
+</body>
+</html>
