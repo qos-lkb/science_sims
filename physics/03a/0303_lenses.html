@@ -34,12 +34,27 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .ai-response p { margin-bottom: 0.5em; }
-        .ai-response strong { color: #2563eb; }
+        
+        /* Modal Animation */
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
         .modal-exit { opacity: 1; transform: scale(1); }
         .modal-exit-active { opacity: 0; transform: scale(0.95); transition: opacity 200ms, transform 200ms; }
+        
+        /* Table Styles */
+        .case-table th, .case-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        .case-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+        }
+        .case-table tr:last-child td {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body class="bg-slate-100 flex flex-col overflow-hidden text-slate-800">
@@ -50,7 +65,6 @@
             <h1 class="text-lg md:text-xl font-bold truncate whitespace-nowrap" data-i18n="appTitle">
                 物理光學模擬
             </h1>
-            <span class="bg-blue-500 text-[10px] md:text-xs px-2 py-0.5 rounded-full border border-blue-400 shrink-0" data-i18n="aiBadge">AI 加強版</span>
         </div>
         
         <div class="flex items-center gap-2">
@@ -58,7 +72,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 <span data-i18n="btnTheory">原理</span>
             </button>
-            <!-- Language Switch: Updated Text and Width -->
+            
+            <!-- Cases Button (New) -->
+            <button onclick="toggleCases()" class="bg-blue-500 hover:bg-blue-400 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg border border-blue-400 transition-colors flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span data-i18n="btnCases">成像列表</span>
+            </button>
+
             <button onclick="toggleLanguage()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg border border-blue-600 transition-colors font-medium w-auto min-w-[5rem] text-center">
                 <span id="lang-display">中 / Eng</span>
             </button>
@@ -90,34 +110,9 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4 pt-0 lg:pt-4 space-y-5">
                 
-                <!-- AI Tutor -->
-                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 md:p-4 shadow-sm">
-                    <h2 class="font-bold text-indigo-800 flex items-center gap-2 mb-2 text-sm md:text-base">
-                        <span>✨</span> <span data-i18n="aiTutorTitle">AI 物理導師</span>
-                    </h2>
-                    <div class="flex gap-2 mb-3">
-                        <button onclick="askAI('explain')" id="btn-explain" class="flex-1 bg-white active:bg-indigo-50 text-indigo-600 font-medium py-2 px-2 border border-indigo-200 rounded-lg text-xs md:text-sm transition-colors flex justify-center items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-                            <span data-i18n="btnExplain">分析成像</span>
-                        </button>
-                        <button onclick="askAI('challenge')" id="btn-challenge" class="flex-1 bg-indigo-600 active:bg-indigo-700 text-white font-medium py-2 px-2 rounded-lg text-xs md:text-sm transition-colors flex justify-center items-center gap-1 shadow-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
-                            <span data-i18n="btnChallenge">挑戰任務</span>
-                        </button>
-                    </div>
-                    
-                    <div id="ai-output-container" class="hidden">
-                        <div class="bg-white p-3 rounded-lg border border-indigo-100 text-xs md:text-sm text-gray-700 leading-relaxed shadow-inner min-h-[60px] max-h-[150px] overflow-y-auto custom-scrollbar">
-                            <div id="ai-loading" class="hidden flex items-center gap-2 text-indigo-400 animate-pulse">
-                                <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <span data-i18n="aiThinking">思考中...</span>
-                            </div>
-                            <div id="ai-text" class="ai-response"></div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Removed AI Tutor Section -->
 
-                <div class="space-y-4 pb-8">
+                <div class="space-y-4 pb-8 pt-4">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500" data-i18n="paramsTitle">
                         參數設定
                     </h2>
@@ -182,7 +177,6 @@
                             </div>
                             <div class="bg-gray-50 p-2 rounded border border-gray-100 col-span-2">
                                 <div class="text-gray-500 text-[10px]" data-i18n="resFormula">透鏡公式</div>
-                                <!-- Updated to use MathJax LaTeX -->
                                 <div class="text-center text-blue-600 mt-1">$$ \frac{1}{f} = \frac{1}{u} + \frac{1}{v} $$</div>
                             </div>
                         </div>
@@ -249,19 +243,86 @@
         </div>
     </div>
 
+    <!-- Cases Modal (New) -->
+    <div id="cases-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="if(event.target === this) toggleCases()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto custom-scrollbar transform transition-transform duration-300 scale-95">
+            <div class="sticky top-0 bg-white p-4 border-b flex justify-between items-center z-10">
+                <h2 class="text-lg font-bold text-gray-800" data-i18n="casesTitle">透鏡成像列表</h2>
+                <button onclick="toggleCases()" class="text-gray-500 hover:text-gray-700 bg-gray-100 p-1.5 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-6">
+                <!-- Convex Cases -->
+                <div>
+                    <h3 class="font-bold text-blue-600 mb-3 text-sm md:text-base border-b pb-2" data-i18n="convexCasesTitle">凸透鏡 (Convex Lens) 成像</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs md:text-sm text-left border-collapse case-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="thObjPos">物距 (u)</th>
+                                    <th data-i18n="thImgNature">成像性質</th>
+                                    <th data-i18n="thApp">應用例子</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-700">
+                                <tr>
+                                    <td>u = ∞</td>
+                                    <td data-i18n="case1Nature">點狀實像 (於焦點)</td>
+                                    <td data-i18n="case1App">聚光取火</td>
+                                </tr>
+                                <tr>
+                                    <td>u > 2f</td>
+                                    <td data-i18n="case2Nature">縮小、倒立、實像</td>
+                                    <td data-i18n="case2App">相機、眼睛</td>
+                                </tr>
+                                <tr>
+                                    <td>u = 2f</td>
+                                    <td data-i18n="case3Nature">等大、倒立、實像</td>
+                                    <td data-i18n="case3App">影印機 (1:1)</td>
+                                </tr>
+                                <tr>
+                                    <td>2f > u > f</td>
+                                    <td data-i18n="case4Nature">放大、倒立、實像</td>
+                                    <td data-i18n="case4App">投影機、顯微鏡</td>
+                                </tr>
+                                <tr>
+                                    <td>u = f</td>
+                                    <td data-i18n="case5Nature">不成像 (光線平行)</td>
+                                    <td data-i18n="case5App">探照燈</td>
+                                </tr>
+                                <tr>
+                                    <td>u < f</td>
+                                    <td data-i18n="case6Nature">放大、正立、虛像</td>
+                                    <td data-i18n="case6App">放大鏡</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Concave Cases -->
+                <div>
+                    <h3 class="font-bold text-blue-600 mb-3 text-sm md:text-base border-b pb-2" data-i18n="concaveCasesTitle">凹透鏡 (Concave Lens) 成像</h3>
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 text-xs md:text-sm text-gray-700">
+                        <p data-i18n="concaveDesc">無論物體在任何位置，凹透鏡總是形成：<br><strong class="text-blue-700">縮小、正立、虛像</strong>。</p>
+                        <p class="mt-2 text-gray-500" data-i18n="concaveApp">應用：近視眼鏡、防盜眼</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t text-center">
+                 <button onclick="toggleCases()" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors" data-i18n="btnClose">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const apiKey = ""; 
-        
         const i18n = {
             zh: {
                 appTitle: "物理光學模擬",
-                aiBadge: "AI 加強版",
                 btnTheory: "原理解說",
+                btnCases: "成像列表",
                 imgNature: "成像性質",
-                aiTutorTitle: "AI 物理導師",
-                btnExplain: "分析成像",
-                btnChallenge: "挑戰任務",
-                aiThinking: "思考中...",
                 paramsTitle: "參數設定",
                 labelLensType: "透鏡種類",
                 convexLens: "凸透鏡",
@@ -287,6 +348,26 @@
                 legendV: "像距 (實像為正，虛像為負)",
                 legendM: "放大率 (負值代表倒立)",
                 btnClose: "關閉",
+                casesTitle: "透鏡成像列表",
+                convexCasesTitle: "凸透鏡 (Convex Lens) 成像",
+                concaveCasesTitle: "凹透鏡 (Concave Lens) 成像",
+                thObjPos: "物距 (u)",
+                thImgNature: "成像性質",
+                thApp: "應用例子",
+                case1Nature: "點狀實像 (於焦點)",
+                case1App: "聚光取火",
+                case2Nature: "縮小、倒立、實像",
+                case2App: "相機、眼睛",
+                case3Nature: "等大、倒立、實像",
+                case3App: "影印機 (1:1)",
+                case4Nature: "放大、倒立、實像",
+                case4App: "投影機、顯微鏡",
+                case5Nature: "不成像 (光線平行)",
+                case5App: "探照燈",
+                case6Nature: "放大、正立、虛像",
+                case6App: "放大鏡",
+                concaveDesc: "無論物體在任何位置，凹透鏡總是形成：<br><strong class=\"text-blue-700\">縮小、正立、虛像</strong>。",
+                concaveApp: "應用：近視眼鏡、防盜眼",
                 real: "實像",
                 virtual: "虛像",
                 inverted: "倒立",
@@ -302,13 +383,9 @@
             },
             en: {
                 appTitle: "Optics Simulator",
-                aiBadge: "AI Enhanced",
                 btnTheory: "Theory",
+                btnCases: "Cases",
                 imgNature: "Image Nature",
-                aiTutorTitle: "AI Physics Tutor",
-                btnExplain: "Analyze",
-                btnChallenge: "Challenge",
-                aiThinking: "Thinking...",
                 paramsTitle: "Parameters",
                 labelLensType: "Lens Type",
                 convexLens: "Convex",
@@ -334,6 +411,26 @@
                 legendV: "Image Distance (+ real, - virtual)",
                 legendM: "Magnification (- means inverted)",
                 btnClose: "Close",
+                casesTitle: "Imaging Cases List",
+                convexCasesTitle: "Convex Lens Imaging",
+                concaveCasesTitle: "Concave Lens Imaging",
+                thObjPos: "Obj Dist (u)",
+                thImgNature: "Image Nature",
+                thApp: "Application",
+                case1Nature: "Point image (at Focus)",
+                case1App: "Burning glass",
+                case2Nature: "Diminished, Inverted, Real",
+                case2App: "Camera, Eye",
+                case3Nature: "Same size, Inverted, Real",
+                case3App: "Photocopier (1:1)",
+                case4Nature: "Magnified, Inverted, Real",
+                case4App: "Projector, Microscope",
+                case5Nature: "No Image (Parallel rays)",
+                case5App: "Spotlight",
+                case6Nature: "Magnified, Upright, Virtual",
+                case6App: "Magnifying Glass",
+                concaveDesc: "Regardless of object position, Concave Lens always forms:<br><strong class=\"text-blue-700\">Diminished, Upright, Virtual Image</strong>.",
+                concaveApp: "App: Myopia glasses, Peephole",
                 real: "Real",
                 virtual: "Virtual",
                 inverted: "Inverted",
@@ -360,7 +457,8 @@
             calculatedV: 0,
             calculatedM: 0,
             nature: "實像",
-            theoryOpen: false
+            theoryOpen: false,
+            casesOpen: false
         };
 
         const canvas = document.getElementById('opticsCanvas');
@@ -385,12 +483,8 @@
                 orientation: document.getElementById('status-orientation'),
                 size: document.getElementById('status-size'),
             },
-            ai: {
-                container: document.getElementById('ai-output-container'),
-                loading: document.getElementById('ai-loading'),
-                text: document.getElementById('ai-text'),
-            },
-            modal: document.getElementById('theory-modal')
+            modal: document.getElementById('theory-modal'),
+            casesModal: document.getElementById('cases-modal')
         };
 
         function init() {
@@ -420,7 +514,6 @@
 
         function toggleLanguage() {
             state.lang = state.lang === 'zh' ? 'en' : 'zh';
-            // Removed text update logic to keep the button text static as "中 / Eng"
             applyLanguage();
             update();
         }
@@ -429,15 +522,33 @@
             const texts = i18n[state.lang];
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (texts[key]) el.innerText = texts[key];
+                if (texts[key]) el.innerHTML = texts[key]; // Changed to innerHTML to support <br>
             });
             if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise();
         }
 
         function toggleTheory() {
             state.theoryOpen = !state.theoryOpen;
+            // Close other modal if open
+            if(state.casesOpen) toggleCases();
+
             const modal = ui.modal;
             if (state.theoryOpen) {
+                modal.classList.remove('hidden');
+                setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('div').classList.remove('scale-95'); }, 10);
+            } else {
+                modal.classList.add('opacity-0'); modal.querySelector('div').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+        function toggleCases() {
+            state.casesOpen = !state.casesOpen;
+            // Close other modal if open
+            if(state.theoryOpen) toggleTheory();
+
+            const modal = ui.casesModal;
+            if (state.casesOpen) {
                 modal.classList.remove('hidden');
                 setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('div').classList.remove('scale-95'); }, 10);
             } else {
@@ -516,63 +627,6 @@
             }
             state.calculatedV = v; state.calculatedM = m;
             return { v, m };
-        }
-
-        async function askAI(mode) {
-            const textDiv = ui.ai.text;
-            ui.ai.container.classList.remove('hidden');
-            ui.ai.loading.classList.remove('hidden');
-            ui.ai.loading.classList.add('flex');
-            textDiv.innerHTML = '';
-
-            const { f, u, h, calculatedV: v, lensType } = state;
-            const isZh = state.lang === 'zh';
-            const lensName = isZh ? (lensType==='convex'?"凸透鏡":"凹透鏡") : (lensType==='convex'?"Convex Lens":"Concave Lens");
-            
-            let prompt = "";
-            if (mode === 'explain') {
-                prompt = `扮演一位物理老師。我正在模擬${lensName}。
-                    參數: f=${f}mm, u=${u}mm。像距 v=${v === Infinity ? "Infinity" : Math.round(v)}mm。
-                    ${isZh ? "請用中文簡單解釋成像原因和性質。" : "Explain the image formation and properties in simple English."}
-                    Keep it under 60 words.`;
-            } else {
-                prompt = `扮演一位物理老師。我正在使用${lensName}模擬器 (f=${f}mm)。
-                    ${isZh ? "請出一個簡單的操作挑戰給學生。" : "Give me a simple operational challenge."}
-                    Keep it under 50 words.`;
-            }
-
-            try {
-                const response = await callGeminiAPI(prompt);
-                textDiv.innerHTML = marked.parse(response);
-                // Trigger MathJax re-render for dynamic AI content
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                    await window.MathJax.typesetPromise([textDiv]);
-                }
-            } catch (error) {
-                textDiv.innerHTML = `<span class="text-red-500">AI Error</span>`;
-                console.error(error);
-            } finally {
-                ui.ai.loading.classList.add('hidden');
-            }
-        }
-
-        async function callGeminiAPI(userQuery) {
-            const maxRetries = 3; let delay = 1000;
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: userQuery }] }] })
-                    });
-                    if (!response.ok) throw new Error(response.status);
-                    const data = await response.json();
-                    return data.candidates[0].content.parts[0].text;
-                } catch (error) {
-                    if (i === maxRetries - 1) throw error;
-                    await new Promise(r => setTimeout(r, delay)); delay *= 2;
-                }
-            }
         }
 
         function update() {
@@ -676,18 +730,32 @@
         function drawFocusPoints(cx, cy) {
             ctx.fillStyle = "#000";
             const f = state.f;
+            const f2 = f * 2; // 2F distance
             
+            // Draw Focus Points (F, F')
             ctx.beginPath(); ctx.arc(cx - f, cy, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + f, cy, 3, 0, Math.PI*2); ctx.fill();
+            
+            // Draw 2F Points
+            ctx.beginPath(); ctx.arc(cx - f2, cy, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + f2, cy, 3, 0, Math.PI*2); ctx.fill();
+
             ctx.font = "12px sans-serif"; ctx.fillStyle = "#475569";
             
             if (state.lensType === 'convex') {
-                ctx.fillText("F'", cx - f - 5, cy + 20); // Object side focus
-                ctx.beginPath(); ctx.arc(cx + f, cy, 3, 0, Math.PI*2); ctx.fill();
-                ctx.fillText("F", cx + f - 5, cy + 20); // Image side focus
+                ctx.fillText("F'", cx - f - 5, cy + 20); 
+                ctx.fillText("F", cx + f - 5, cy + 20); 
+                
+                // 2F' (Object side) and 2F (Image side)
+                ctx.fillText("2F'", cx - f2 - 8, cy + 20);
+                ctx.fillText("2F", cx + f2 - 8, cy + 20);
             } else {
-                ctx.fillText("F", cx - f - 5, cy + 20); // Virtual focus
-                ctx.beginPath(); ctx.arc(cx + f, cy, 3, 0, Math.PI*2); ctx.fill();
+                ctx.fillText("F", cx - f - 5, cy + 20); 
                 ctx.fillText("F'", cx + f - 5, cy + 20); 
+                
+                // 2F (Virtual side) and 2F' (Real side) for symmetry naming
+                ctx.fillText("2F", cx - f2 - 8, cy + 20);
+                ctx.fillText("2F'", cx + f2 - 8, cy + 20);
             }
         }
 
@@ -707,22 +775,12 @@
         }
 
         // --- Improved Line Drawing with Clipping ---
-        // Ensures arrows are always visible and lines don't break due to extreme coordinates
         function drawLineWithArrow(x1, y1, x2, y2, color, isDashed = false) {
-            // Clip segment to visible canvas to find draw start/end
-            // We use a margin to ensure arrows aren't right on the edge
-            const margin = -5000; // Allow drawing slightly outside, but clip extreme infinities
-            const w = canvas.width;
-            const h = canvas.height;
-            
-            // Simple clipping logic for extreme values
             if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;
 
             // Calculate visible segment for arrow placement
             let clip = clipLine(x1, y1, x2, y2);
             
-            // Draw the full requested line (canvas handles generic clipping well enough for strokes)
-            // But we need safe coordinates to avoid browser bugs with 1e20 values
             ctx.beginPath(); 
             ctx.moveTo(x1, y1); 
             ctx.lineTo(x2, y2);
