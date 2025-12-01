@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中二科學 - 氣體交換模型 (Bell Jar Model)</title>
+    <title>中二科學 - 氣球鐘罩模型</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -19,7 +19,7 @@
         .balloon {
             transition: transform 0.1s ease-out;
             transform-origin: top center;
-            /* Modified: Inverted pear shape (Wide top, narrow bottom) */
+            /* Inverted pear shape (Wide top, narrow bottom) */
             border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%;
         }
 
@@ -38,6 +38,15 @@
         .air-in { animation: flowDown 0.8s infinite; }
         .air-out { animation: flowUp 0.8s infinite; }
 
+        /* Modal Animation */
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-animate {
+            animation: fadeInScale 0.3s ease-out forwards;
+        }
+
         body {
             font-family: 'Noto Sans TC', sans-serif;
         }
@@ -55,10 +64,25 @@
 <body class="bg-slate-100 h-screen flex flex-col overflow-hidden noselect">
 
     <!-- Header -->
-    <header class="bg-teal-600 text-white p-4 shadow-md flex-none z-10">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-lungs mr-2"></i>呼吸機制模擬器 (Bell Jar Model)</h1>
-            <span class="text-sm opacity-80">中二級科學 - 氣體交換</span>
+    <header class="bg-teal-600 text-white p-4 shadow-md flex-none z-10 relative">
+        <div class="container mx-auto flex justify-between items-center pr-32">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold" data-i18n="title"><i class="fas fa-lungs mr-2"></i>呼吸機制 - 氣球鐘罩模型</h1>
+                <span class="text-sm opacity-80" data-i18n="subtitle">中二級科學 - 氣體交換</span>
+            </div>
+        </div>
+        
+        <!-- Top Right Buttons -->
+        <div class="absolute top-4 right-4 flex gap-2">
+            <!-- Principles Button -->
+            <button onclick="openModal()" class="bg-teal-700 hover:bg-teal-800 text-white font-bold py-1 px-3 rounded border border-teal-500 transition-colors text-sm flex items-center shadow-sm">
+                <i class="fas fa-book-open mr-1"></i> <span data-i18n="btn_principles">原理解說</span>
+            </button>
+            
+            <!-- Language Switcher -->
+            <button onclick="toggleLanguage()" class="bg-white/20 hover:bg-white/30 text-white font-bold py-1 px-3 rounded border border-white/40 transition-colors text-sm shadow-sm">
+                <i class="fas fa-globe mr-1"></i> <span id="lang-btn-text">中 / EN</span>
+            </button>
         </div>
     </header>
 
@@ -66,16 +90,8 @@
     <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 h-full overflow-auto">
         
         <!-- Simulation Area (Left/Top) -->
-        <div class="flex-1 bg-white rounded-2xl shadow-lg relative flex justify-center items-center p-4 min-h-[400px] md:min-h-0">
+        <div class="flex-1 bg-white rounded-2xl shadow-lg relative flex justify-center items-center p-4 min-h-[400px] md:min-h-0 overflow-visible">
             
-            <!-- Labels -->
-            <div class="absolute top-4 left-4 text-sm text-gray-500 space-y-1">
-                <p><span class="inline-block w-3 h-3 bg-gray-400 rounded-full mr-1"></span>Y形管 = 氣管/支氣管</p>
-                <p><span class="inline-block w-3 h-3 bg-pink-400 rounded-full mr-1"></span>氣球 = 肺部</p>
-                <p><span class="inline-block w-3 h-3 bg-blue-200 border border-gray-400 mr-1"></span>玻璃鐘罩 = 胸腔</p>
-                <p><span class="inline-block w-3 h-3 bg-orange-400 rounded-full mr-1"></span>橡皮膜 = 橫膈膜</p>
-            </div>
-
             <!-- The Apparatus Container -->
             <div class="relative w-64 h-96 flex flex-col items-center">
                 
@@ -104,14 +120,8 @@
 
                     <!-- Balloons (Lungs) -->
                     <div class="absolute top-16 w-full flex justify-center gap-4">
-                        <!-- Modified: Removed rounded-[50%] to use custom CSS pear shape -->
                         <div id="left-lung" class="balloon w-14 h-20 bg-pink-400 border border-pink-500 shadow-inner origin-top"></div>
                         <div id="right-lung" class="balloon w-14 h-20 bg-pink-400 border border-pink-500 shadow-inner origin-top"></div>
-                    </div>
-
-                    <!-- Pressure Indicator Particles (Visual Sugar) -->
-                    <div id="particles" class="absolute inset-0 pointer-events-none opacity-30">
-                        <!-- JS will populate simple dots here if pressure is high -->
                     </div>
                 </div>
 
@@ -132,44 +142,74 @@
                         </g>
                     </svg>
                 </div>
+
+                <!-- Labels Container -->
+                <div class="absolute inset-0 pointer-events-none z-40">
+                    
+                    <!-- Label: Trachea (Pointing to Y-tube) -->
+                    <div class="absolute top-6 left-[138px] flex items-center">
+                        <div class="w-[118px] h-px bg-gray-500"></div>
+                        <div class="ml-2 text-sm font-bold text-gray-700 bg-white/80 px-2 py-1 rounded shadow-sm whitespace-nowrap" data-i18n="trachea">
+                            Y形管 (氣管)
+                        </div>
+                    </div>
+
+                    <!-- Label: Bell Jar (Pointing to glass) -->
+                    <div class="absolute top-32 left-[245px] flex items-center">
+                        <div class="w-[11px] h-px bg-gray-500"></div>
+                        <div class="ml-2 text-sm font-bold text-gray-700 bg-white/80 px-2 py-1 rounded shadow-sm whitespace-nowrap" data-i18n="jar">
+                            玻璃鐘罩 (胸腔)
+                        </div>
+                    </div>
+
+                    <!-- Label: Lungs (Pointing to Balloon) -->
+                    <div class="absolute top-[170px] left-[192px] flex items-center">
+                        <div class="w-[64px] h-px bg-gray-500"></div>
+                        <div class="ml-2 text-sm font-bold text-gray-700 bg-white/80 px-2 py-1 rounded shadow-sm whitespace-nowrap" data-i18n="lungs">
+                            氣球 (肺)
+                        </div>
+                    </div>
+
+                    <!-- Label: Diaphragm (Pointing to sheet) - CORRECTED -->
+                    <div class="absolute bottom-[88px] left-[200px] flex items-center">
+                        <div class="w-[56px] h-px bg-gray-500"></div>
+                        <div class="ml-2 text-sm font-bold text-gray-700 bg-white/80 px-2 py-1 rounded shadow-sm whitespace-nowrap" data-i18n="diaphragm">
+                            膠膜 (橫膈膜)
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
             <!-- Drag Instruction -->
-            <div class="absolute bottom-4 right-4 bg-yellow-100 text-yellow-800 px-3 py-1 rounded shadow text-sm animate-pulse" id="instruction-badge">
-                <i class="fas fa-hand-pointer mr-1"></i> 拉動底部的紅色手柄
+            <div class="absolute bottom-4 left-4 bg-yellow-100 text-yellow-800 px-3 py-1 rounded shadow text-sm animate-pulse z-50" id="instruction-badge" data-i18n="pull_instruction">
+                <i class="fas fa-hand-pointer mr-1"></i> 拉動紅色手柄
             </div>
         </div>
 
         <!-- Explanation Panel (Right/Bottom) -->
         <div class="w-full md:w-1/3 flex flex-col gap-4">
             
-            <!-- Status Card -->
-            <div class="bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300" id="status-card">
-                <h2 class="text-lg font-bold text-gray-600 mb-2">目前狀態</h2>
-                <div class="text-3xl font-black text-gray-800 mb-1" id="status-text">靜止狀態</div>
-                <div class="text-sm text-gray-500">(Resting State)</div>
-            </div>
-
-            <!-- Physics Data Card -->
+            <!-- 1. Physics Data Card (Now at Top) -->
             <div class="bg-white p-5 rounded-2xl shadow-lg flex-grow overflow-y-auto">
-                <h3 class="text-lg font-bold text-teal-700 mb-4 border-b pb-2">科學原理分析</h3>
+                <h3 class="text-lg font-bold text-teal-700 mb-4 border-b pb-2" data-i18n="principles_title">科學原理分析</h3>
                 
                 <div class="space-y-4">
                     <!-- Volume -->
                     <div class="flex items-center justify-between">
-                        <span class="font-semibold text-gray-700">鐘罩內體積 (Volume):</span>
-                        <span id="vol-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">不變</span>
+                        <span class="font-semibold text-gray-700" data-i18n="vol_label">鐘罩內體積 (Volume):</span>
+                        <span id="vol-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">維持不變</span>
                     </div>
                     
                     <!-- Pressure -->
                     <div class="flex items-center justify-between">
-                        <span class="font-semibold text-gray-700">鐘罩內氣壓 (Pressure):</span>
-                        <span id="pressure-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">與大氣相若</span>
+                        <span class="font-semibold text-gray-700" data-i18n="pressure_label">鐘罩內氣壓 (Pressure):</span>
+                        <span id="pressure-indicator" class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">與大氣平衡</span>
                     </div>
 
                     <!-- Pressure Comparison -->
                     <div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 mt-2">
-                        <strong>比較大氣壓強 (Atmospheric P.):</strong>
+                        <strong data-i18n="compare_label">比較大氣壓強 (Atmospheric P.):</strong>
                         <p id="comparison-text" class="mt-1">
                             內部氣壓 = 大氣壓強。<br>
                             沒有空氣淨流動。
@@ -178,20 +218,257 @@
 
                     <!-- Concept Mapping -->
                     <div class="mt-6">
-                        <h4 class="font-bold text-sm text-gray-500 mb-2">概念對應:</h4>
+                        <h4 class="font-bold text-sm text-gray-500 mb-2" data-i18n="relation_title">氣壓與氣流關係:</h4>
                         <ul class="text-sm space-y-2 text-gray-700">
-                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>鐘罩體積變大 = 胸腔擴張</li>
-                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>氣壓下降 = 空氣被「吸入」</li>
-                            <li><i class="fas fa-arrow-right text-teal-500 mr-2"></i>氣球膨脹 = 肺部充氣</li>
+                            <li data-i18n="relation_inhale"><i class="fas fa-arrow-right text-teal-500 mr-2"></i>體積增加 &rarr; 氣壓下降 &rarr; 吸氣</li>
+                            <li data-i18n="relation_exhale"><i class="fas fa-arrow-right text-teal-500 mr-2"></i>體積減少 &rarr; 氣壓上升 &rarr; 呼氣</li>
                         </ul>
                     </div>
                 </div>
             </div>
-        </div>
 
+            <!-- 2. Status Card -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300" id="status-card">
+                <h2 class="text-lg font-bold text-gray-600 mb-2" data-i18n="status_title">目前狀態</h2>
+                <div class="text-3xl font-black text-gray-800 mb-1" id="status-text">靜止平衡</div>
+                <div class="text-sm text-gray-500" id="status-sub">(Equilibrium)</div>
+            </div>
+
+            <!-- 3. Structure Comparison Table -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg border-l-8 border-teal-500">
+                <h3 class="text-lg font-bold text-gray-700 mb-3" data-i18n="structure_title"><i class="fas fa-exchange-alt mr-2"></i>結構對照</h3>
+                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                    <div class="font-bold text-gray-500 border-b pb-1" data-i18n="model_part">模型部分</div>
+                    <div class="font-bold text-gray-500 border-b pb-1" data-i18n="human_organ">人體器官</div>
+                    
+                    <div class="text-gray-700 flex items-center"><span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span><span data-i18n="part_tube">Y形管</span></div>
+                    <div class="text-teal-700 font-bold" data-i18n="organ_tube">氣管 / 支氣管</div>
+                    
+                    <div class="text-gray-700 flex items-center"><span class="w-2 h-2 bg-blue-200 border border-gray-400 mr-2"></span><span data-i18n="part_jar">玻璃鐘罩</span></div>
+                    <div class="text-teal-700 font-bold" data-i18n="organ_jar">胸腔 / 肋骨架</div>
+                    
+                    <div class="text-gray-700 flex items-center"><span class="w-2 h-2 bg-pink-400 rounded-full mr-2"></span><span data-i18n="part_balloon">氣球</span></div>
+                    <div class="text-teal-700 font-bold" data-i18n="organ_balloon">肺部</div>
+                    
+                    <div class="text-gray-700 flex items-center"><span class="w-2 h-2 bg-orange-400 rounded-full mr-2"></span><span data-i18n="part_sheet">橡皮膠膜</span></div>
+                    <div class="text-teal-700 font-bold" data-i18n="organ_sheet">橫膈膜</div>
+                </div>
+            </div>
+
+        </div>
     </main>
 
+    <!-- Modal Overlay -->
+    <div id="info-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex justify-center items-center backdrop-blur-sm transition-opacity duration-300">
+        <!-- Modal Content -->
+        <div class="bg-white rounded-xl shadow-2xl w-11/12 max-w-3xl p-6 relative flex flex-col max-h-[90vh] modal-animate">
+            
+            <!-- Close Button (Top Right) -->
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl transition-colors z-10">
+                <i class="fas fa-times-circle"></i>
+            </button>
+
+            <!-- Modal Header -->
+            <div class="border-b pb-3 mb-4">
+                <h2 class="text-2xl font-bold text-teal-700 flex items-center">
+                    <i class="fas fa-book-open mr-2"></i> <span data-i18n="modal_title">呼吸機制原理詳解</span>
+                </h2>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="overflow-y-auto pr-2 space-y-4 text-gray-700 leading-relaxed" data-i18n="modal_content">
+                <!-- Content will be injected by JS -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="mt-6 pt-3 border-t text-right">
+                <button onclick="closeModal()" class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition shadow-md font-bold">
+                    <span data-i18n="btn_close">關閉</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+    // Wrap in IIFE to prevent global namespace pollution
+    (function() {
+        // Translations
+        const t = {
+            zh: {
+                title: '<i class="fas fa-lungs mr-2"></i>呼吸機制 - 氣球鐘罩模型',
+                subtitle: "中二級科學 - 氣體交換",
+                btn_principles: "原理解說",
+                trachea: "Y形管 (氣管)",
+                jar: "玻璃鐘罩 (胸腔)",
+                lungs: "氣球 (肺)",
+                diaphragm: "膠膜 (橫膈膜)",
+                pull_instruction: '<i class="fas fa-hand-pointer mr-1"></i> 拉動紅色手柄',
+                
+                status_title: "目前狀態",
+                status_rest: "靜止平衡",
+                status_rest_sub: "(Equilibrium)",
+                status_inhale: "正在吸氣 (Inhaling)",
+                status_exhale: "正在呼氣 (Exhaling)",
+
+                structure_title: '<i class="fas fa-exchange-alt mr-2"></i>結構對照',
+                model_part: "模型部分",
+                human_organ: "人體器官",
+                part_tube: "Y形管",
+                organ_tube: "氣管 / 支氣管",
+                part_jar: "玻璃鐘罩",
+                organ_jar: "胸腔 / 肋骨架",
+                part_balloon: "氣球",
+                organ_balloon: "肺部",
+                part_sheet: "橡皮膠膜",
+                organ_sheet: "橫膈膜",
+
+                principles_title: "科學原理分析",
+                vol_label: "鐘罩內體積 (Volume):",
+                vol_increase: "正在增加 (Increasing)",
+                vol_decrease: "正在減少 (Decreasing)",
+                vol_constant: "維持不變",
+                
+                pressure_label: "鐘罩內氣壓 (Pressure):",
+                pressure_drop: "正在下降 (Dropping)",
+                pressure_rise: "正在上升 (Rising)",
+                pressure_balance: "回復平衡",
+                
+                compare_label: "比較大氣壓強 (Atmospheric P.):",
+                compare_less: "內部氣壓 <strong class='text-red-500'>低於 (<)</strong> 大氣壓強。<br>空氣正流入肺部。",
+                compare_more: "內部氣壓 <strong class='text-blue-500'>高於 (>)</strong> 大氣壓強。<br>空氣正流出肺部。",
+                compare_equal: "內部氣壓 <strong class='text-gray-500'>等於 (=)</strong> 大氣壓強。<br>沒有空氣淨流動。",
+
+                relation_title: "氣壓與氣流關係:",
+                relation_inhale: '<i class="fas fa-arrow-right text-teal-500 mr-2"></i>體積增加 &rarr; 氣壓下降 &rarr; 吸氣',
+                relation_exhale: '<i class="fas fa-arrow-right text-teal-500 mr-2"></i>體積減少 &rarr; 氣壓上升 &rarr; 呼氣',
+
+                // Modal Translations
+                modal_title: "呼吸機制原理詳解",
+                btn_close: "明白，關閉",
+                modal_content: `
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                            <h3 class="font-bold text-lg text-blue-800 mb-2">💡 核心概念：波義耳定律 (Boyle's Law)</h3>
+                            <p>在溫度不變的情況下，氣體的<strong>氣壓 (Pressure)</strong> 與<strong>體積 (Volume)</strong> 成<strong>反比</strong>。</p>
+                            <p class="mt-2 text-sm text-blue-600">簡單來說：空間變大，氣壓變小；空間變小，氣壓變大。</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <h4 class="font-bold text-green-800 mb-2"><i class="fas fa-arrow-down mr-1"></i> 吸氣過程 (Inhalation)</h4>
+                                <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                    <li><strong>橫膈膜收縮</strong>並向下移平。</li>
+                                    <li>肋骨架向上及向外移動。</li>
+                                    <li>胸腔<strong>體積增加</strong>。</li>
+                                    <li>肺內<strong>氣壓下降</strong> (低於大氣壓)。</li>
+                                    <li>外界空氣被迫流入肺部。</li>
+                                </ol>
+                            </div>
+
+                            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <h4 class="font-bold text-orange-800 mb-2"><i class="fas fa-arrow-up mr-1"></i> 呼氣過程 (Exhalation)</h4>
+                                <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                    <li><strong>橫膈膜放鬆</strong>並回彈成拱形。</li>
+                                    <li>肋骨架向上及向內移動。</li>
+                                    <li>胸腔<strong>體積減少</strong>。</li>
+                                    <li>肺內<strong>氣壓上升</strong> (高於大氣壓)。</li>
+                                    <li>肺內空氣被迫排出體外。</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            en: {
+                title: '<i class="fas fa-lungs mr-2"></i>Breathing Mech. - Bell Jar',
+                subtitle: "Form 2 Science - Gas Exchange",
+                btn_principles: "Principles",
+                trachea: "Y-Tube (Trachea)",
+                jar: "Bell Jar (Thoracic Cavity)",
+                lungs: "Balloons (Lungs)",
+                diaphragm: "Rubber Sheet (Diaphragm)",
+                pull_instruction: '<i class="fas fa-hand-pointer mr-1"></i> Pull Red Handle',
+
+                status_title: "Current Status",
+                status_rest: "Equilibrium",
+                status_rest_sub: "(Resting State)",
+                status_inhale: "Inhaling",
+                status_exhale: "Exhaling",
+
+                structure_title: '<i class="fas fa-exchange-alt mr-2"></i>Comparison',
+                model_part: "Model Part",
+                human_organ: "Human Organ",
+                part_tube: "Y-Tube",
+                organ_tube: "Trachea / Bronchi",
+                part_jar: "Bell Jar",
+                organ_jar: "Thoracic Cavity",
+                part_balloon: "Balloons",
+                organ_balloon: "Lungs",
+                part_sheet: "Rubber Sheet",
+                organ_sheet: "Diaphragm",
+
+                principles_title: "Scientific Principles",
+                vol_label: "Volume inside Jar:",
+                vol_increase: "Increasing",
+                vol_decrease: "Decreasing",
+                vol_constant: "Constant",
+                
+                pressure_label: "Pressure inside Jar:",
+                pressure_drop: "Dropping",
+                pressure_rise: "Rising",
+                pressure_balance: "Balanced",
+                
+                compare_label: "vs Atmospheric Pressure:",
+                compare_less: "Internal Pressure <strong class='text-red-500'>Lower (<)</strong>.<br>Air flows INTO lungs.",
+                compare_more: "Internal Pressure <strong class='text-blue-500'>Higher (>)</strong>.<br>Air flows OUT of lungs.",
+                compare_equal: "Internal Pressure <strong class='text-gray-500'>Equal (=)</strong>.<br>No net air flow.",
+
+                relation_title: "Pressure & Airflow:",
+                relation_inhale: '<i class="fas fa-arrow-right text-teal-500 mr-2"></i>Vol. Increase &rarr; Pressure Drop &rarr; Inhale',
+                relation_exhale: '<i class="fas fa-arrow-right text-teal-500 mr-2"></i>Vol. Decrease &rarr; Pressure Rise &rarr; Exhale',
+
+                // Modal Translations
+                modal_title: "Mechanism Explained",
+                btn_close: "Understood, Close",
+                modal_content: `
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                            <h3 class="font-bold text-lg text-blue-800 mb-2">💡 Key Concept: Boyle's Law</h3>
+                            <p>For a fixed mass of gas at constant temperature, <strong>Pressure</strong> is <strong>inversely proportional</strong> to <strong>Volume</strong>.</p>
+                            <p class="mt-2 text-sm text-blue-600">Simply put: Volume UP = Pressure DOWN; Volume DOWN = Pressure UP.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <h4 class="font-bold text-green-800 mb-2"><i class="fas fa-arrow-down mr-1"></i> Inhalation (Breathing In)</h4>
+                                <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                    <li><strong>Diaphragm contracts</strong> and flattens.</li>
+                                    <li>Rib cage moves upwards and outwards.</li>
+                                    <li>Thoracic cavity <strong>Volume INCREASES</strong>.</li>
+                                    <li>Internal <strong>Pressure DECREASES</strong> (becomes lower than atmospheric pressure).</li>
+                                    <li>Air is forced INTO the lungs.</li>
+                                </ol>
+                            </div>
+
+                            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <h4 class="font-bold text-orange-800 mb-2"><i class="fas fa-arrow-up mr-1"></i> Exhalation (Breathing Out)</h4>
+                                <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                    <li><strong>Diaphragm relaxes</strong> and returns to dome shape.</li>
+                                    <li>Rib cage moves downwards and inwards.</li>
+                                    <li>Thoracic cavity <strong>Volume DECREASES</strong>.</li>
+                                    <li>Internal <strong>Pressure INCREASES</strong> (becomes higher than atmospheric pressure).</li>
+                                    <li>Air is forced OUT of the lungs.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        // Current Language
+        let currentLang = 'zh';
+
         // Elements
         const handleGroup = document.getElementById('handle-group');
         const diaphragmPath = document.getElementById('diaphragm-path');
@@ -199,168 +476,190 @@
         const rightLung = document.getElementById('right-lung');
         const statusCard = document.getElementById('status-card');
         const statusText = document.getElementById('status-text');
+        const statusSub = document.getElementById('status-sub');
         const volIndicator = document.getElementById('vol-indicator');
         const pressureIndicator = document.getElementById('pressure-indicator');
         const comparisonText = document.getElementById('comparison-text');
         const flowIcon = document.getElementById('air-flow-indicator');
         const instructionBadge = document.getElementById('instruction-badge');
+        const langBtnText = document.getElementById('lang-btn-text');
+        const modal = document.getElementById('info-modal');
 
         // State variables
         let isDragging = false;
         let startY = 0;
-        let currentY = -20; // Initial control point Y for the curve (slightly domed up)
-        let prevClampedY = 0; // Added: To track movement for air flow
-        let flowTimeout = null; // Added: To hide arrows when stopped
-        const baseControlY = -20; // Resting state (dome up)
-        const maxDown = 60; // Max inhale (pull down)
-        const maxUp = -50; // Max exhale (push up)
+        let prevClampedY = 0; 
+        let flowTimeout = null; 
+        
+        // Config
+        const baseControlY = -20; 
+        const maxDown = 60; 
+        const maxUp = -50; 
 
-        // Update UI based on vertical offset (dy)
+        // -- Modal Logic --
+        window.openModal = function() {
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModal = function() {
+            modal.classList.add('hidden');
+        }
+
+        // Close modal on clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Language Toggle (Exposed to window for HTML click handler)
+        window.toggleLanguage = function() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateStaticText();
+            // Refresh dynamic status
+            updateState(0); 
+            if(!isDragging) setEquilibriumState();
+        }
+
+        function updateStaticText() {
+            const dataElems = document.querySelectorAll('[data-i18n]');
+            dataElems.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[currentLang][key]) {
+                    el.innerHTML = t[currentLang][key];
+                }
+            });
+        }
+
+        // Update UI based on vertical offset
         function updateSimulation(yOffset) {
-            // 1. Clamp the value
-            // yOffset: positive = down (inhale), negative = up (exhale)
+            // 1. Clamp the value (Position logic)
             let clampedY = Math.max(maxUp, Math.min(maxDown, yOffset));
             
-            // Calculate delta for flow direction
+            // 2. Calculate delta (Movement/Flow logic)
+            // Note: deltaY > 0 means moving DOWN (Inhaling)
             let deltaY = clampedY - prevClampedY;
             prevClampedY = clampedY;
 
-            // 2. Update Diaphragm SVG Path
-            // The path is a Quadratic Bezier: Q controlX controlY endX endY
-            // We modify controlY. 
-            // At rest (0 offset), controlY is baseControlY (-20).
-            // When pulled down (+60), controlY becomes approx 50.
-            
+            // 3. Update Visuals (Diaphragm shape & Lung size) - based on POSITION
             const currentControlY = baseControlY + (clampedY * 1.2); 
-            const handleY = -10 + clampedY; // Handle moves linearly
+            const handleY = -10 + clampedY; 
 
             diaphragmPath.setAttribute('d', `M0,0 Q128,${currentControlY} 256,0 L256,10 L0,10 Z`);
             handleGroup.setAttribute('transform', `translate(128, ${handleY})`);
 
-            // 3. Update Balloon Size
-            // Base scale is 1. 
-            // Max inhale (y=60) -> scale 1.5
-            // Max exhale (y=-50) -> scale 0.6
+            // Lung size depends on displacement (position), not speed
             const scaleFactor = 1 + (clampedY / 120);
             leftLung.style.transform = `scale(${scaleFactor})`;
             rightLung.style.transform = `scale(${scaleFactor})`;
 
-            // 4. Update Text & Colors
-            updateInfoPanel(clampedY);
-            updateFlowIcon(deltaY); // Modified: Pass delta instead of position
+            // 4. Update Status Text & Flow Icons - based on DELTA (Movement)
+            updateState(deltaY);
 
-            // Remove instruction once interacted
+            // Remove instruction
             if (Math.abs(clampedY) > 5) {
                 instructionBadge.style.display = 'none';
             }
         }
 
-        function updateFlowIcon(delta) {
-            // Clear previous timeout to keep arrow visible while moving
+        function updateState(delta) {
+            // Clear previous timeout
             if (flowTimeout) clearTimeout(flowTimeout);
 
-            // Visual threshold for movement
-            const threshold = 0.2;
+            const threshold = 0.5; // Sensitivity threshold
 
             if (delta > threshold) {
-                // Inhaling (Moving Down) - Air enters
-                flowIcon.innerHTML = '<i class="fas fa-arrow-down"></i>';
-                flowIcon.className = 'absolute top-2 z-30 text-blue-600 text-xl font-bold air-in';
-                flowIcon.style.opacity = 1;
+                // Moving Down -> INHALING
+                setInhalationState();
             } else if (delta < -threshold) {
-                // Exhaling (Moving Up) - Air exits
-                flowIcon.innerHTML = '<i class="fas fa-arrow-up"></i>';
-                flowIcon.className = 'absolute top-2 z-30 text-red-600 text-xl font-bold air-out';
-                flowIcon.style.opacity = 1;
+                // Moving Up -> EXHALING
+                setExhalationState();
             } 
-            // Note: If delta is 0 (stopped), we don't immediately hide it here,
-            // we let the timeout handle the hiding to prevent flickering.
-
-            // Set timeout to hide arrow if movement stops
+            
             flowTimeout = setTimeout(() => {
-                flowIcon.style.opacity = 0;
-                flowIcon.classList.remove('air-in', 'air-out');
-            }, 150); // Hide after 150ms of no movement
+                setEquilibriumState();
+            }, 100); 
         }
 
-        function updateInfoPanel(y) {
-            if (y > 10) {
-                // INHALATION
-                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-green-500 transition-colors duration-300";
-                statusText.innerText = "吸氣 (Inhalation)";
-                statusText.className = "text-3xl font-black text-green-600 mb-1";
-                
-                volIndicator.innerText = "增加 (Increase)";
-                volIndicator.className = "px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm";
-                
-                pressureIndicator.innerText = "下降 (Decrease)";
-                pressureIndicator.className = "px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-sm";
-                
-                comparisonText.innerHTML = "內部氣壓 <strong class='text-red-500'>低於 (<)</strong> 大氣壓強。<br>空氣由高壓流向低壓，進入肺部。";
+        function setInhalationState() {
+            const txt = t[currentLang];
+            // Icon
+            flowIcon.innerHTML = '<i class="fas fa-arrow-down"></i>';
+            flowIcon.className = 'absolute top-2 z-30 text-blue-600 text-xl font-bold air-in';
+            flowIcon.style.opacity = 1;
 
-            } else if (y < -10) {
-                // EXHALATION
-                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-orange-500 transition-colors duration-300";
-                statusText.innerText = "呼氣 (Exhalation)";
-                statusText.className = "text-3xl font-black text-orange-600 mb-1";
-                
-                volIndicator.innerText = "減少 (Decrease)";
-                volIndicator.className = "px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-bold text-sm";
-                
-                pressureIndicator.innerText = "上升 (Increase)";
-                pressureIndicator.className = "px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm";
-                
-                comparisonText.innerHTML = "內部氣壓 <strong class='text-blue-500'>高於 (>)</strong> 大氣壓強。<br>空氣被擠出肺部，流向體外。";
+            // Panel
+            statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-green-500 transition-colors duration-200";
+            statusText.innerText = txt.status_inhale;
+            statusText.className = "text-3xl font-black text-green-600 mb-1";
+            statusSub.style.display = 'none'; // Simplify for dynamic
+            
+            volIndicator.innerText = txt.vol_increase;
+            volIndicator.className = "px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold text-sm";
+            
+            pressureIndicator.innerText = txt.pressure_drop;
+            pressureIndicator.className = "px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-sm";
+            
+            comparisonText.innerHTML = txt.compare_less;
+        }
 
-            } else {
-                // REST
-                statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300";
-                statusText.innerText = "靜止狀態";
-                statusText.className = "text-3xl font-black text-gray-800 mb-1";
-                
-                volIndicator.innerText = "不變";
-                volIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
-                
-                pressureIndicator.innerText = "平衡";
-                pressureIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
-                
-                comparisonText.innerHTML = "內部氣壓 <strong class='text-gray-500'>等於 (=)</strong> 大氣壓強。<br>沒有空氣淨流動。";
-            }
+        function setExhalationState() {
+            const txt = t[currentLang];
+            // Icon
+            flowIcon.innerHTML = '<i class="fas fa-arrow-up"></i>';
+            flowIcon.className = 'absolute top-2 z-30 text-red-600 text-xl font-bold air-out';
+            flowIcon.style.opacity = 1;
+
+            // Panel
+            statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-orange-500 transition-colors duration-200";
+            statusText.innerText = txt.status_exhale;
+            statusText.className = "text-3xl font-black text-orange-600 mb-1";
+            statusSub.style.display = 'none';
+            
+            volIndicator.innerText = txt.vol_decrease;
+            volIndicator.className = "px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-bold text-sm";
+            
+            pressureIndicator.innerText = txt.pressure_rise;
+            pressureIndicator.className = "px-3 py-1 rounded-full bg-red-100 text-red-700 font-bold text-sm";
+            
+            comparisonText.innerHTML = txt.compare_more;
+        }
+
+        function setEquilibriumState() {
+            const txt = t[currentLang];
+            // Icon
+            flowIcon.style.opacity = 0;
+            flowIcon.classList.remove('air-in', 'air-out');
+
+            // Panel
+            statusCard.className = "bg-white p-5 rounded-2xl shadow-lg border-l-8 border-gray-400 transition-colors duration-300";
+            statusText.innerText = txt.status_rest;
+            statusText.className = "text-3xl font-black text-gray-800 mb-1";
+            statusSub.innerText = txt.status_rest_sub;
+            statusSub.style.display = 'block';
+            
+            volIndicator.innerText = txt.vol_constant;
+            volIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
+            
+            pressureIndicator.innerText = txt.pressure_balance;
+            pressureIndicator.className = "px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold text-sm";
+            
+            comparisonText.innerHTML = txt.compare_equal;
         }
 
         // Mouse Events
         handleGroup.addEventListener('mousedown', (e) => {
             isDragging = true;
             startY = e.clientY;
-            // Get current transform Y value
-            const transform = handleGroup.getAttribute('transform');
-            // Parse existing translation if needed, or reset logic slightly
-            // Simpler: we just track delta from where we clicked relative to the "current" logical Y
-            // But to keep it simple, let's reset startY logic to be offset based.
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             
-            // Calculate delta
-            // We need to map the mouse movement to the Y value
-            // This is a simplified drag logic (not absolute position tracking but delta tracking)
-            // To make it robust: center of SVG is the anchor.
-            
-            // Let's assume startY corresponds to the current simulation Y state
-            // Actually, let's just use the bounding rect of the container to normalize
             const svgRect = document.querySelector('svg').getBoundingClientRect();
-            const mouseY = e.clientY - svgRect.top; // Y position within SVG
+            const mouseY = e.clientY - svgRect.top; 
             
-            // The anchor point of the handle is at y=15 in SVG coords when rest (logic above)
-            // Let's just map mouse Y directly to a comfortable range
-            
-            // Heuristic: 0 to 100px relative to the bottom container
-            // Let's use a direct mapping logic for smoother UX
-            let relativeY = mouseY - 25; // 25 is the visual center of the handle roughly
-            
-            // Apply specific offset to match the logic: yOffset 0 is "rest" which is visually slightly up
-            // Let's just calculate offset from the "neutral" line (y=10 in SVG logic)
+            let relativeY = mouseY - 25; 
             let offset = relativeY - 10; 
             
             updateSimulation(offset);
@@ -368,16 +667,13 @@
 
         window.addEventListener('mouseup', () => {
             isDragging = false;
-            // Optional: Snap back to rest?
-            // Real diaphragms relax, but for teaching, keeping the state is sometimes better.
-            // Let's add a gentle snap back animation if released
-            snapBack();
+            setEquilibriumState();
         });
 
         // Touch Events (Mobile)
         handleGroup.addEventListener('touchstart', (e) => {
             isDragging = true;
-            e.preventDefault(); // Prevent scrolling
+            e.preventDefault(); 
         }, {passive: false});
 
         window.addEventListener('touchmove', (e) => {
@@ -393,43 +689,14 @@
 
         window.addEventListener('touchend', () => {
             isDragging = false;
-            snapBack();
+            setEquilibriumState();
         });
-
-        // Snap back animation
-        function snapBack() {
-            // We simply animate the values back to 0 over time using requestAnimationFrame
-            // But since we are keeping state in DOM, we need to read current state or just let it stay?
-            // Real physics: Diaphragm relaxes (moves UP) automatically.
-            // So we should snap back to "rest" (y=0) or slightly up.
-            
-            // For this demo, let's let it stay where the user left it so they can read the text, 
-            // unless they pull it extremely far.
-            // Actually, breathing requires effort. Relaxing returns to start. 
-            // Let's implement a slow return for realism.
-            
-            const currentTransform = handleGroup.getAttribute('transform');
-            const match = /translate\(128, ([-0-9.]+)\)/.exec(currentTransform);
-            if(match) {
-                let currentY = parseFloat(match[1]);
-                let targetY = -10; // Logic offset 0 -> visual handle y = -10
-                
-                // For simplicity in this code block, we won't force auto-return 
-                // to allow the teacher to pause and explain the specific state.
-                // Uncomment below to enable auto-return:
-                /*
-                let interval = setInterval(() => {
-                    // Linear interpolation back to 0
-                    // This requires refactoring updateSimulation to separate state from input
-                    // Skipping for simplicity of the single file demo.
-                }, 16);
-                */
-            }
-        }
         
         // Initialize
+        updateStaticText();
         updateSimulation(0);
-
+        setEquilibriumState();
+    })();
     </script>
 </body>
 </html>
