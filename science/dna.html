@@ -61,19 +61,21 @@
             <div class="flex items-center space-x-2">
                 <span class="text-2xl">🧬</span>
                 <div>
-                    <h1 class="text-xl font-bold leading-tight">DNA 構造與遺傳密碼</h1>
-                    <p class="text-xs text-indigo-200">中一科學互動教材 (Canvas 渲染)</p>
+                    <h1 id="app-title" class="text-xl font-bold leading-tight">DNA 構造與遺傳密碼</h1>
+                    <p id="app-subtitle" class="text-xs text-indigo-200">中一科學互動教材 (Canvas 渲染)</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-3">
                 <button onclick="openExplanation()" class="flex items-center space-x-1 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold border border-white/30">
                     <span>📖</span>
-                    <span>科學解說</span>
+                    <span id="btn-explain">科學解說</span>
                 </button>
-                <div class="hidden md:block text-xs bg-indigo-800/50 px-3 py-1 rounded-full border border-indigo-400/30">
-                    S1 Science
-                </div>
+
+                <!-- 語言切換按鈕 (移至最右方，文字改為 中 / EN) -->
+                <button onclick="toggleLanguage()" class="flex items-center space-x-1 bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold border border-indigo-500 shadow-sm">
+                    <span id="lang-btn-text">中 / EN</span>
+                </button>
             </div>
         </div>
     </header>
@@ -87,7 +89,7 @@
                 
                 <!-- 狀態顯示 -->
                 <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                    <h2 class="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-3">當前樣本分析</h2>
+                    <h2 id="stats-title" class="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-3">當前樣本分析</h2>
                     <div class="grid grid-cols-4 gap-2 text-center">
                         <div class="bg-white p-2 rounded shadow-sm border-b-2 border-red-500">
                             <div class="text-xs text-slate-500">A</div>
@@ -106,24 +108,24 @@
                             <div class="font-bold text-xl text-yellow-600" id="stat-g">0</div>
                         </div>
                     </div>
-                    <div class="mt-3 text-xs text-indigo-600 text-center">
+                    <div id="chargaff-rule" class="mt-3 text-xs text-indigo-600 text-center">
                         Chargaff法則驗證: A ≈ T, C ≈ G
                     </div>
                 </div>
 
                 <!-- 控制按鈕 -->
                 <div class="space-y-3">
-                    <h3 class="font-bold text-slate-700">實驗控制</h3>
+                    <h3 id="control-title" class="font-bold text-slate-700">實驗控制</h3>
                     <button onclick="toggleAnimation()" id="btn-play" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 text-white py-3 px-4 rounded-lg transition shadow-md active:transform active:scale-95">
-                        <span>⏸️</span> <span>暫停旋轉</span>
+                        <span>⏸️</span> <span id="btn-play-text">暫停旋轉</span>
                     </button>
                     
                     <button onclick="randomizeDNA()" class="w-full flex items-center justify-center space-x-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-3 px-4 rounded-lg transition shadow-sm active:transform active:scale-95">
-                        <span>🎲</span> <span>隨機重組序列 (突變)</span>
+                        <span>🎲</span> <span id="btn-random-text">隨機重組序列 (突變)</span>
                     </button>
                     
                     <div class="pt-2">
-                        <label class="text-xs text-slate-500 font-bold block mb-1">旋轉速度</label>
+                        <label id="speed-label" class="text-xs text-slate-500 font-bold block mb-1">旋轉速度</label>
                         <input type="range" min="0" max="100" value="30" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" oninput="updateSpeed(this.value)">
                     </div>
                 </div>
@@ -132,12 +134,10 @@
                 <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-sm space-y-2">
                     <h3 class="font-bold text-yellow-800 flex items-center">
                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        學習重點
+                        <span id="learning-title">學習重點</span>
                     </h3>
-                    <ul class="list-disc list-inside text-yellow-900 space-y-2 ml-1">
-                        <li><strong>基因 (Gene)</strong>：DNA 上的一段特定序列（如圖中金色標記部分），它決定了生物的特徵（例如單眼皮或雙眼皮）。</li>
-                        <li><strong>鹼基配對</strong>：A 只能配 T，C 只能配 G。</li>
-                        <li><strong>雙螺旋</strong>：兩條長鏈像螺旋梯一樣纏繞。</li>
+                    <ul id="learning-list" class="list-disc list-inside text-yellow-900 space-y-2 ml-1">
+                        <!-- Content injected via JS -->
                     </ul>
                 </div>
             </div>
@@ -165,7 +165,7 @@
             </div>
 
             <!-- Canvas 內的操作提示 -->
-            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/50 text-sm font-mono pointer-events-none animate-pulse">
+            <div id="canvas-hint" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/50 text-sm font-mono pointer-events-none animate-pulse">
                 點擊鹼基對進行編輯
             </div>
         </main>
@@ -184,7 +184,7 @@
                 <!-- 標題區 -->
                 <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        📖 科學概念解說
+                        <span id="modal-title-text">📖 科學概念解說</span>
                     </h3>
                     <button onclick="closeExplanation()" class="text-indigo-100 hover:text-white transition">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -195,74 +195,64 @@
                 <div class="px-6 py-6 max-h-[70vh] overflow-y-auto">
                     
                     <div class="space-y-6">
-                        <!-- 1. 染色體 -->
+                        <!-- 1. 骨架 -->
                         <div class="flex gap-4">
-                            <div class="shrink-0 w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-2xl">🧶</div>
+                            <div class="shrink-0 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-2xl">🪜</div>
                             <div>
-                                <h4 class="font-bold text-lg text-indigo-900">1. 染色體 (Chromosome)</h4>
-                                <p class="text-sm text-slate-600 mt-1">
-                                    存在於細胞核內。它是由 DNA 長鏈緊密捲曲而成的構造。
-                                    <br><span class="text-indigo-600 text-xs bg-indigo-50 px-2 py-0.5 rounded">比喻：像是一團捲好的毛冷球。</span>
+                                <h4 id="modal-h1" class="font-bold text-lg text-slate-800">1. 糖-磷酸骨架 (Sugar-Phosphate Backbone)</h4>
+                                <p id="modal-p1" class="text-sm text-slate-600 mt-1">
+                                    圖中連接所有球體的<strong>灰白色螺旋帶</strong>。它由脫氧核糖和磷酸基團交替連接而成，提供結構支撐。
+                                    <br><span class="text-slate-500 text-xs bg-slate-100 px-2 py-0.5 rounded">比喻：梯子的兩邊扶手。</span>
                                 </p>
                             </div>
                         </div>
 
-                        <!-- 2. DNA -->
-                        <div class="flex gap-4">
-                            <div class="shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">🧬</div>
-                            <div>
-                                <h4 class="font-bold text-lg text-blue-900">2. DNA (脫氧核糖核酸)</h4>
-                                <p class="text-sm text-slate-600 mt-1">
-                                    遺傳物質的載體，呈<strong>雙螺旋結構 (Double Helix)</strong>。
-                                    <br><span class="text-blue-600 text-xs bg-blue-50 px-2 py-0.5 rounded">比喻：像一條扭曲的梯子。</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- 3. 基因 -->
-                        <div class="flex gap-4">
-                            <div class="shrink-0 w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl">🔑</div>
-                            <div>
-                                <h4 class="font-bold text-lg text-yellow-900">3. 基因 (Gene)</h4>
-                                <p class="text-sm text-slate-600 mt-1">
-                                    DNA 分子上的一段特定片段（如模型中的金色部分）。它決定了生物的某個特徵（例如單眼皮或雙眼皮）。
-                                    <br><span class="text-yellow-600 text-xs bg-yellow-50 px-2 py-0.5 rounded">比喻：像是一本食譜中的其中一道菜。</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- 4. 鹼基 -->
+                        <!-- 2. 鹼基 -->
                         <div class="flex gap-4">
                             <div class="shrink-0 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">🧩</div>
                             <div>
-                                <h4 class="font-bold text-lg text-green-900">4. 鹼基 (Bases)</h4>
-                                <p class="text-sm text-slate-600 mt-1">
-                                    組成 DNA 的化學物質，有四種：A, T, C, G。
-                                    <br><strong>重要規則：</strong> <span class="text-red-500 font-bold">A</span> 只能配 <span class="text-blue-500 font-bold">T</span>，<span class="text-green-500 font-bold">C</span> 只能配 <span class="text-yellow-500 font-bold">G</span>。
+                                <h4 id="modal-h2" class="font-bold text-lg text-green-900">2. 鹼基 (Bases)</h4>
+                                <p id="modal-p2" class="text-sm text-slate-600 mt-1">
+                                    A、T、C、G 四種化學物質。它們附著在骨架上，向內延伸並與對面的鹼基配對。
+                                    <br><strong>規則：</strong> <span class="text-red-500 font-bold">A</span> ❤️ <span class="text-blue-500 font-bold">T</span>，<span class="text-green-500 font-bold">C</span> 💚 <span class="text-yellow-500 font-bold">G</span>。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 3. DNA -->
+                        <div class="flex gap-4">
+                            <div class="shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">🧬</div>
+                            <div>
+                                <h4 id="modal-h3" class="font-bold text-lg text-blue-900">3. DNA (脫氧核糖核酸)</h4>
+                                <p id="modal-p3" class="text-sm text-slate-600 mt-1">
+                                    由骨架和鹼基組成的整體，呈<strong>雙螺旋結構 (Double Helix)</strong>。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 4. 基因 -->
+                        <div class="flex gap-4">
+                            <div class="shrink-0 w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl">🔑</div>
+                            <div>
+                                <h4 id="modal-h4" class="font-bold text-lg text-yellow-900">4. 基因 (Gene)</h4>
+                                <p id="modal-p4" class="text-sm text-slate-600 mt-1">
+                                    DNA 上的一段特定序列（金色部分），決定生物特徵。
                                 </p>
                             </div>
                         </div>
                     </div>
 
                     <div class="mt-8 p-4 bg-slate-50 rounded-lg border border-slate-200 text-center">
-                        <p class="text-sm font-bold text-slate-500 mb-2">大小關係圖</p>
-                        <div class="flex items-center justify-center text-sm font-mono text-slate-700 gap-2 flex-wrap">
-                            <span class="bg-white px-3 py-1 rounded shadow-sm border">細胞核</span>
-                            <span>></span>
-                            <span class="bg-white px-3 py-1 rounded shadow-sm border">染色體</span>
-                            <span>></span>
-                            <span class="bg-white px-3 py-1 rounded shadow-sm border">DNA</span>
-                            <span>></span>
-                            <span class="bg-white px-3 py-1 rounded shadow-sm border ring-2 ring-yellow-400">基因</span>
-                            <span>></span>
-                            <span class="bg-white px-3 py-1 rounded shadow-sm border">鹼基</span>
+                        <p id="modal-hierarchy" class="text-sm font-bold text-slate-500 mb-2">結構層次</p>
+                        <div id="modal-flow" class="flex items-center justify-center text-sm font-mono text-slate-700 gap-2 flex-wrap">
+                           <!-- Injected via JS -->
                         </div>
                     </div>
                 </div>
 
                 <!-- 底部按鈕 -->
                 <div class="bg-slate-50 px-6 py-3 flex justify-end">
-                    <button type="button" onclick="closeExplanation()" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                    <button id="modal-close" type="button" onclick="closeExplanation()" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                         明白了！
                     </button>
                 </div>
@@ -272,14 +262,191 @@
 
     <script>
         /**
+         * 多語言設定
+         */
+        let currentLang = 'zh';
+
+        const TRANSLATIONS = {
+            zh: {
+                appTitle: "DNA 構造與遺傳密碼",
+                appSubtitle: "中一科學互動教材 (Canvas 渲染)",
+                btnExplain: "科學解說",
+                statsTitle: "當前樣本分析",
+                chargaffRule: "Chargaff法則驗證: A ≈ T, C ≈ G",
+                controlTitle: "實驗控制",
+                btnPause: "⏸️ 暫停旋轉",
+                btnResume: "▶️ 繼續旋轉",
+                btnRandom: "🎲 隨機重組序列 (突變)",
+                speedLabel: "旋轉速度",
+                learningTitle: "學習重點",
+                learningList: [
+                    "<strong>糖-磷酸骨架</strong>：就像梯子的兩邊扶手（圖中灰白色的帶子），負責支撐整個結構。",
+                    "<strong>鹼基對</strong>：像是梯子的橫階，A 配 T，C 配 G。",
+                    "<strong>基因</strong>：金色標記的特定片段。"
+                ],
+                canvasHint: "點擊鹼基對進行編輯",
+                geneLabel: "🧬 基因片段 (Gene)",
+                geneDesc: "決定特徵的序列",
+                
+                // Bases Names
+                baseA: "腺嘌呤 (A)",
+                baseT: "胸腺嘧啶 (T)",
+                baseC: "胞嘧啶 (C)",
+                baseG: "鳥嘌呤 (G)",
+
+                // Modal
+                modalTitle: "📖 科學概念解說",
+                modalH1: "1. 糖-磷酸骨架 (Sugar-Phosphate Backbone)",
+                modalP1: "圖中連接所有球體的<strong>灰白色螺旋帶</strong>。它由脫氧核糖和磷酸基團交替連接而成，提供結構支撐。<br><span class='text-slate-500 text-xs bg-slate-100 px-2 py-0.5 rounded'>比喻：梯子的兩邊扶手。</span>",
+                modalH2: "2. 鹼基 (Bases)",
+                modalP2: "A、T、C、G 四種化學物質。它們附著在骨架上，向內延伸並與對面的鹼基配對。<br><strong>規則：</strong> <span class='text-red-500 font-bold'>A</span> ❤️ <span class='text-blue-500 font-bold'>T</span>，<span class='text-green-500 font-bold'>C</span> 💚 <span class='text-yellow-500 font-bold'>G</span>。",
+                modalH3: "3. DNA (脫氧核糖核酸)",
+                modalP3: "由骨架和鹼基組成的整體，呈<strong>雙螺旋結構 (Double Helix)</strong>。",
+                modalH4: "4. 基因 (Gene)",
+                modalP4: "DNA 上的一段特定序列（金色部分），決定生物特徵。",
+                modalHierarchy: "結構層次",
+                modalFlow: `
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">細胞</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">細胞核</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">染色體</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border ring-2 ring-indigo-400">DNA</span>
+                `,
+                modalClose: "明白了！"
+            },
+            en: {
+                appTitle: "DNA Structure & Genetic Code",
+                appSubtitle: "S1 Science Interactive (Canvas)",
+                btnExplain: "Explanation",
+                statsTitle: "Sample Analysis",
+                chargaffRule: "Chargaff's Rule: A ≈ T, C ≈ G",
+                controlTitle: "Controls",
+                btnPause: "⏸️ Pause Rotation",
+                btnResume: "▶️ Resume Rotation",
+                btnRandom: "🎲 Randomize (Mutate)",
+                speedLabel: "Rotation Speed",
+                learningTitle: "Key Concepts",
+                learningList: [
+                    "<strong>Sugar-Phosphate Backbone</strong>: Acts like the handrails of a ladder (grey ribbons), supporting the structure.",
+                    "<strong>Base Pairs</strong>: Act like the rungs of the ladder. A pairs with T, C pairs with G.",
+                    "<strong>Gene</strong>: The gold-highlighted specific segment."
+                ],
+                canvasHint: "Click base pairs to edit",
+                geneLabel: "🧬 Gene Segment",
+                geneDesc: "Sequence determining traits",
+                
+                // Bases Names
+                baseA: "Adenine (A)",
+                baseT: "Thymine (T)",
+                baseC: "Cytosine (C)",
+                baseG: "Guanine (G)",
+
+                // Modal
+                modalTitle: "📖 Scientific Explanation",
+                modalH1: "1. Sugar-Phosphate Backbone",
+                modalP1: "The <strong>grey-white spiral ribbons</strong> connecting all spheres. It consists of alternating sugar and phosphate groups, providing structural support.<br><span class='text-slate-500 text-xs bg-slate-100 px-2 py-0.5 rounded'>Analogy: The handrails of a ladder.</span>",
+                modalH2: "2. Bases",
+                modalP2: "Four types of chemicals: A, T, C, G. They attach to the backbone and pair with the base opposite them.<br><strong>Rule:</strong> <span class='text-red-500 font-bold'>A</span> ❤️ <span class='text-blue-500 font-bold'>T</span>, <span class='text-green-500 font-bold'>C</span> 💚 <span class='text-yellow-500 font-bold'>G</span>.",
+                modalH3: "3. DNA (Deoxyribonucleic Acid)",
+                modalP3: "The entire molecule consisting of the backbone and bases, forming a <strong>Double Helix</strong> structure.",
+                modalH4: "4. Gene",
+                modalP4: "A specific sequence on the DNA (gold section) that determines biological traits.",
+                modalHierarchy: "Structural Hierarchy",
+                modalFlow: `
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">Cell</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">Nucleus</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border">Chromosome</span>
+                    <span>→</span>
+                    <span class="bg-white px-3 py-1 rounded shadow-sm border ring-2 ring-indigo-400">DNA</span>
+                `,
+                modalClose: "Got it!"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            // Button text stays static as per request
+            updateTextContent();
+            updateBasesNames();
+        }
+
+        function updateTextContent() {
+            const t = TRANSLATIONS[currentLang];
+            
+            // Header
+            document.getElementById('app-title').innerText = t.appTitle;
+            document.getElementById('app-subtitle').innerText = t.appSubtitle;
+            document.getElementById('btn-explain').innerText = t.btnExplain;
+            
+            // Sidebar
+            document.getElementById('stats-title').innerText = t.statsTitle;
+            document.getElementById('chargaff-rule').innerText = t.chargaffRule;
+            document.getElementById('control-title').innerText = t.controlTitle;
+            // Note: Button text logic handles Pause/Resume state separately
+            updatePlayButtonText();
+            document.getElementById('btn-random-text').innerText = t.btnRandom;
+            document.getElementById('speed-label').innerText = t.speedLabel;
+            document.getElementById('learning-title').innerText = t.learningTitle;
+            document.getElementById('canvas-hint').innerText = t.canvasHint;
+            
+            // Learning List
+            const list = document.getElementById('learning-list');
+            list.innerHTML = '';
+            t.learningList.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = item;
+                list.appendChild(li);
+            });
+
+            // Modal
+            document.getElementById('modal-title-text').innerText = t.modalTitle;
+            document.getElementById('modal-h1').innerText = t.modalH1;
+            document.getElementById('modal-p1').innerHTML = t.modalP1;
+            document.getElementById('modal-h2').innerText = t.modalH2;
+            document.getElementById('modal-p2').innerHTML = t.modalP2;
+            document.getElementById('modal-h3').innerText = t.modalH3;
+            document.getElementById('modal-p3').innerHTML = t.modalP3;
+            document.getElementById('modal-h4').innerText = t.modalH4;
+            document.getElementById('modal-p4').innerHTML = t.modalP4;
+            document.getElementById('modal-hierarchy').innerText = t.modalHierarchy;
+            document.getElementById('modal-flow').innerHTML = t.modalFlow;
+            document.getElementById('modal-close').innerText = t.modalClose;
+        }
+
+        function updatePlayButtonText() {
+            const t = TRANSLATIONS[currentLang];
+            const btnText = document.getElementById('btn-play-text');
+            if (isPlaying) {
+                btnText.innerText = t.btnPause.replace('⏸️ ', '');
+            } else {
+                btnText.innerText = t.btnResume.replace('▶️ ', '');
+            }
+        }
+
+        /**
          * 遺傳學資料與邏輯
          */
         const BASES = {
-            'A': { name: '腺嘌呤 (A)', color: '#ef4444', pair: 'T' }, // Red
-            'T': { name: '胸腺嘧啶 (T)', color: '#3b82f6', pair: 'A' }, // Blue
-            'C': { name: '胞嘧啶 (C)', color: '#22c55e', pair: 'G' }, // Green
-            'G': { name: '鳥嘌呤 (G)', color: '#eab308', pair: 'C' }  // Yellow
+            'A': { id: 'baseA', color: '#ef4444', pair: 'T' }, 
+            'T': { id: 'baseT', color: '#3b82f6', pair: 'A' }, 
+            'C': { id: 'baseC', color: '#22c55e', pair: 'G' }, 
+            'G': { id: 'baseG', color: '#eab308', pair: 'C' }  
         };
+        
+        // Helper to get name
+        function getBaseName(key) {
+            return TRANSLATIONS[currentLang][BASES[key].id];
+        }
+        
+        function updateBasesNames() {
+            // This function is purely to trigger any re-renders if needed, 
+            // but since getBaseName is called dynamically in draw/tooltip, 
+            // we mainly just need to ensure the logic uses getBaseName.
+        }
 
         const NUM_PAIRS = 20;
         // 定義基因片段範圍 (索引 5 到 10)
@@ -389,11 +556,21 @@
                 tooltip.style.opacity = 1;
                 
                 const row = dnaSequence[hoveredRowIndex];
+                
+                // 動態獲取名稱 (i18n)
+                const leftName = getBaseName(row.left);
+                const rightName = getBaseName(row.right);
+
                 tooltip.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full" style="background:${BASES[row.left].color}"></span> ${row.left}
-                        <span class="text-gray-400">--</span>
-                        <span class="w-3 h-3 rounded-full" style="background:${BASES[row.right].color}"></span> ${row.right}
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full" style="background:${BASES[row.left].color}"></span> 
+                            <span>${leftName}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full" style="background:${BASES[row.right].color}"></span> 
+                            <span>${rightName}</span>
+                        </div>
                     </div>
                 `;
             } else {
@@ -439,93 +616,130 @@
             const totalHeight = NUM_PAIRS * rowHeight;
             const startY = -totalHeight / 2;
             
-            // 基因標記的座標計算 (取開始和結束的中心Y位置，忽略旋轉帶來的X位移)
-            let geneYStart = 0;
-            let geneYEnd = 0;
-
-            dnaSequence.forEach((row, i) => {
+            // 1. 先計算所有點的座標，方便生成骨架連線
+            const points = [];
+            for (let i = 0; i < NUM_PAIRS; i++) {
                 const yBase = startY + i * rowHeight;
-                // 角度計算：每層旋轉 30 度 (0.52 弧度) + 整體自轉
                 const angle = i * 0.5 + rotation;
-
-                // 左螺旋鏈座標 (Strand 1)
+                
+                // Strand 1 (Left)
                 const x1 = Math.sin(angle) * helixRadius;
                 const z1 = Math.cos(angle) * helixRadius;
                 
-                // 右螺旋鏈座標 (Strand 2) - 相差 PI (180度)
+                // Strand 2 (Right) - 180度對角
                 const x2 = Math.sin(angle + Math.PI) * helixRadius;
                 const z2 = Math.cos(angle + Math.PI) * helixRadius;
 
-                // 投影到 2D
-                const p1 = project(x1, yBase, z1);
-                const p2 = project(x2, yBase, z2);
-                
-                // 記錄基因片段的屏幕位置 (使用中心軸投影)
-                const pCenter = project(0, yBase, 0);
-                if (i === GENE_START_INDEX) geneYStart = pCenter.y;
-                if (i === GENE_START_INDEX + GENE_LENGTH - 1) geneYEnd = pCenter.y;
+                points.push({
+                    i: i,
+                    row: dnaSequence[i],
+                    s1: { x: x1, y: yBase, z: z1, p: project(x1, yBase, z1) },
+                    s2: { x: x2, y: yBase, z: z2, p: project(x2, yBase, z2) }
+                });
+            }
+            
+            // 基因標記座標 (用於繪製括號)
+            let geneYStart = 0;
+            let geneYEnd = 0;
 
-                // 判斷是否為基因片段
-                const isGene = i >= GENE_START_INDEX && i < GENE_START_INDEX + GENE_LENGTH;
-                const isHighlight = (i === hoveredRowIndex);
+            // 2. 生成繪製物件
+            points.forEach((curr, idx) => {
+                const isHighlight = (idx === hoveredRowIndex);
+                const isGene = idx >= GENE_START_INDEX && idx < GENE_START_INDEX + GENE_LENGTH;
 
-                // 構建繪圖物件：連接桿 (Bond)
+                // 記錄基因座標
+                const pCenter = project(0, curr.s1.y, 0); // 中心軸
+                if (idx === GENE_START_INDEX) geneYStart = pCenter.y;
+                if (idx === GENE_START_INDEX + GENE_LENGTH - 1) geneYEnd = pCenter.y;
+
+                // --- 橫向連接 (Hydrogen Bond) ---
                 drawList.push({
                     type: 'bond',
-                    z: (z1 + z2) / 2, // 平均深度
-                    p1: p1,
-                    p2: p2,
-                    color: isGene ? '#fcd34d' : '#94a3b8', // 基因片段用金色，其他用灰色
+                    z: (curr.s1.z + curr.s2.z) / 2,
+                    p1: curr.s1.p,
+                    p2: curr.s2.p,
+                    color: isGene ? '#fcd34d' : '#94a3b8',
                     isGene: isGene,
                     isHighlight: isHighlight
                 });
 
-                // 構建繪圖物件：鹼基 (Nucleotides)
-                // 左邊
+                // --- 鹼基球體 (Nucleotides) ---
                 drawList.push({
                     type: 'nucleotide',
-                    base: row.left,
-                    z: z1,
-                    p: p1,
-                    color: BASES[row.left].color,
+                    base: curr.row.left,
+                    z: curr.s1.z,
+                    p: curr.s1.p,
+                    color: BASES[curr.row.left].color,
+                    isHighlight: isHighlight
+                });
+                drawList.push({
+                    type: 'nucleotide',
+                    base: curr.row.right,
+                    z: curr.s2.z,
+                    p: curr.s2.p,
+                    color: BASES[curr.row.right].color,
                     isHighlight: isHighlight
                 });
 
-                // 右邊
-                drawList.push({
-                    type: 'nucleotide',
-                    base: row.right,
-                    z: z2,
-                    p: p2,
-                    color: BASES[row.right].color,
-                    isHighlight: isHighlight
-                });
+                // --- 骨架連接 (Backbone) ---
+                // 連接當前層到下一層
+                if (idx < points.length - 1) {
+                    const next = points[idx + 1];
+                    
+                    // Strand 1 Backbone Segment
+                    drawList.push({
+                        type: 'backbone',
+                        z: (curr.s1.z + next.s1.z) / 2, // 平均深度
+                        p1: curr.s1.p,
+                        p2: next.s1.p,
+                        color: '#cbd5e1' // 淺灰藍色
+                    });
+
+                    // Strand 2 Backbone Segment
+                    drawList.push({
+                        type: 'backbone',
+                        z: (curr.s2.z + next.s2.z) / 2,
+                        p1: curr.s2.p,
+                        p2: next.s2.p,
+                        color: '#cbd5e1'
+                    });
+                }
             });
 
-            // 排序繪圖物件：Z 值越大越遠 (painter's algorithm: 畫遠的 -> 畫近的)
-            // 修正：Z 座標系統中，z 越大表示越遠 (在 project 函數中 perspective = 400/(400+z))
-            // 所以我們先畫 z 大的
+            // 3. 排序：Z 值越大表示越深(遠) 還是 越淺(近)?
             drawList.sort((a, b) => b.z - a.z);
 
-            // 繪製循環
+            // 4. 繪製循環
             drawList.forEach(item => {
                 
                 ctx.globalAlpha = 1;
-                
-                // 安全讀取 scale (修復錯誤：bond 類型沒有 item.p)
-                const scale = item.p ? item.p.scale : item.p1.scale;
-                
-                // 根據深度調整亮度 (Depth Fog)
-                const brightness = Math.max(0.4, Math.min(1, scale * 1.5));
-                
-                if (item.type === 'bond') {
+                // 通用：根據深度計算亮度 (模擬迷霧)
+                let itemScale = item.p ? item.p.scale : (item.p1.scale + item.p2.scale) / 2;
+                const brightness = Math.max(0.4, Math.min(1, itemScale * 1.5));
+
+                if (item.type === 'backbone') {
+                    // 繪製骨架緞帶
+                    ctx.beginPath();
+                    ctx.moveTo(item.p1.x, item.p1.y);
+                    ctx.lineTo(item.p2.x, item.p2.y);
+                    
+                    // 骨架寬度隨深度變化，近大遠小
+                    ctx.lineWidth = 10 * itemScale; 
+                    ctx.strokeStyle = item.color;
+                    ctx.lineCap = 'round'; // 圓滑接頭
+                    
+                    ctx.globalAlpha = brightness; 
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    ctx.lineCap = 'butt'; // 還原
+
+                } else if (item.type === 'bond') {
                     
                     ctx.beginPath();
                     ctx.moveTo(item.p1.x, item.p1.y);
                     ctx.lineTo(item.p2.x, item.p2.y);
                     
                     if (item.isGene && !item.isHighlight) {
-                        // 基因片段的特殊光暈
                         ctx.shadowBlur = 10;
                         ctx.shadowColor = '#fcd34d';
                     } else {
@@ -533,9 +747,9 @@
                     }
 
                     ctx.strokeStyle = item.isHighlight ? '#fbbf24' : (item.isGene ? '#fcd34d' : `rgba(148, 163, 184, ${brightness})`);
-                    ctx.lineWidth = item.isHighlight ? 6 * scale : 3 * scale;
+                    ctx.lineWidth = item.isHighlight ? 6 * itemScale : 3 * itemScale;
                     ctx.stroke();
-                    ctx.shadowBlur = 0; // 重置
+                    ctx.shadowBlur = 0;
 
                 } else if (item.type === 'nucleotide') {
                     const r = (item.isHighlight ? 18 : 14) * item.p.scale;
@@ -543,20 +757,17 @@
                     ctx.beginPath();
                     ctx.arc(item.p.x, item.p.y, r, 0, Math.PI * 2);
                     
-                    // 填充顏色 (帶漸變更有立體感)
                     const grad = ctx.createRadialGradient(
                         item.p.x - r/3, item.p.y - r/3, r/10,
                         item.p.x, item.p.y, r
                     );
                     
-                    // 解析顏色並調暗
                     const baseColor = item.color;
-                    grad.addColorStop(0, adjustBrightness(baseColor, 40)); // Highlight
-                    grad.addColorStop(1, adjustBrightness(baseColor, -20)); // Shadow
+                    grad.addColorStop(0, adjustBrightness(baseColor, 40)); 
+                    grad.addColorStop(1, adjustBrightness(baseColor, -20)); 
                     
                     ctx.fillStyle = grad;
                     
-                    // 邊框
                     if (item.isHighlight) {
                         ctx.strokeStyle = '#fff';
                         ctx.lineWidth = 2;
@@ -570,16 +781,15 @@
                     ctx.font = `bold ${12 * item.p.scale}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.globalAlpha = brightness;
+                    ctx.globalAlpha = brightness; // 文字隨深度變暗
                     ctx.fillText(item.base, item.p.x, item.p.y);
                     ctx.globalAlpha = 1;
                 }
             });
 
             // 繪製「基因」標記括號
-            // 在 DNA 的右側繪製一個括號
             if (geneYStart && geneYEnd) {
-                const bracketX = width / 2 + 140 * scaleFactor; // 距離中心的位置
+                const bracketX = width / 2 + 140 * scaleFactor;
                 const bracketTop = geneYStart - 10 * scaleFactor;
                 const bracketBottom = geneYEnd + 10 * scaleFactor;
                 const bracketWidth = 10 * scaleFactor;
@@ -587,45 +797,41 @@
                 ctx.beginPath();
                 ctx.strokeStyle = '#fcd34d'; // Gold
                 ctx.lineWidth = 3;
-                // 上橫線
                 ctx.moveTo(bracketX, bracketTop);
                 ctx.lineTo(bracketX + bracketWidth, bracketTop);
-                // 豎線
                 ctx.lineTo(bracketX + bracketWidth, bracketBottom);
-                // 下橫線
                 ctx.lineTo(bracketX, bracketBottom);
                 ctx.stroke();
 
-                // 文字標籤
-                ctx.fillStyle = '#f59e0b'; // Darker Gold
+                ctx.fillStyle = '#f59e0b';
                 ctx.font = `bold ${14 * scaleFactor}px sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('🧬 基因片段 (Gene)', bracketX + bracketWidth + 10, (bracketTop + bracketBottom) / 2);
                 
-                // 補充說明文字
+                // 動態獲取基因文字
+                const t = TRANSLATIONS[currentLang];
+                ctx.fillText(t.geneLabel, bracketX + bracketWidth + 10, (bracketTop + bracketBottom) / 2);
+                
                 ctx.fillStyle = '#94a3b8';
                 ctx.font = `${10 * scaleFactor}px sans-serif`;
-                ctx.fillText('決定特徵的序列', bracketX + bracketWidth + 10, (bracketTop + bracketBottom) / 2 + 16 * scaleFactor);
+                ctx.fillText(t.geneDesc, bracketX + bracketWidth + 10, (bracketTop + bracketBottom) / 2 + 16 * scaleFactor);
             }
             
-            // 繪製特效 (Flash effect)
+            // 繪製特效
             visualEffects = visualEffects.filter(fx => fx.life > 0);
             visualEffects.forEach(fx => {
                 fx.life -= 0.05;
-                // 找出該行的 Y 軸位置大致在哪 (為了簡單，重新計算一次投影)
                 const yBase = startY + fx.index * rowHeight;
-                const p = project(0, yBase, 0); // 中心點
+                const p = project(0, yBase, 0); 
                 
                 ctx.beginPath();
-                // FIX: 確保半徑永遠不為負數。原始公式在 life > 1.5 時會變負。
                 const radius = Math.max(0, 100 * (2.5 - fx.life));
                 ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(255, 255, 255, ${fx.life * 0.5})`;
                 ctx.fill();
             });
 
-            // 真正的 Hit Detection Update Loop (每幀計算一次最佳 hover)
+            // Hit Detection 更新
             updateHoverDetection(startY, rowHeight, helixRadius);
 
             requestAnimationFrame(draw);
@@ -638,20 +844,11 @@
 
             dnaSequence.forEach((row, i) => {
                 const yBase = startY + i * rowHeight;
-                const angle = i * 0.5 + rotation;
-                
-                // 計算中心點 (兩個螺旋的中點其實就是旋轉軸上的點，但帶有透視)
-                // 實際上滑鼠更容易點擊連接棒。連接棒的中心在 (0, yBase, 0)
                 const pCenter = project(0, yBase, 0);
-                
-                // 判斷滑鼠與該層中心的距離
-                // 因為是 3D，我們只判斷 Y 軸距離是否在行高範圍內，且 X 軸在螺旋寬度內
                 const dy = Math.abs(mouseY - pCenter.y);
                 const dx = Math.abs(mouseX - pCenter.x);
                 
-                // 寬鬆判斷範圍
                 if (dy < 15 * pCenter.scale && dx < 120 * pCenter.scale) {
-                    // 找到滑鼠最近的一行
                     const dist = Math.hypot(dx, dy);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -666,7 +863,6 @@
 
         // 顏色亮度調整工具
         function adjustBrightness(hex, percent) {
-            // 簡單的 HEX 亮度調整
             let r = parseInt(hex.substring(1, 3), 16);
             let g = parseInt(hex.substring(3, 5), 16);
             let b = parseInt(hex.substring(5, 7), 16);
@@ -686,32 +882,32 @@
         function toggleAnimation() {
             isPlaying = !isPlaying;
             const btn = document.getElementById('btn-play');
+            const iconSpan = btn.querySelector('span:first-child');
+            
             if (isPlaying) {
-                btn.innerHTML = '<span>⏸️</span> <span>暫停旋轉</span>';
+                iconSpan.innerText = '⏸️';
                 btn.classList.remove('bg-green-600', 'hover:bg-green-700');
                 btn.classList.add('bg-slate-800', 'hover:bg-slate-700');
             } else {
-                btn.innerHTML = '<span>▶️</span> <span>繼續旋轉</span>';
+                iconSpan.innerText = '▶️';
                 btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
                 btn.classList.add('bg-green-600', 'hover:bg-green-700');
             }
+            updatePlayButtonText();
         }
 
         function randomizeDNA() {
-            // 視覺特效：閃爍一下
             visualEffects.push({ index: Math.floor(NUM_PAIRS/2), life: 2.0, type: 'flash' });
             initSequence();
             updateStats();
         }
 
         function updateSpeed(val) {
-            // map 0-100 to 0-0.1
             rotationSpeed = val / 1500;
         }
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            // 切換 transform
             if (sidebar.classList.contains('-translate-x-full')) {
                 sidebar.classList.remove('-translate-x-full');
             } else {
@@ -724,7 +920,6 @@
             const modal = document.getElementById('explanation-modal');
             const content = document.getElementById('modal-content');
             modal.classList.remove('hidden');
-            // 添加動畫 class
             content.classList.remove('modal-exit', 'modal-exit-active');
             content.classList.add('modal-enter-active');
         }
@@ -732,19 +927,16 @@
         function closeExplanation() {
             const modal = document.getElementById('explanation-modal');
             const content = document.getElementById('modal-content');
-            
-            // 移除進入動畫，添加退出動畫
             content.classList.remove('modal-enter', 'modal-enter-active');
             content.classList.add('modal-exit-active');
-
-            // 等待動畫結束後隱藏 (200ms)
             setTimeout(() => {
                 modal.classList.add('hidden');
                 content.classList.remove('modal-exit-active');
             }, 200);
         }
 
-        // 啟動
+        // 啟動，先載入預設語言內容
+        updateTextContent();
         initSequence();
         draw();
 
