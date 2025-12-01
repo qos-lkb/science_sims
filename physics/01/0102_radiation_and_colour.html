@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>熱輻射實驗模擬器</title>
+    <title>熱輻射實驗模擬器 | Heat Radiation Simulator</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Chart.js for Graphing -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Markdown Parser for AI responses -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
         /* 自定義樣式 */
@@ -63,272 +60,320 @@
             background: #cbd5e1;
             border-radius: 2px;
         }
-        /* Markdown Styles */
-        .prose p { margin-bottom: 0.5em; }
-        .prose strong { font-weight: bold; color: #1e293b; }
-        .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
         
-        /* Sidebar active state */
-        .nav-item.active {
-            background-color: rgb(37 99 235); /* blue-600 */
-            color: white;
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Active Menu Item */
+        .menu-btn.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans h-screen flex overflow-hidden">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <!-- Sidebar Navigation -->
-    <aside class="w-64 bg-slate-800 text-slate-300 flex flex-col shadow-xl z-20 flex-shrink-0 transition-all duration-300" id="sidebar">
-        <div class="p-6 bg-slate-900">
-            <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                物理實驗室
-            </h1>
-            <p class="text-xs mt-2 text-slate-500">熱傳遞與輻射模擬</p>
-        </div>
-        
-        <nav class="flex-1 p-4 space-y-2">
-            <button onclick="switchMode('cooling')" id="navCooling" class="nav-item w-full flex items-center p-3 rounded-lg hover:bg-slate-700 transition active">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                <span>實驗一：散熱 (Cooling)</span>
-            </button>
-            <button onclick="switchMode('heating')" id="navHeating" class="nav-item w-full flex items-center p-3 rounded-lg hover:bg-slate-700 transition">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                <span>實驗二：吸熱 (Heating)</span>
-            </button>
-        </nav>
-
-        <div class="p-4 border-t border-slate-700 text-xs text-center text-slate-500">
-            &copy; 物理教學演示工具
-        </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col overflow-y-auto h-full">
-        
-        <!-- Header -->
-        <header class="bg-white p-4 shadow-sm border-b border-slate-200 sticky top-0 z-10">
-            <div class="flex justify-between items-center">
-                <h2 id="pageTitle" class="text-xl font-bold text-slate-800">實驗一：表面顏色與散熱速率</h2>
-                <div class="text-sm text-slate-500 hidden sm:block">
-                    公平測試：控制體積、材質與形狀
-                </div>
-            </div>
-        </header>
-
-        <main class="flex-grow p-6 gap-6 flex flex-col lg:flex-row max-w-7xl mx-auto w-full">
+    <!-- Header / Menu Bar -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 h-16 flex justify-between items-center">
             
-            <!-- Left Column: Controls & Visuals -->
-            <div class="w-full lg:w-1/3 flex flex-col gap-6">
-                
-                <!-- Control Panel -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500 transition-colors" id="controlPanel">
-                    <h2 class="text-xl font-bold mb-4 flex items-center text-slate-700">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                        實驗參數設定
+            <!-- Logo & Title -->
+            <div class="flex items-center space-x-3">
+                <svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight" data-i18n="appTitle">熱輻射實驗模擬</h1>
+                    <p class="text-xs text-slate-400" data-i18n="appSubtitle">Physics Lab: Heat Transfer</p>
+                </div>
+            </div>
+
+            <!-- Experiment Menu (Center) -->
+            <nav class="hidden md:flex space-x-2 bg-slate-800 p-1 rounded-lg">
+                <button onclick="switchMode('cooling')" id="navCooling" class="menu-btn px-4 py-1.5 rounded-md text-sm transition hover:bg-slate-700 active">
+                    <span data-i18n="exp1">實驗一：散熱</span>
+                </button>
+                <button onclick="switchMode('heating')" id="navHeating" class="menu-btn px-4 py-1.5 rounded-md text-sm transition hover:bg-slate-700">
+                    <span data-i18n="exp2">實驗二：吸熱</span>
+                </button>
+            </nav>
+
+            <!-- Tools (Right) -->
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleModal(true)" class="flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-sm transition shadow-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span data-i18n="btnTheory">原理解說</span>
+                </button>
+                <button onclick="toggleLanguage()" class="px-3 py-1.5 border border-slate-600 hover:bg-slate-800 rounded text-sm transition font-mono">
+                    <span id="langDisplay">中 / EN</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu (Visible only on small screens) -->
+        <div class="md:hidden flex justify-around bg-slate-800 p-2 text-xs border-t border-slate-700">
+            <button onclick="switchMode('cooling')" id="mobNavCooling" class="menu-btn active px-3 py-1 rounded">
+                <span data-i18n="exp1">實驗一：散熱</span>
+            </button>
+            <button onclick="switchMode('heating')" id="mobNavHeating" class="menu-btn px-3 py-1 rounded">
+                <span data-i18n="exp2">實驗二：吸熱</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto p-4 lg:p-8 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Left Column: Controls & Visuals -->
+        <div class="w-full lg:w-5/12 flex flex-col gap-6">
+            
+            <!-- Control Panel -->
+            <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500 transition-colors" id="controlPanel">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        <span data-i18n="settingsTitle">參數設定</span>
                     </h2>
-                    
-                    <div class="space-y-5 mb-6">
-                        <!-- Temp Slider 1: Start/Initial -->
-                        <div>
-                            <div class="flex justify-between text-sm font-bold mb-1">
-                                <label id="lblSlider1" for="rngParam1" class="text-slate-700">初始溫度</label>
-                                <span id="valParam1" class="text-red-600 font-mono">80°C</span>
-                            </div>
-                            <input type="range" id="rngParam1" class="w-full text-red-500 accent-red-500">
-                            <div class="flex justify-between text-xs text-slate-400 mt-1">
-                                <span id="minParam1">40°C</span>
-                                <span id="maxParam1">100°C</span>
-                            </div>
-                        </div>
-
-                        <!-- Temp Slider 2: Env/Source -->
-                        <div>
-                            <div class="flex justify-between text-sm font-bold mb-1">
-                                <label id="lblSlider2" for="rngParam2" class="text-slate-700">環境溫度</label>
-                                <span id="valParam2" class="text-blue-600 font-mono">25°C</span>
-                            </div>
-                            <input type="range" id="rngParam2" class="w-full text-blue-500 accent-blue-500">
-                            <div class="flex justify-between text-xs text-slate-400 mt-1">
-                                <span id="minParam2">0°C</span>
-                                <span id="maxParam2">40°C</span>
-                            </div>
-                        </div>
-
-                        <!-- Speed Slider -->
-                        <div class="pt-2 border-t border-slate-100">
-                            <div class="flex justify-between text-sm font-bold mb-1">
-                                <label for="rngSpeed" class="text-slate-700">模擬速度</label>
-                                <span id="valSpeed" class="text-green-600 font-mono">1x</span>
-                            </div>
-                            <input type="range" id="rngSpeed" min="1" max="10" step="0.5" value="1" class="w-full text-green-500 accent-green-500">
-                        </div>
-                    </div>
-
-                    <div class="flex gap-2">
-                        <button id="btnStart" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded transition shadow flex justify-center items-center">
-                            <span id="btnStartText">開始實驗</span>
-                        </button>
-                        <button id="btnReset" class="flex-1 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded transition shadow">
-                            重置
-                        </button>
-                    </div>
-                    
-                    <div class="mt-4 text-center bg-slate-50 rounded p-2">
-                        <p class="text-xs text-slate-500 uppercase tracking-wide">經過時間 (模擬)</p>
-                        <p id="timerDisplay" class="text-2xl font-mono font-bold text-slate-700">00:00</p>
-                    </div>
+                    <span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded" data-i18n="fairTest">公平測試：體積與材質相同</span>
                 </div>
-
-                <!-- Bottles Visualization -->
-                <div class="bg-white p-6 rounded-xl shadow-lg flex justify-around items-end h-72 relative overflow-hidden">
-                    
-                    <!-- Heating Source (Sun/Lamp) - Only visible in Heating Mode -->
-                    <div id="heatSource" class="absolute top-4 left-1/2 transform -translate-x-1/2 transition-opacity duration-500 opacity-0 z-0">
-                        <svg class="w-20 h-20 text-yellow-500 sun-ray" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path></svg>
-                    </div>
-
-                    <!-- Silver Bottle -->
-                    <div class="flex flex-col items-center relative z-10">
-                        <div class="text-sm font-bold mb-2 bg-gray-200 px-2 py-1 rounded border border-gray-300 text-gray-700">銀色瓶</div>
-                        <!-- Bottle Body -->
-                        <div class="w-24 h-32 rounded-lg border-2 border-gray-400 relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-300 shadow-md transition-colors duration-500">
-                            <!-- Liquid/Content Color -->
-                            <div id="silverLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear h-full" style="background-color: rgb(255, 0, 0);"></div>
-                            <!-- Shine Effect -->
-                            <div class="absolute inset-0 bottle-shine pointer-events-none"></div>
-                        </div>
-                        <div class="mt-2 font-mono font-bold text-lg" id="silverTempDisplay">80.0°C</div>
-                        <!-- Steam Elements (Cooling mode only) -->
-                        <div id="silverSteam" class="absolute -top-4 w-full flex justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
-                            <div class="steam" style="animation-delay: 0s; left: 40%;"></div>
-                            <div class="steam" style="animation-delay: 0.5s; left: 50%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Black Bottle -->
-                    <div class="flex flex-col items-center relative z-10">
-                        <div class="text-sm font-bold mb-2 bg-gray-800 px-2 py-1 rounded text-white">啞黑瓶</div>
-                        <!-- Bottle Body -->
-                        <div class="w-24 h-32 rounded-lg border-2 border-gray-800 relative overflow-hidden bg-gradient-to-br from-gray-700 to-gray-900 shadow-md">
-                             <!-- Liquid/Content Color -->
-                             <div id="blackLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear h-full" style="background-color: rgb(255, 0, 0);"></div>
-                             <!-- Shine Effect (Less shiny for black) -->
-                             <div class="absolute inset-0 bottle-shine opacity-20 pointer-events-none"></div>
-                        </div>
-                        <div class="mt-2 font-mono font-bold text-lg" id="blackTempDisplay">80.0°C</div>
-                         <!-- Steam Elements (Cooling mode only) -->
-                         <div id="blackSteam" class="absolute -top-4 w-full flex justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
-                            <div class="steam" style="animation-delay: 0.2s; left: 40%;"></div>
-                            <div class="steam" style="animation-delay: 0.7s; left: 50%;"></div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- Right Column: Graph & Data & AI -->
-            <div class="w-full lg:w-2/3 flex flex-col gap-6">
                 
-                <!-- Graph Section -->
-                <div class="bg-white p-6 rounded-xl shadow-lg flex flex-col">
-                    <div class="mb-4 flex justify-between items-center border-b pb-2">
-                        <h2 class="text-xl font-bold text-slate-700">溫度-時間 關係圖</h2>
-                        <div class="flex gap-4 text-sm">
-                            <div class="flex items-center">
-                                <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> 銀色瓶
-                            </div>
-                            <div class="flex items-center">
-                                <span class="w-3 h-3 rounded-full bg-black mr-2"></span> 黑色瓶
-                            </div>
+                <div class="space-y-6 mb-6">
+                    <!-- Temp Slider 1 -->
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-2">
+                            <label id="lblSlider1" class="text-slate-600">初始溫度</label>
+                            <span id="valParam1" class="text-red-600 font-mono bg-red-50 px-2 rounded">80°C</span>
+                        </div>
+                        <input type="range" id="rngParam1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-500">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1 font-mono">
+                            <span id="minParam1">40°C</span>
+                            <span id="maxParam1">100°C</span>
                         </div>
                     </div>
-                    
-                    <div class="relative flex-grow min-h-[300px]">
-                        <canvas id="mainChart"></canvas>
+
+                    <!-- Temp Slider 2 -->
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-2">
+                            <label id="lblSlider2" class="text-slate-600">環境溫度</label>
+                            <span id="valParam2" class="text-blue-600 font-mono bg-blue-50 px-2 rounded">25°C</span>
+                        </div>
+                        <input type="range" id="rngParam2" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1 font-mono">
+                            <span id="minParam2">0°C</span>
+                            <span id="maxParam2">40°C</span>
+                        </div>
+                    </div>
+
+                    <!-- Speed Slider -->
+                    <div class="pt-4 border-t border-slate-100">
+                        <div class="flex justify-between text-sm font-bold mb-2">
+                            <label class="text-slate-600" data-i18n="simSpeed">模擬速度</label>
+                            <span id="valSpeed" class="text-green-600 font-mono bg-green-50 px-2 rounded">1x</span>
+                        </div>
+                        <input type="range" id="rngSpeed" min="1" max="10" step="0.5" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-500">
                     </div>
                 </div>
 
-                <!-- AI Assistant Section -->
-                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl shadow-lg border border-indigo-100">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-xl font-bold text-indigo-900 flex items-center">
-                            <span class="text-2xl mr-2">✨</span> AI 物理實驗助教
-                        </h2>
-                        <div class="flex space-x-2">
-                            <button id="tabAnalyze" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm border border-indigo-100 hover:bg-indigo-50 transition active-tab">
-                                分析實驗數據
-                            </button>
-                            <button id="tabAsk" class="px-4 py-2 rounded-lg text-sm font-medium bg-transparent text-slate-600 hover:bg-white transition">
-                                我有問題
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Analysis View -->
-                    <div id="viewAnalyze" class="block">
-                        <p class="text-slate-600 mb-4 text-sm">當實驗進行一段時間後，點擊下方按鈕，AI 將根據當前的實驗模式（吸熱/散熱）為你分析物理現象。</p>
-                        
-                        <button id="btnAnalyze" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center justify-center gap-2">
-                            <span>✨ 分析當前結果</span>
-                            <svg id="iconAnalyze" class="w-5 h-5 hidden animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        </button>
-
-                        <div id="analysisResult" class="mt-4 p-4 bg-white rounded-lg border border-indigo-100 text-slate-700 prose text-sm hidden">
-                            <!-- AI Response goes here -->
-                        </div>
-                    </div>
-
-                    <!-- Ask Question View -->
-                    <div id="viewAsk" class="hidden">
-                        <p class="text-slate-600 mb-4 text-sm">對熱輻射或實驗現象有疑問？輸入你的問題。</p>
-                        <div class="flex gap-2 mb-3">
-                            <input id="inputQuestion" type="text" placeholder="例如：為什麼黑色在陽光下比較熱？" class="flex-1 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                            <button id="btnAsk" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow transition whitespace-nowrap flex items-center gap-2">
-                                <span>✨ 發問</span>
-                                <svg id="iconAsk" class="w-4 h-4 hidden animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            </button>
-                        </div>
-                        <div id="qaResult" class="p-4 bg-white rounded-lg border border-purple-100 text-slate-700 prose text-sm hidden">
-                            <!-- AI Answer goes here -->
-                        </div>
-                    </div>
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btnStart" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-sm flex justify-center items-center">
+                        <span id="btnStartText" data-i18n="btnStart">開始實驗</span>
+                    </button>
+                    <button id="btnReset" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-4 rounded-lg transition shadow-sm">
+                        <span data-i18n="btnReset">重置</span>
+                    </button>
+                </div>
+                
+                <!-- Timer -->
+                <div class="mt-4 flex justify-between items-center bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold" data-i18n="elapsedTime">經過時間</span>
+                    <span id="timerDisplay" class="text-2xl font-mono font-bold text-slate-700">00:00</span>
                 </div>
             </div>
-        </main>
+
+            <!-- Visualization Area -->
+            <div class="bg-white p-6 rounded-xl shadow-md flex justify-around items-end h-80 relative overflow-hidden border border-slate-100">
+                
+                <!-- Heating Source -->
+                <div id="heatSource" class="absolute top-6 left-1/2 transform -translate-x-1/2 transition-opacity duration-500 opacity-0 z-0 text-center">
+                    <svg class="w-16 h-16 text-orange-400 sun-ray mx-auto" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path></svg>
+                    <div class="text-xs font-bold text-orange-500 mt-1" data-i18n="heatSource">熱源 (輻射)</div>
+                </div>
+
+                <!-- Silver Bottle -->
+                <div class="flex flex-col items-center relative z-10 w-1/3">
+                    <div class="text-xs font-bold mb-2 bg-slate-200 px-2 py-1 rounded text-slate-600 whitespace-nowrap" data-i18n="silverBottle">銀色瓶</div>
+                    <div class="w-20 h-32 md:w-24 md:h-36 rounded-lg border-2 border-slate-300 relative overflow-hidden bg-gradient-to-br from-slate-50 to-slate-200 shadow-lg">
+                        <div id="silverLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear h-full opacity-90" style="background-color: rgb(255, 0, 0);"></div>
+                        <div class="absolute inset-0 bottle-shine pointer-events-none"></div>
+                    </div>
+                    <div class="mt-3 font-mono font-bold text-lg bg-white px-2 rounded shadow-sm border border-slate-100" id="silverTempDisplay">80.0°C</div>
+                    <!-- Steam -->
+                    <div id="silverSteam" class="absolute -top-6 w-full flex justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
+                        <div class="steam" style="animation-delay: 0s; left: 40%;"></div>
+                        <div class="steam" style="animation-delay: 0.5s; left: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- Black Bottle -->
+                <div class="flex flex-col items-center relative z-10 w-1/3">
+                    <div class="text-xs font-bold mb-2 bg-slate-800 px-2 py-1 rounded text-white whitespace-nowrap" data-i18n="blackBottle">啞黑瓶</div>
+                    <div class="w-20 h-32 md:w-24 md:h-36 rounded-lg border-2 border-slate-700 relative overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg">
+                         <div id="blackLiquid" class="absolute bottom-0 w-full transition-all duration-1000 ease-linear h-full opacity-90" style="background-color: rgb(255, 0, 0);"></div>
+                         <div class="absolute inset-0 bottle-shine opacity-10 pointer-events-none"></div>
+                    </div>
+                    <div class="mt-3 font-mono font-bold text-lg bg-white px-2 rounded shadow-sm border border-slate-100" id="blackTempDisplay">80.0°C</div>
+                     <!-- Steam -->
+                     <div id="blackSteam" class="absolute -top-6 w-full flex justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
+                        <div class="steam" style="animation-delay: 0.2s; left: 40%;"></div>
+                        <div class="steam" style="animation-delay: 0.7s; left: 50%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Graph -->
+        <div class="w-full lg:w-7/12 flex flex-col">
+            <div class="bg-white p-6 rounded-xl shadow-md flex flex-col h-full border border-slate-100">
+                <div class="mb-6 flex justify-between items-center border-b border-slate-100 pb-4">
+                    <h2 class="text-xl font-bold text-slate-800" data-i18n="chartTitle">溫度-時間 關係圖</h2>
+                    <div class="flex gap-4 text-xs sm:text-sm">
+                        <div class="flex items-center">
+                            <span class="w-3 h-3 rounded-full bg-slate-400 mr-2"></span> 
+                            <span data-i18n="silverBottle">銀色瓶</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-3 h-3 rounded-full bg-slate-900 mr-2"></span> 
+                            <span data-i18n="blackBottle">啞黑瓶</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative flex-grow min-h-[400px]">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Physics Theory Modal -->
+    <div id="theoryModal" class="fixed inset-0 z-[100] hidden modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-95 opacity-0" id="modalContent">
+            <div class="bg-indigo-600 p-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-lg flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span data-i18n="modalTitle">熱輻射原理</span>
+                </h3>
+                <button onclick="toggleModal(false)" class="hover:bg-indigo-500 rounded p-1 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 text-slate-700 text-sm leading-relaxed space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                    <h4 class="font-bold text-indigo-700 mb-1 text-base" data-i18n="theoryH1">1. 表面顏色與輻射 (Emission)</h4>
+                    <p data-i18n="theoryP1">啞黑色表面是良好的輻射體，能有效地將內能轉化為紅外線輻射散失到環境中。相反，銀色或光亮表面是較差的輻射體，散熱較慢。</p>
+                </div>
+                <hr class="border-slate-100">
+                <div>
+                    <h4 class="font-bold text-orange-600 mb-1 text-base" data-i18n="theoryH2">2. 表面顏色與吸收 (Absorption)</h4>
+                    <p data-i18n="theoryP2">啞黑色表面是良好的吸收體，能有效吸收來自熱源的輻射熱。銀色表面則會反射大部分的輻射熱，因此吸熱較慢。</p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
+                    <p class="font-semibold text-center text-slate-800" data-i18n="theoryConclusion">結論：黑色是良好的吸收體，也是良好的輻射體。</p>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-4 text-center">
+                <button onclick="toggleModal(false)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-6 rounded transition" data-i18n="btnClose">關閉</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Configuration
-        const UPDATE_INTERVAL_MS = 200; 
-        const BASE_TIME_SCALE = 15; // 0.25 simulated min per real sec (Slower speed)
-        const apiKey = ""; // Environment API Key
+        // --- Localization Data ---
+        const translations = {
+            zh: {
+                appTitle: "熱輻射實驗模擬",
+                appSubtitle: "探究表面顏色與熱傳遞的關係",
+                exp1: "實驗一：散熱",
+                exp2: "實驗二：吸熱",
+                btnTheory: "原理解說",
+                settingsTitle: "參數設定",
+                fairTest: "公平測試：體積與材質相同",
+                lblSlider1_Cool: "初始溫度 (水溫)",
+                lblSlider1_Heat: "初始溫度 (瓶溫)",
+                lblSlider2_Cool: "環境溫度 (室溫)",
+                lblSlider2_Heat: "熱源強度 (等效溫度)",
+                simSpeed: "模擬速度",
+                btnStart: "開始實驗",
+                btnPause: "暫停",
+                btnContinue: "繼續",
+                btnReset: "重置",
+                elapsedTime: "經過時間",
+                heatSource: "熱源 (輻射)",
+                silverBottle: "銀色瓶",
+                blackBottle: "啞黑瓶",
+                chartTitle: "溫度-時間 關係圖",
+                modalTitle: "熱輻射原理",
+                theoryH1: "1. 表面顏色與輻射 (Emission)",
+                theoryP1: "啞黑色表面是良好的輻射體，能有效地將內能轉化為紅外線輻射散失到環境中。相反，銀色或光亮表面是較差的輻射體，散熱較慢。",
+                theoryH2: "2. 表面顏色與吸收 (Absorption)",
+                theoryP2: "啞黑色表面是良好的吸收體，能有效吸收來自熱源的輻射熱。銀色表面則會反射大部分的輻射熱，因此吸熱較慢。",
+                theoryConclusion: "結論：黑色是良好的吸收體，也是良好的輻射體。",
+                btnClose: "關閉"
+            },
+            en: {
+                appTitle: "Heat Radiation Sim",
+                appSubtitle: "Investigating Color & Heat Transfer",
+                exp1: "Exp 1: Cooling",
+                exp2: "Exp 2: Heating",
+                btnTheory: "Theory",
+                settingsTitle: "Settings",
+                fairTest: "Control Variables: Volume & Material",
+                lblSlider1_Cool: "Initial Temp (Water)",
+                lblSlider1_Heat: "Initial Temp (Bottle)",
+                lblSlider2_Cool: "Room Temp",
+                lblSlider2_Heat: "Source Intensity",
+                simSpeed: "Sim Speed",
+                btnStart: "Start",
+                btnPause: "Pause",
+                btnContinue: "Resume",
+                btnReset: "Reset",
+                elapsedTime: "Time Elapsed",
+                heatSource: "Heat Source",
+                silverBottle: "Silver Bottle",
+                blackBottle: "Matte Black Bottle",
+                chartTitle: "Temperature vs Time",
+                modalTitle: "Physics Principles",
+                theoryH1: "1. Color & Emission",
+                theoryP1: "Matte black surfaces are good emitters of radiation, releasing internal energy as infrared radiation effectively. Silver/shiny surfaces are poor emitters.",
+                theoryH2: "2. Color & Absorption",
+                theoryP2: "Matte black surfaces are good absorbers, effectively taking in radiant heat. Silver surfaces reflect most radiation, absorbing heat slowly.",
+                theoryConclusion: "Conclusion: A good absorber is also a good emitter.",
+                btnClose: "Close"
+            }
+        };
 
-        // Physics Constants (Newton's Law)
-        // Rate = k * (T_target - T_current)
+        // --- Configuration ---
+        const UPDATE_INTERVAL_MS = 200; 
+        const BASE_TIME_SCALE = 15; // Slow speed (0.25 min/sec)
         
-        // Cooling Constants (Black radiates faster)
+        // Physics Constants
         const K_COOL_SILVER = 0.02; 
         const K_COOL_BLACK = 0.05; 
-
-        // Heating Constants (Black absorbs faster)
-        // Assuming Source Temp is 100°C (or set by slider)
         const K_HEAT_SILVER = 0.02; 
         const K_HEAT_BLACK = 0.06; 
 
         // --- State ---
         let state = {
-            mode: 'cooling', // 'cooling' or 'heating'
+            lang: 'zh',
+            mode: 'cooling',
             isRunning: false,
             currentTime: 0,
-            
-            // Parameters
-            param1: 80.0, // Cooling: Start Temp (High), Heating: Start Temp (Low)
-            param2: 25.0, // Cooling: Env Temp (Low), Heating: Source Temp (High)
-            
+            param1: 80.0,
+            param2: 25.0,
             speedMultiplier: 1.0,
-            
-            // Current Temps
             tempSilver: 80.0,
             tempBlack: 80.0,
             timerId: null
@@ -336,13 +381,12 @@
 
         // --- Elements ---
         const els = {
-            sidebar: document.getElementById('sidebar'),
             navCooling: document.getElementById('navCooling'),
             navHeating: document.getElementById('navHeating'),
-            pageTitle: document.getElementById('pageTitle'),
+            mobNavCooling: document.getElementById('mobNavCooling'),
+            mobNavHeating: document.getElementById('mobNavHeating'),
             controlPanel: document.getElementById('controlPanel'),
             
-            // Labels for sliders
             lblSlider1: document.getElementById('lblSlider1'),
             valParam1: document.getElementById('valParam1'),
             minParam1: document.getElementById('minParam1'),
@@ -353,18 +397,15 @@
             minParam2: document.getElementById('minParam2'),
             maxParam2: document.getElementById('maxParam2'),
 
-            // Inputs
-            rngParam1: document.getElementById('rngParam1'), // Cooling: Start, Heating: Start
-            rngParam2: document.getElementById('rngParam2'), // Cooling: Env, Heating: Source
+            rngParam1: document.getElementById('rngParam1'),
+            rngParam2: document.getElementById('rngParam2'),
             rngSpeed: document.getElementById('rngSpeed'),
             valSpeed: document.getElementById('valSpeed'),
 
-            // Buttons
             btnStart: document.getElementById('btnStart'),
             btnStartText: document.getElementById('btnStartText'),
             btnReset: document.getElementById('btnReset'),
             
-            // Displays
             timerDisplay: document.getElementById('timerDisplay'),
             silverTemp: document.getElementById('silverTempDisplay'),
             blackTemp: document.getElementById('blackTempDisplay'),
@@ -373,30 +414,22 @@
             silverSteam: document.getElementById('silverSteam'),
             blackSteam: document.getElementById('blackSteam'),
             heatSource: document.getElementById('heatSource'),
-            
-            // AI
-            tabAnalyze: document.getElementById('tabAnalyze'),
-            tabAsk: document.getElementById('tabAsk'),
-            viewAnalyze: document.getElementById('viewAnalyze'),
-            viewAsk: document.getElementById('viewAsk'),
-            btnAnalyze: document.getElementById('btnAnalyze'),
-            iconAnalyze: document.getElementById('iconAnalyze'),
-            analysisResult: document.getElementById('analysisResult'),
-            inputQuestion: document.getElementById('inputQuestion'),
-            btnAsk: document.getElementById('btnAsk'),
-            iconAsk: document.getElementById('iconAsk'),
-            qaResult: document.getElementById('qaResult')
+
+            langDisplay: document.getElementById('langDisplay'),
+            modal: document.getElementById('theoryModal'),
+            modalContent: document.getElementById('modalContent')
         };
 
         // --- Chart Setup ---
         const ctx = document.getElementById('mainChart').getContext('2d');
+        Chart.defaults.font.family = "'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif";
         const chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [0],
                 datasets: [
                     {
-                        label: '銀色瓶 (Silver)',
+                        label: 'Silver',
                         data: [],
                         borderColor: '#94a3b8', 
                         backgroundColor: 'rgba(148, 163, 184, 0.2)',
@@ -405,7 +438,7 @@
                         pointRadius: 0
                     },
                     {
-                        label: '黑色瓶 (Black)',
+                        label: 'Black',
                         data: [],
                         borderColor: '#0f172a', 
                         backgroundColor: 'rgba(15, 23, 42, 0.2)',
@@ -419,81 +452,137 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 scales: {
                     x: {
-                        title: { display: true, text: '時間 (分鐘)' },
+                        title: { display: true, text: 'Time (min)' },
                         grid: { display: false }
                     },
                     y: {
-                        title: { display: true, text: '溫度 (°C)' }
+                        title: { display: true, text: 'Temp (°C)' }
                     }
                 },
                 plugins: {
-                    legend: { position: 'top' },
-                    tooltip: { mode: 'index', intersect: false }
+                    legend: { position: 'top' }
                 }
             }
         });
 
-        // --- Mode Switching Logic ---
+        // --- Logic: Language & Text ---
+
+        function updateTexts() {
+            const t = translations[state.lang];
+            
+            // Static elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.textContent = t[key];
+            });
+
+            // Dynamic Labels based on mode
+            if (state.mode === 'cooling') {
+                els.lblSlider1.textContent = t.lblSlider1_Cool;
+                els.lblSlider2.textContent = t.lblSlider2_Cool;
+            } else {
+                els.lblSlider1.textContent = t.lblSlider1_Heat;
+                els.lblSlider2.textContent = t.lblSlider2_Heat;
+            }
+
+            // Buttons state text
+            if(state.isRunning) els.btnStartText.textContent = t.btnPause;
+            else if(state.currentTime > 0) els.btnStartText.textContent = t.btnContinue;
+            else els.btnStartText.textContent = t.btnStart;
+
+            // Chart Labels
+            chart.data.datasets[0].label = t.silverBottle;
+            chart.data.datasets[1].label = t.blackBottle;
+            chart.options.scales.x.title.text = state.lang === 'zh' ? '時間 (分鐘)' : 'Time (min)';
+            chart.options.scales.y.title.text = state.lang === 'zh' ? '溫度 (°C)' : 'Temp (°C)';
+            chart.update();
+
+            // els.langDisplay.textContent = state.lang === 'zh' ? 'EN' : '中';
+        }
+
+        function toggleLanguage() {
+            state.lang = state.lang === 'zh' ? 'en' : 'zh';
+            updateTexts();
+        }
+
+        // --- Logic: Modal ---
+        function toggleModal(show) {
+            const modal = els.modal;
+            const content = els.modalContent;
+            
+            if (show) {
+                modal.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    content.classList.remove('scale-95', 'opacity-0');
+                    content.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        // --- Logic: Simulation Mode ---
 
         function switchMode(mode) {
             pauseSimulation();
             state.mode = mode;
 
-            if (mode === 'cooling') {
-                // UI Update
+            // Update Menu UI
+            [els.navCooling, els.navHeating, els.mobNavCooling, els.mobNavHeating].forEach(el => el.classList.remove('active'));
+            if(mode === 'cooling') {
                 els.navCooling.classList.add('active');
-                els.navHeating.classList.remove('active');
-                els.pageTitle.textContent = "實驗一：表面顏色與散熱速率";
+                els.mobNavCooling.classList.add('active');
                 els.controlPanel.classList.replace('border-orange-500', 'border-blue-500');
-
-                // Sliders config for Cooling
-                els.lblSlider1.textContent = "初始溫度 (水溫)";
+                
+                // Sliders for Cooling
                 els.rngParam1.min = 40; els.rngParam1.max = 100; els.rngParam1.value = 80;
                 els.minParam1.textContent = "40°C"; els.maxParam1.textContent = "100°C";
-                els.rngParam1.className = "w-full text-red-500 accent-red-500";
+                els.rngParam1.className = "w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-500";
                 
-                els.lblSlider2.textContent = "環境溫度 (室溫)";
                 els.rngParam2.min = 0; els.rngParam2.max = 40; els.rngParam2.value = 25;
                 els.minParam2.textContent = "0°C"; els.maxParam2.textContent = "40°C";
-                els.rngParam2.className = "w-full text-blue-500 accent-blue-500";
+                els.rngParam2.className = "w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500";
 
-                // Visuals
                 els.heatSource.style.opacity = '0';
             } else {
-                // UI Update
                 els.navHeating.classList.add('active');
-                els.navCooling.classList.remove('active');
-                els.pageTitle.textContent = "實驗二：表面顏色與吸熱速率";
+                els.mobNavHeating.classList.add('active');
                 els.controlPanel.classList.replace('border-blue-500', 'border-orange-500');
 
-                // Sliders config for Heating
-                els.lblSlider1.textContent = "初始溫度 (瓶溫)";
+                // Sliders for Heating
                 els.rngParam1.min = 0; els.rngParam1.max = 30; els.rngParam1.value = 20;
                 els.minParam1.textContent = "0°C"; els.maxParam1.textContent = "30°C";
-                els.rngParam1.className = "w-full text-blue-500 accent-blue-500"; // Start cold
+                els.rngParam1.className = "w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500";
 
-                els.lblSlider2.textContent = "熱源等效溫度 (強度)";
                 els.rngParam2.min = 50; els.rngParam2.max = 120; els.rngParam2.value = 100;
                 els.minParam2.textContent = "50°C"; els.maxParam2.textContent = "120°C";
-                els.rngParam2.className = "w-full text-orange-500 accent-orange-500"; // Source hot
+                els.rngParam2.className = "w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500";
 
-                // Visuals
                 els.heatSource.style.opacity = '1';
             }
-
+            
+            updateTexts(); // Update labels
             resetSimulation();
         }
 
-        // --- Simulation Logic ---
+        // --- Logic: Physics Engine ---
 
         function getTempColor(temp) {
-            // Map 0-100 to color
             const maxT = 100;
             const minT = 0;
             const percent = Math.max(0, Math.min(1, (temp - minT) / (maxT - minT)));
-            const hue = (1 - percent) * 240; // 240(Blue) -> 0(Red)
+            const hue = (1 - percent) * 240; 
             return `hsl(${hue}, 90%, 50%)`;
         }
 
@@ -508,30 +597,18 @@
             state.currentTime += dt;
 
             if (state.mode === 'cooling') {
-                // Cooling Physics: T = T_env + (T_start - T_env) * e^(-kt)
                 const T_start = state.param1;
                 const T_env = state.param2;
-                
                 state.tempSilver = T_env + (T_start - T_env) * Math.exp(-K_COOL_SILVER * state.currentTime);
                 state.tempBlack = T_env + (T_start - T_env) * Math.exp(-K_COOL_BLACK * state.currentTime);
-                
-                // Auto-stop Check
                 if (Math.abs(state.tempSilver - T_env) < 0.1) pauseSimulation();
-
             } else {
-                // Heating Physics: Approach Target Temp
-                // T = T_start + (T_source - T_start) * (1 - e^(-kt))
-                // Note: Simulating absorption from a constant source
                 const T_start = state.param1;
-                const T_source = state.param2; // Effective max temperature reachable
-
+                const T_source = state.param2;
                 state.tempSilver = T_start + (T_source - T_start) * (1 - Math.exp(-K_HEAT_SILVER * state.currentTime));
                 state.tempBlack = T_start + (T_source - T_start) * (1 - Math.exp(-K_HEAT_BLACK * state.currentTime));
-                
-                // Auto-stop Check
                 if (Math.abs(state.tempBlack - T_source) < 0.5) pauseSimulation();
             }
-
             updateUI(true);
         }
 
@@ -543,11 +620,9 @@
             els.valParam1.textContent = state.param1 + "°C";
             els.valParam2.textContent = state.param2 + "°C";
 
-            // Visual Colors
             els.silverLiquid.style.backgroundColor = getTempColor(state.tempSilver);
             els.blackLiquid.style.backgroundColor = getTempColor(state.tempBlack);
 
-            // Steam (Only in Cooling Mode and Hot)
             const isHot = (state.tempSilver > 45 && state.mode === 'cooling');
             els.silverSteam.style.opacity = isHot ? '1' : '0';
             els.blackSteam.style.opacity = (state.tempBlack > 45 && state.mode === 'cooling') ? '1' : '0';
@@ -563,21 +638,15 @@
         function resetSimulation() {
             pauseSimulation();
             state.currentTime = 0;
-            
-            // Read params from sliders
             state.param1 = parseFloat(els.rngParam1.value);
             state.param2 = parseFloat(els.rngParam2.value);
-            
-            // Set initial temps
             state.tempSilver = state.param1;
             state.tempBlack = state.param1;
 
-            // Chart Reset
             chart.data.labels = [0];
             chart.data.datasets[0].data = [state.tempSilver];
             chart.data.datasets[1].data = [state.tempBlack];
             
-            // Scale Adjustment
             if (state.mode === 'cooling') {
                 chart.options.scales.y.min = Math.max(0, state.param2 - 5);
                 chart.options.scales.y.max = state.param1 + 5;
@@ -587,13 +656,7 @@
             }
             chart.update();
 
-            els.btnStartText.textContent = "開始實驗";
-            
-            // Reset AI UI
-            els.analysisResult.classList.add('hidden');
-            els.analysisResult.innerHTML = "";
-            els.qaResult.classList.add('hidden');
-
+            updateTexts(); // Reset button text
             updateUI(false);
         }
 
@@ -602,12 +665,12 @@
             state.isRunning = true;
             els.btnStart.classList.replace('bg-green-600', 'bg-yellow-500');
             els.btnStart.classList.replace('hover:bg-green-700', 'hover:bg-yellow-600');
-            els.btnStartText.textContent = "暫停";
+            updateTexts();
             
             els.rngParam1.disabled = true;
             els.rngParam2.disabled = true;
-            els.rngParam1.classList.add('opacity-50');
-            els.rngParam2.classList.add('opacity-50');
+            els.rngParam1.classList.add('opacity-50', 'cursor-not-allowed');
+            els.rngParam2.classList.add('opacity-50', 'cursor-not-allowed');
             
             state.timerId = setInterval(updateSimulation, UPDATE_INTERVAL_MS);
         }
@@ -617,89 +680,15 @@
             clearInterval(state.timerId);
             els.btnStart.classList.replace('bg-yellow-500', 'bg-green-600');
             els.btnStart.classList.replace('hover:bg-yellow-600', 'hover:bg-green-700');
-            els.btnStartText.textContent = "繼續";
+            updateTexts();
             
             els.rngParam1.disabled = false;
             els.rngParam2.disabled = false;
-            els.rngParam1.classList.remove('opacity-50');
-            els.rngParam2.classList.remove('opacity-50');
+            els.rngParam1.classList.remove('opacity-50', 'cursor-not-allowed');
+            els.rngParam2.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
-        // --- Gemini API Logic ---
-
-        async function callGemini(prompt) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ parts: [{ text: prompt }] }] };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
-            } catch (error) {
-                console.error(error);
-                return "抱歉，AI 連線發生問題。";
-            }
-        }
-
-        els.btnAnalyze.addEventListener('click', async () => {
-            const modeText = state.mode === 'cooling' ? "散熱 (冷卻)" : "吸熱 (加熱)";
-            const prompt = `
-                你是一位中學物理老師。學生正在進行「熱輻射」實驗：${modeText}。
-                
-                實驗數據：
-                - 模式: ${modeText}
-                - 初始溫度: ${state.param1}°C
-                - 環境/熱源溫度: ${state.param2}°C
-                - 經過時間: ${state.currentTime.toFixed(1)} 分鐘
-                - 銀色瓶溫度: ${state.tempSilver.toFixed(1)}°C
-                - 黑色瓶溫度: ${state.tempBlack.toFixed(1)}°C
-                
-                請用繁體中文回答：
-                1. 描述觀察到的現象（哪個顏色的瓶子溫度變化較快？）。
-                2. 解釋物理原理：
-                   - 如果是散熱：解釋黑色是良好的輻射體。
-                   - 如果是吸熱：解釋黑色是良好的吸收體。
-                3. 總結：良好的吸收體也是良好的輻射體 (Kirchhoff's law 概念的簡單版)。
-            `;
-
-            els.btnAnalyze.disabled = true;
-            els.iconAnalyze.classList.remove('hidden');
-            els.analysisResult.classList.remove('hidden');
-            els.analysisResult.innerHTML = "<p class='animate-pulse text-slate-400'>AI 正在分析數據中...</p>";
-
-            const result = await callGemini(prompt);
-            els.analysisResult.innerHTML = marked.parse(result);
-            els.btnAnalyze.disabled = false;
-            els.iconAnalyze.classList.add('hidden');
-        });
-
-        els.btnAsk.addEventListener('click', async () => {
-            const question = els.inputQuestion.value.trim();
-            if (!question) return;
-
-            const prompt = `
-                你是一位物理老師。學生在進行「${state.mode === 'cooling' ? '散熱' : '吸熱'}」實驗時提問。
-                問題："${question}"
-                請用繁體中文回答，並結合熱輻射的物理原理。
-            `;
-
-            els.btnAsk.disabled = true;
-            els.iconAsk.classList.remove('hidden');
-            els.qaResult.classList.remove('hidden');
-            els.qaResult.innerHTML = "<p class='animate-pulse text-slate-400'>AI 正在思考中...</p>";
-
-            const result = await callGemini(prompt);
-            els.qaResult.innerHTML = marked.parse(result);
-            els.btnAsk.disabled = false;
-            els.iconAsk.classList.add('hidden');
-        });
-
-        // --- Event Listeners ---
+        // --- Listeners ---
         els.rngParam1.addEventListener('input', resetSimulation);
         els.rngParam2.addEventListener('input', resetSimulation);
         els.rngSpeed.addEventListener('input', (e) => {
@@ -710,18 +699,6 @@
             if (state.isRunning) pauseSimulation(); else startSimulation();
         });
         els.btnReset.addEventListener('click', resetSimulation);
-
-        // UI Tabs for AI
-        els.tabAnalyze.addEventListener('click', () => {
-            els.viewAnalyze.classList.remove('hidden'); els.viewAsk.classList.add('hidden');
-            els.tabAnalyze.classList.add('bg-white', 'text-indigo-600'); els.tabAnalyze.classList.remove('bg-transparent', 'text-slate-600');
-            els.tabAsk.classList.add('bg-transparent', 'text-slate-600'); els.tabAsk.classList.remove('bg-white', 'text-indigo-600');
-        });
-        els.tabAsk.addEventListener('click', () => {
-            els.viewAnalyze.classList.add('hidden'); els.viewAsk.classList.remove('hidden');
-            els.tabAsk.classList.add('bg-white', 'text-indigo-600'); els.tabAsk.classList.remove('bg-transparent', 'text-slate-600');
-            els.tabAnalyze.classList.add('bg-transparent', 'text-slate-600'); els.tabAnalyze.classList.remove('bg-white', 'text-indigo-600');
-        });
 
         // Init
         switchMode('cooling');
