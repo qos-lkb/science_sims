@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理電路模擬實驗室 (HK版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 加入 MathJax 以顯示數學公式 -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* 禁止選取文字，讓拖曳體驗更好 */
+        body { user-select: none; -webkit-user-select: none; }
+        canvas { touch-action: none; }
+        /* 使用更清晰的系統字體 */
+        .font-clear { font-family: "Helvetica Neue", Arial, "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif; }
+        /* 拖曳時的游標樣式 */
+        .cursor-grab { cursor: grab; }
+        .cursor-grab:active { cursor: grabbing; }
+        .cursor-crosshair { cursor: crosshair; }
+        
+        /* Modal 動畫 */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 200ms, transform 200ms; }
+        .modal-exit { opacity: 1; transform: scale(1); }
+        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: opacity 200ms, transform 200ms; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-clear h-screen flex flex-col overflow-hidden">
+
+    <!-- 頂部標題列 -->
+    <header class="bg-white p-4 shadow-sm flex justify-between items-center z-10 border-b border-gray-200">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">P</div>
+            <h1 class="text-xl font-bold tracking-wide text-gray-800" data-i18n="app_title">物理電路實驗室 <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">HK版</span></h1>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div class="text-sm text-gray-500 hidden lg:block" data-i18n="hint_drag">
+                提示：在畫布空白處拖曳可直接繪製導線。元件會自動對齊網格。
+            </div>
+            
+            <!-- 功能按鈕區 -->
+            <div class="flex gap-2">
+                <button onclick="circuitApp.toggleTheory()" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold text-sm transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span data-i18n="btn_theory">原理解說</span>
+                </button>
+                <button onclick="circuitApp.toggleLanguage()" class="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-bold text-sm transition border border-gray-300 w-24">
+                    中 / EN
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 relative">
+        
+        <!-- 左側工具欄 (可拖曳) -->
+        <aside class="w-20 bg-white flex flex-col items-center py-4 gap-4 border-r border-gray-200 shadow-lg z-10 text-gray-700 overflow-y-auto">
+            
+            <!-- Battery -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'battery')" onclick="circuitApp.addComponent('battery')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-blue-100 border border-gray-200 hover:border-blue-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-800 pointer-events-none">
+                        <path d="M2 16 H12" /> 
+                        <path d="M12 6 V26" />
+                        <path d="M18 11 V21" stroke-width="3" />
+                        <path d="M18 16 H28" />
+                    </svg>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_battery">電池</span>
+            </div>
+
+            <!-- Resistor -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'resistor')" onclick="circuitApp.addComponent('resistor')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-orange-100 border border-gray-200 hover:border-orange-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <div class="w-8 h-3 border-2 border-gray-800 flex items-center justify-center text-[8px] bg-white pointer-events-none"></div>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_resistor">電阻</span>
+            </div>
+
+            <!-- Bulb -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'bulb')" onclick="circuitApp.addComponent('bulb')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-yellow-100 border border-gray-200 hover:border-yellow-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-800 pointer-events-none">
+                        <circle cx="16" cy="16" r="12" />
+                        <path d="M10 16 A 6 6 0 0 1 22 16" />
+                        <path d="M4 16 H10 M22 16 H28" />
+                    </svg>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_bulb">燈泡</span>
+            </div>
+
+            <!-- Switch -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'switch')" onclick="circuitApp.addComponent('switch')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-green-100 border border-gray-200 hover:border-green-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <div class="w-6 h-4 border-b-2 border-gray-800 relative pointer-events-none">
+                        <div class="absolute w-full h-0.5 bg-gray-800 origin-left -rotate-12 bottom-0"></div>
+                    </div>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_switch">開關</span>
+            </div>
+
+            <!-- Wire -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'wire')" onclick="circuitApp.addComponent('wire')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-gray-200 border border-gray-200 hover:border-gray-400 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-800 pointer-events-none">
+                        <path d="M4 12c0-4 8-8 16 0" />
+                    </svg>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_wire">導線</span>
+            </div>
+            
+            <div class="w-10 h-0.5 bg-gray-200 my-1"></div>
+
+            <!-- Ammeter -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'ammeter')" onclick="circuitApp.addComponent('ammeter')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-red-100 border border-gray-200 hover:border-red-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <div class="w-8 h-8 rounded-full border-2 border-gray-800 flex items-center justify-center font-bold text-sm text-gray-800 bg-white pointer-events-none">A</div>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_ammeter">安培計</span>
+            </div>
+
+            <!-- Voltmeter -->
+            <div class="group relative flex flex-col items-center">
+                <button draggable="true" ondragstart="circuitApp.handleDragStart(event, 'voltmeter')" onclick="circuitApp.addComponent('voltmeter')" class="p-2 w-14 h-14 bg-gray-100 hover:bg-purple-100 border border-gray-200 hover:border-purple-300 rounded-lg flex flex-col items-center justify-center transition cursor-grab">
+                    <div class="w-8 h-8 rounded-full border-2 border-gray-800 flex items-center justify-center font-bold text-sm text-gray-800 bg-white pointer-events-none">V</div>
+                </button>
+                <span class="text-[10px] font-bold mt-1" data-i18n="comp_voltmeter">伏特計</span>
+            </div>
+
+            <div class="flex-grow"></div>
+            <button onclick="circuitApp.reset()" class="text-red-500 text-xs hover:text-red-700 font-bold mb-2" data-i18n="btn_clear">清空畫布</button>
+        </aside>
+
+        <!-- 主畫布區域 -->
+        <main class="flex-1 relative bg-white overflow-hidden cursor-crosshair" id="canvas-container" 
+              ondragover="circuitApp.handleDragOver(event)" 
+              ondrop="circuitApp.handleDrop(event)">
+            <!-- 點狀網格背景 -->
+            <div class="absolute inset-0 opacity-40 pointer-events-none" 
+                 style="background-image: radial-gradient(#9ca3af 1.5px, transparent 1.5px); background-size: 30px 30px; background-position: -15px -15px;">
+            </div>
+            <canvas id="circuitCanvas" class="block w-full h-full"></canvas>
+            
+            <div id="tutorial-tip" class="absolute bottom-4 left-4 bg-blue-50 text-blue-800 text-xs px-3 py-2 rounded shadow border border-blue-200 pointer-events-none transition-opacity duration-500" data-i18n="hint_drag_short">
+                提示：在空白處按住拖曳可繪製直導線。
+            </div>
+        </main>
+
+        <!-- 右側屬性面板 -->
+        <aside id="properties-panel" class="absolute right-4 top-4 w-64 bg-white/95 backdrop-blur border border-gray-300 rounded-xl p-4 shadow-xl transition-opacity duration-200 opacity-0 pointer-events-none text-gray-800">
+            <h3 class="text-lg font-bold border-b border-gray-200 pb-2 mb-3 text-blue-600" data-i18n="prop_title">元件屬性</h3>
+            
+            <div id="prop-content" class="space-y-4">
+                <!-- 動態內容 -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2">
+                <button onclick="circuitApp.rotateSelected()" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm text-gray-800 font-bold" data-i18n="btn_rotate">⟳ 旋轉</button>
+                <button onclick="circuitApp.deleteSelected()" class="px-3 py-1 bg-red-100 hover:bg-red-200 border border-red-200 rounded text-sm text-red-600 font-bold" data-i18n="btn_delete">刪除</button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Theory Modal -->
+    <div id="theoryModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto transform scale-95 transition-transform duration-300">
+            <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-blue-500 rounded-full"></span>
+                    <span data-i18n="modal_title">電路原理解說</span>
+                </h2>
+                <button onclick="circuitApp.toggleTheory()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <div class="p-6 space-y-6 text-gray-700" id="theoryContent">
+                <!-- Content will be injected by JS -->
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 電路模擬核心 (HK Physics Version - Bilingual & Theory)
+ */
+
+// I18N Data
+const TRANSLATIONS = {
+    zh: {
+        app_title: '物理電路模擬實驗室 <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">HK版</span>',
+        hint_drag: '提示：在畫布空白處拖曳可直接繪製導線。元件會自動對齊網格。',
+        hint_drag_short: '提示：在空白處按住拖曳可繪製直導線。',
+        btn_theory: '原理解說',
+        btn_clear: '清空畫布',
+        btn_rotate: '⟳ 旋轉',
+        btn_delete: '刪除',
+        comp_battery: '電池',
+        comp_resistor: '電阻',
+        comp_bulb: '燈泡',
+        comp_switch: '開關',
+        comp_wire: '導線',
+        comp_ammeter: '安培計',
+        comp_voltmeter: '伏特計',
+        prop_title: '元件屬性',
+        prop_type: '類型',
+        prop_resistance: '電阻 (Ω)',
+        prop_voltage: '電壓 (V)',
+        prop_rated_r: '額定電阻 (Ω)',
+        prop_length: '長度',
+        prop_curve: '彎曲度',
+        prop_v_drop: '跨壓(V):',
+        prop_current: '電流(I):',
+        prop_state: '狀態',
+        state_on: '閉合 (ON)',
+        state_off: '斷開 (OFF)',
+        color_black: '黑色',
+        color_red: '紅色',
+        btn_reverse: '⇄ 反轉極性',
+        modal_title: '電路原理解說',
+        theory_content: `
+            <div class="space-y-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-blue-800 mb-2 text-lg">電流 (Current, I)</h3>
+                    <p>電荷流動的速率。電流由正極流向負極（傳統電流方向）。</p>
+                    <div class="font-mono mt-1 text-sm text-blue-600">單位：安培 (Ampere, A)</div>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-orange-800 mb-2 text-lg">電壓 (Voltage, V)</h3>
+                    <p>驅動電荷流動的電位差（又稱電勢差）。電池提供電壓來推動電流。</p>
+                    <div class="font-mono mt-1 text-sm text-orange-600">單位：伏特 (Volt, V)</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-green-800 mb-2 text-lg">電阻 (Resistance, R)</h3>
+                    <p>物體對電流流動的阻礙程度。電阻越大，同樣電壓下流過的電流越小。</p>
+                    <div class="font-mono mt-1 text-sm text-green-600">單位：歐姆 (Ohm, Ω)</div>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg border-l-4 border-gray-500">
+                    <h3 class="font-bold text-gray-800 mb-2 text-lg">歐姆定律 (Ohm's Law)</h3>
+                    <p class="mb-2">在定溫下，通過導體的電流與跨過它的電壓成正比，與其電阻成反比。</p>
+                    <div class="text-xl font-bold text-center py-2 bg-white rounded shadow-sm">
+                        $$ V = I \\times R $$
+                    </div>
+                    <ul class="list-disc list-inside mt-2 text-sm text-gray-600">
+                        <li><strong>V</strong> = 電壓 (V)</li>
+                        <li><strong>I</strong> = 電流 (A)</li>
+                        <li><strong>R</strong> = 電阻 (Ω)</li>
+                    </ul>
+                </div>
+            </div>
+        `
+    },
+    en: {
+        app_title: 'Physics Circuit Lab <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">HK Ed.</span>',
+        hint_drag: 'Tip: Drag on empty space to draw wires. Components snap to grid.',
+        hint_drag_short: 'Tip: Drag on empty space to draw straight wires.',
+        btn_theory: 'Theory',
+        btn_clear: 'Clear',
+        btn_rotate: '⟳ Rotate',
+        btn_delete: 'Delete',
+        comp_battery: 'Battery',
+        comp_resistor: 'Resistor',
+        comp_bulb: 'Bulb',
+        comp_switch: 'Switch',
+        comp_wire: 'Wire',
+        comp_ammeter: 'Ammeter',
+        comp_voltmeter: 'Voltmeter',
+        prop_title: 'Properties',
+        prop_type: 'Type',
+        prop_resistance: 'Resistance (Ω)',
+        prop_voltage: 'Voltage (V)',
+        prop_rated_r: 'Rated Res. (Ω)',
+        prop_length: 'Length',
+        prop_curve: 'Curvature',
+        prop_v_drop: 'Voltage(V):',
+        prop_current: 'Current(I):',
+        prop_state: 'State',
+        state_on: 'Closed (ON)',
+        state_off: 'Open (OFF)',
+        color_black: 'Black',
+        color_red: 'Red',
+        btn_reverse: '⇄ Reverse Polarity',
+        modal_title: 'Circuit Theory',
+        theory_content: `
+            <div class="space-y-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-blue-800 mb-2 text-lg">Current (I)</h3>
+                    <p>The rate of flow of electric charge. Conventional current flows from positive to negative.</p>
+                    <div class="font-mono mt-1 text-sm text-blue-600">Unit: Ampere (A)</div>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-orange-800 mb-2 text-lg">Voltage (V)</h3>
+                    <p>The electric potential difference between two points. It drives the current flow.</p>
+                    <div class="font-mono mt-1 text-sm text-orange-600">Unit: Volt (V)</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-green-800 mb-2 text-lg">Resistance (R)</h3>
+                    <p>A measure of the opposition to current flow. Higher resistance means less current for the same voltage.</p>
+                    <div class="font-mono mt-1 text-sm text-green-600">Unit: Ohm (Ω)</div>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg border-l-4 border-gray-500">
+                    <h3 class="font-bold text-gray-800 mb-2 text-lg">Ohm's Law</h3>
+                    <p class="mb-2">Current through a conductor is directly proportional to voltage and inversely proportional to resistance.</p>
+                    <div class="text-xl font-bold text-center py-2 bg-white rounded shadow-sm">
+                        $$ V = I \\times R $$
+                    </div>
+                    <ul class="list-disc list-inside mt-2 text-sm text-gray-600">
+                        <li><strong>V</strong> = Voltage (V)</li>
+                        <li><strong>I</strong> = Current (A)</li>
+                        <li><strong>R</strong> = Resistance (Ω)</li>
+                    </ul>
+                </div>
+            </div>
+        `
+    }
+};
+
+const GRID_SIZE = 30;
+
+function solveLinearSystem(A, b) {
+    const n = A.length;
+    for (let i = 0; i < n; i++) A[i].push(b[i]);
+    for (let i = 0; i < n; i++) {
+        let maxRow = i;
+        for (let k = i + 1; k < n; k++) {
+            if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+        }
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+        if (Math.abs(A[i][i]) < 1e-10) continue;
+        for (let k = i + 1; k < n; k++) {
+            const factor = A[k][i] / A[i][i];
+            for (let j = i; j <= n; j++) A[k][j] -= factor * A[i][j];
+        }
+    }
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+        let sum = 0;
+        for (let j = i + 1; j < n; j++) sum += A[i][j] * x[j];
+        if (Math.abs(A[i][i]) > 1e-10) x[i] = (A[i][n] - sum) / A[i][i];
+    }
+    return x;
+}
+
+class Component {
+    constructor(type, x, y, id) {
+        this.id = id;
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.rotation = 0;
+        
+        this.width = (type === 'wire') ? 120 : 60; 
+        this.height = 40;
+        
+        this.resistance = 10;
+        this.voltage = 9;
+        this.isClosed = true;
+        this.bend = 0;
+        this.color = '#000000';
+        
+        this.current = 0;
+        this.voltageDrop = 0;
+        this.nodeA = null;
+        this.nodeB = null;
+
+        this.setDefaultProps();
+    }
+
+    setDefaultProps() {
+        switch(this.type) {
+            case 'wire': this.resistance = 0.001; this.bend = 0; break;
+            case 'switch': this.resistance = 0.001; this.isClosed = false; break;
+            case 'ammeter': this.resistance = 0.001; break;
+            case 'voltmeter': this.resistance = 1000000; break;
+            case 'bulb': this.resistance = 5; break;
+            case 'battery': this.resistance = 0.01; break;
+        }
+    }
+
+    getResistance() {
+        if (this.type === 'switch' && !this.isClosed) return 100000000;
+        return this.resistance;
+    }
+}
+
+class CircuitApp {
+    constructor() {
+        this.canvas = document.getElementById('circuitCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.components = [];
+        this.nodes = [];
+        
+        this.dragging = null;
+        this.draggingHandle = null;
+        this.dragOffset = { x: 0, y: 0 };
+        this.connectingTerminal = null;
+        this.selectedComponent = null;
+        
+        this.isDrawingWire = false;
+        this.wireStart = { x: 0, y: 0 };
+        this.wireEnd = { x: 0, y: 0 };
+        
+        this.time = 0;
+        this.idCounter = 0;
+        
+        // Settings
+        this.lang = 'zh';
+        this.isTheoryOpen = false;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupEvents();
+        this.setupKeyboard();
+        
+        this.updateUIText(); // Init texts
+        this.loop();
+    }
+
+    // --- Localization & UI ---
+
+    t(key) {
+        return TRANSLATIONS[this.lang][key] || key;
+    }
+
+    toggleLanguage() {
+        this.lang = this.lang === 'zh' ? 'en' : 'zh';
+        this.updateUIText();
+        this.updatePropertiesPanel(); // refresh prop panel language
+    }
+
+    updateUIText() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            el.innerHTML = this.t(key);
+        });
+        
+        // Refresh MathJax if content changed
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+    }
+
+    toggleTheory() {
+        this.isTheoryOpen = !this.isTheoryOpen;
+        const modal = document.getElementById('theoryModal');
+        if (this.isTheoryOpen) {
+            modal.classList.remove('hidden');
+            // Trigger reflow for transition
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('scale-95');
+            modal.querySelector('div').classList.add('scale-100');
+            
+            // Render content
+            document.getElementById('theoryContent').innerHTML = this.t('theory_content');
+            if (window.MathJax) MathJax.typesetPromise();
+        } else {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                if(!this.isTheoryOpen) modal.classList.add('hidden');
+            }, 300);
+        }
+    }
+
+    // --- Core Methods ---
+
+    resize() {
+        this.canvas.width = this.canvas.parentElement.offsetWidth;
+        this.canvas.height = this.canvas.parentElement.offsetHeight;
+        this.draw();
+    }
+
+    snap(val) {
+        return Math.round(val / GRID_SIZE) * GRID_SIZE;
+    }
+
+    addComponent(type, dropX, dropY) {
+        let cx, cy;
+        
+        if (dropX !== undefined) {
+            cx = this.snap(dropX);
+            cy = this.snap(dropY);
+        } else {
+            cx = this.snap(this.canvas.width / 2);
+            cy = this.snap(this.canvas.height / 2);
+        }
+        
+        const comp = new Component(type, cx, cy, ++this.idCounter);
+        
+        if (type === 'wire' && dropX === undefined) {
+             comp.bend = 20;
+             comp.rotation = (Math.random() - 0.5) * 0.5;
+        }
+
+        this.components.push(comp);
+        this.selectedComponent = comp;
+        this.updatePropertiesPanel();
+        this.solveCircuit();
+        
+        setTimeout(() => {
+            const tip = document.getElementById('tutorial-tip');
+            if(tip) tip.style.opacity = '0';
+        }, 3000);
+    }
+
+    reset() {
+        this.components = [];
+        this.selectedComponent = null;
+        this.updatePropertiesPanel();
+        this.solveCircuit();
+    }
+
+    deleteSelected() {
+        if (this.selectedComponent) {
+            this.components = this.components.filter(c => c !== this.selectedComponent);
+            this.selectedComponent = null;
+            this.updatePropertiesPanel();
+            this.solveCircuit();
+        }
+    }
+
+    rotateSelected() {
+        if (this.selectedComponent) {
+            this.selectedComponent.rotation += Math.PI / 2;
+            this.solveCircuit();
+        }
+    }
+
+    // --- Drag & Drop Handlers ---
+    handleDragStart(e, type) {
+        e.dataTransfer.setData('componentType', type);
+        e.dataTransfer.effectAllowed = 'copy';
+    }
+
+    handleDragOver(e) {
+        e.preventDefault(); 
+        e.dataTransfer.dropEffect = 'copy';
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('componentType');
+        if (type) {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            this.addComponent(type, x, y);
+        }
+    }
+
+    // --- 物理引擎 ---
+    findNodes() {
+        const points = [];
+        this.components.forEach(c => {
+            const t1 = this.getTerminalPos(c, 0);
+            const t2 = this.getTerminalPos(c, 1);
+            points.push({ comp: c, term: 0, x: t1.x, y: t1.y });
+            points.push({ comp: c, term: 1, x: t2.x, y: t2.y });
+        });
+
+        const groups = [];
+        const threshold = 10; 
+
+        points.forEach(p => {
+            let found = false;
+            for (let g of groups) {
+                if (Math.hypot(g[0].x - p.x, g[0].y - p.y) < threshold) {
+                    g.push(p);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) groups.push([p]);
+        });
+
+        this.nodes = groups.map((g, i) => ({ id: i, points: g }));
+        this.components.forEach(c => { c.nodeA = -1; c.nodeB = -1; });
+        this.nodes.forEach(node => {
+            node.points.forEach(p => {
+                if (p.term === 0) p.comp.nodeA = node.id;
+                else p.comp.nodeB = node.id;
+            });
+        });
+    }
+
+    solveCircuit() {
+        this.findNodes();
+        const nodeCount = this.nodes.length;
+        if (nodeCount < 2) return;
+        const N = nodeCount - 1;
+        if (N === 0) return;
+
+        const G = Array(N).fill(0).map(() => Array(N).fill(0));
+        const I = Array(N).fill(0);
+
+        this.components.forEach(comp => {
+            const nA = comp.nodeA;
+            const nB = comp.nodeB;
+            if (nA === -1 || nB === -1) {
+                comp.current = 0;
+                comp.voltageDrop = 0;
+                return;
+            }
+
+            let r = comp.getResistance();
+            if (r < 0.0001) r = 0.0001;
+            const g = 1 / r;
+            
+            if (nA > 0) G[nA-1][nA-1] += g;
+            if (nB > 0) G[nB-1][nB-1] += g;
+            if (nA > 0 && nB > 0) {
+                G[nA-1][nB-1] -= g;
+                G[nB-1][nA-1] -= g;
+            }
+
+            if (comp.type === 'battery') {
+                const v = comp.voltage;
+                const currentSource = v / r;
+                if (comp.nodeB > 0) I[comp.nodeB-1] += currentSource;
+                if (comp.nodeA > 0) I[comp.nodeA-1] -= currentSource;
+            }
+        });
+
+        const nodeVoltages = solveLinearSystem(G, I);
+        const allVoltages = [0, ...nodeVoltages];
+
+        this.components.forEach(comp => {
+            if (comp.nodeA === -1 || comp.nodeB === -1) return;
+            const vA = allVoltages[comp.nodeA];
+            const vB = allVoltages[comp.nodeB];
+            comp.voltageDrop = vB - vA;
+            if (comp.type === 'battery') {
+                comp.current = (comp.voltage - (vB - vA)) / comp.getResistance();
+            } else {
+                comp.current = (vB - vA) / comp.getResistance();
+            }
+        });
+    }
+
+    // --- 繪圖 ---
+
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.components.forEach(c => this.drawComponent(c));
+        
+        if (this.isDrawingWire) {
+             this.ctx.beginPath();
+             this.ctx.moveTo(this.wireStart.x, this.wireStart.y);
+             this.ctx.lineTo(this.wireEnd.x, this.wireEnd.y);
+             this.ctx.strokeStyle = "#4b5563"; 
+             this.ctx.lineWidth = 2.5;
+             this.ctx.stroke();
+             
+             this.ctx.fillStyle = "#22c55e";
+             this.ctx.beginPath(); this.ctx.arc(this.wireStart.x, this.wireStart.y, 4, 0, Math.PI*2); this.ctx.fill();
+             this.ctx.beginPath(); this.ctx.arc(this.wireEnd.x, this.wireEnd.y, 4, 0, Math.PI*2); this.ctx.fill();
+        }
+        else if (this.connectingTerminal && this.dragMousePos) {
+            const start = this.getTerminalPos(this.connectingTerminal.comp, this.connectingTerminal.id);
+            const snappedMouse = { x: this.snap(this.dragMousePos.x), y: this.snap(this.dragMousePos.y) };
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(start.x, start.y);
+            this.ctx.lineTo(snappedMouse.x, snappedMouse.y);
+            this.ctx.strokeStyle = "#4b5563";
+            this.ctx.lineWidth = 2.5;
+            this.ctx.stroke();
+        }
+
+        this.nodes.forEach(node => {
+            if (node.points.length > 1) {
+                const p = node.points[0];
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                this.ctx.fillStyle = "#1f2937"; 
+                this.ctx.fill();
+            }
+        });
+
+        if (this.selectedComponent) {
+            const c = this.selectedComponent;
+            this.ctx.save();
+            this.ctx.translate(c.x, c.y);
+            this.ctx.rotate(c.rotation);
+            this.ctx.strokeStyle = "#3b82f6";
+            this.ctx.lineWidth = 1;
+            
+            if (c.type === 'wire') {
+                this.ctx.fillStyle = "#22c55e";
+                this.ctx.beginPath(); this.ctx.arc(-c.width/2, 0, 6, 0, Math.PI*2); this.ctx.fill(); this.ctx.stroke();
+                this.ctx.beginPath(); this.ctx.arc(c.width/2, 0, 6, 0, Math.PI*2); this.ctx.fill(); this.ctx.stroke();
+            } else {
+                this.ctx.setLineDash([4, 2]);
+                this.ctx.strokeRect(-c.width/2 - 8, -c.height/2 - 8, c.width + 16, c.height + 16);
+            }
+            this.ctx.restore();
+        }
+    }
+
+    drawComponent(c) {
+        this.ctx.save();
+        this.ctx.translate(c.x, c.y);
+        this.ctx.rotate(c.rotation); 
+        
+        this.ctx.strokeStyle = c.type === 'wire' ? c.color : "#000000"; 
+        this.ctx.fillStyle = "#ffffff";
+        this.ctx.lineWidth = 2.5;
+        this.ctx.lineCap = "round";
+        this.ctx.lineJoin = "round";
+        
+        const w = c.width;
+        const hw = w / 2;
+        
+        if (c.type === 'wire') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(-hw, 0);
+            this.ctx.quadraticCurveTo(0, c.bend, hw, 0);
+            this.ctx.stroke();
+
+            const currentMag = Math.abs(c.current);
+            if (currentMag > 0.01 && !this.draggingHandle && !this.isDrawingWire) {
+                const speed = Math.min(currentMag * 5, 20);
+                const offset = (this.time * speed / 5) % 1; 
+                const dir = c.current > 0 ? 1 : -1;
+                this.ctx.fillStyle = "#eab308";
+                for(let t = 0; t <= 1; t+= 0.15) {
+                    let moveT = t + (dir * offset);
+                    if (moveT > 1) moveT -= 1;
+                    if (moveT < 0) moveT += 1;
+                    const invT = 1 - moveT;
+                    const px = (invT * invT * -hw) + (2 * invT * moveT * 0) + (moveT * moveT * hw);
+                    const py = (invT * invT * 0) + (2 * invT * moveT * c.bend) + (moveT * moveT * 0);
+                    // Animation particle logic here
+                }
+            }
+        } 
+        
+        if (c.type !== 'wire') this.ctx.strokeStyle = "#000000";
+
+        if (c.type === 'resistor') {
+            this.ctx.beginPath(); this.ctx.moveTo(-hw, 0); this.ctx.lineTo(-30, 0); this.ctx.moveTo(hw, 0); this.ctx.lineTo(30, 0); this.ctx.stroke();
+            this.ctx.fillRect(-30, -10, 60, 20);
+            this.ctx.strokeRect(-30, -10, 60, 20);
+            this.ctx.fillStyle = "#000";
+            this.ctx.font = "bold 14px Arial"; 
+            this.ctx.textAlign = "center";
+            this.ctx.fillText(`${c.resistance} Ω`, 0, 5);
+        } 
+        else if (c.type === 'battery') {
+            this.ctx.beginPath(); this.ctx.moveTo(-hw, 0); this.ctx.lineTo(-5, 0); this.ctx.moveTo(hw, 0); this.ctx.lineTo(5, 0); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(-5, -12); this.ctx.lineTo(-5, 12); this.ctx.lineWidth = 4; this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(5, -20); this.ctx.lineTo(5, 20); this.ctx.lineWidth = 2; this.ctx.stroke();
+            this.ctx.fillStyle = "#000";
+            this.ctx.font = "bold 14px Arial";
+            this.ctx.textAlign = "center";
+            this.ctx.fillText(`${c.voltage} V`, 0, -28);
+            this.ctx.fillText("+", 15, -10);
+            this.ctx.lineWidth = 2.5; 
+        }
+        else if (c.type === 'bulb') {
+            const r = 20; 
+            this.ctx.beginPath(); this.ctx.moveTo(-hw, 0); this.ctx.lineTo(-r, 0); this.ctx.moveTo(hw, 0); this.ctx.lineTo(r, 0); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(0, 0, r, 0, Math.PI*2); this.ctx.fillStyle = "#fff"; this.ctx.fill(); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(0, 0, 10, Math.PI, 0); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(-10, 0); this.ctx.lineTo(-r, 0); this.ctx.moveTo(10, 0); this.ctx.lineTo(r, 0); this.ctx.stroke();
+            const power = Math.abs(c.current * c.voltageDrop);
+            if (power > 0.1) {
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.fillStyle = `rgba(255, 220, 0, ${Math.min(power/5, 0.6)})`;
+                this.ctx.beginPath(); this.ctx.arc(0, 0, 30, 0, Math.PI*2); this.ctx.fill();
+            }
+        }
+        else if (c.type === 'switch') {
+            this.ctx.beginPath(); this.ctx.moveTo(-hw, 0); this.ctx.lineTo(-20, 0); this.ctx.moveTo(hw, 0); this.ctx.lineTo(20, 0); this.ctx.stroke();
+            this.ctx.fillStyle = "#000";
+            this.ctx.font = "bold 12px Arial";
+            this.ctx.textAlign = "center";
+            this.ctx.beginPath(); this.ctx.arc(-20, 0, 3, 0, Math.PI*2); this.ctx.fill();
+            this.ctx.beginPath(); this.ctx.arc(20, 0, 3, 0, Math.PI*2); this.ctx.fill();
+            this.ctx.beginPath(); this.ctx.moveTo(-20, 0);
+            if (c.isClosed) this.ctx.lineTo(20, 0); else this.ctx.lineTo(15, -15);
+            this.ctx.stroke();
+        }
+        else if (c.type === 'ammeter' || c.type === 'voltmeter') {
+            const r = 22;
+            this.ctx.beginPath(); this.ctx.moveTo(-hw, 0); this.ctx.lineTo(-r, 0); this.ctx.moveTo(hw, 0); this.ctx.lineTo(r, 0); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(0, 0, r, 0, Math.PI*2); this.ctx.fillStyle = "#fff"; this.ctx.fill(); this.ctx.stroke();
+            
+            this.ctx.fillStyle = "#000";
+            this.ctx.font = "bold 20px Arial"; 
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+            this.ctx.fillText(c.type === 'ammeter' ? "A" : "V", 0, 1); 
+
+            this.ctx.font = "bold 14px Arial";
+            let val = c.type === 'ammeter' ? Math.abs(c.current).toFixed(2) + " A" : Math.abs(c.voltageDrop).toFixed(2) + " V"; 
+            this.ctx.fillText(val, 0, -r - 12); 
+        }
+
+        this.ctx.fillStyle = "#fff";
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 1;
+        
+        if (c.type !== 'wire' || this.selectedComponent !== c) {
+            this.ctx.beginPath(); this.ctx.arc(-hw, 0, 4, 0, Math.PI*2); this.ctx.fill(); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(hw, 0, 4, 0, Math.PI*2); this.ctx.fill(); this.ctx.stroke();
+        }
+        this.ctx.restore();
+    }
+
+    getTerminalPos(c, terminalId) {
+        const hw = c.width / 2;
+        const cos = Math.cos(c.rotation);
+        const sin = Math.sin(c.rotation);
+        const localX = (terminalId === 0 ? -hw : hw);
+        return { x: c.x + localX * cos, y: c.y + localX * sin };
+    }
+
+    // --- 事件處理 ---
+    
+    setupKeyboard() {
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'r') this.rotateSelected();
+            if (e.key === 'Delete' || e.key === 'Backspace') this.deleteSelected();
+        });
+    }
+
+    setupEvents() {
+        const start = (x, y) => this.handleStart(x, y);
+        const move = (x, y) => this.handleMove(x, y);
+        const end = () => this.handleEnd();
+
+        this.canvas.addEventListener('mousedown', (e) => start(e.offsetX, e.offsetY));
+        this.canvas.addEventListener('touchstart', (e) => {
+            const r = this.canvas.getBoundingClientRect();
+            start(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+        });
+
+        this.canvas.addEventListener('mousemove', (e) => move(e.offsetX, e.offsetY));
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const r = this.canvas.getBoundingClientRect();
+            move(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+        });
+
+        window.addEventListener('mouseup', end);
+        window.addEventListener('touchend', end);
+        
+        this.canvas.addEventListener('dblclick', (e) => {
+            const hit = this.hitTest(e.offsetX, e.offsetY);
+            if (hit && hit.type === 'body') {
+                if (hit.comp.type === 'switch') {
+                    hit.comp.isClosed = !hit.comp.isClosed;
+                    this.solveCircuit();
+                    this.updatePropertiesPanel();
+                } else {
+                    this.rotateSelected();
+                }
+            }
+        });
+    }
+
+    hitTest(x, y) {
+        if (this.selectedComponent && this.selectedComponent.type === 'wire') {
+            const c = this.selectedComponent;
+            const t1 = this.getTerminalPos(c, 0); 
+            const t2 = this.getTerminalPos(c, 1);
+            if (Math.hypot(x - t1.x, y - t1.y) < 15) return { type: 'handle', comp: c, side: 0 };
+            if (Math.hypot(x - t2.x, y - t2.y) < 15) return { type: 'handle', comp: c, side: 1 };
+        }
+
+        for (let c of this.components) {
+            const t1 = this.getTerminalPos(c, 0);
+            if (Math.hypot(x - t1.x, y - t1.y) < 15) return { type: 'terminal', comp: c, id: 0 };
+            const t2 = this.getTerminalPos(c, 1);
+            if (Math.hypot(x - t2.x, y - t2.y) < 15) return { type: 'terminal', comp: c, id: 1 };
+        }
+
+        for (let i = this.components.length - 1; i >= 0; i--) {
+            const c = this.components[i];
+            const dx = x - c.x;
+            const dy = y - c.y;
+            const cos = Math.cos(-c.rotation);
+            const sin = Math.sin(-c.rotation);
+            const localX = dx * cos - dy * sin;
+            const localY = dx * sin + dy * cos;
+            const hCheck = c.type === 'wire' ? Math.max(20, Math.abs(c.bend)) : c.height/2;
+            if (Math.abs(localX) < c.width/2 && Math.abs(localY) < hCheck) {
+                return { type: 'body', comp: c };
+            }
+        }
+        return null;
+    }
+
+    handleStart(x, y) {
+        const hit = this.hitTest(x, y);
+        if (hit) {
+            this.selectedComponent = hit.comp;
+            this.updatePropertiesPanel();
+            if (hit.type === 'handle') {
+                this.draggingHandle = hit;
+            } else if (hit.type === 'body') {
+                this.dragging = hit.comp;
+                this.dragOffset = { x: x - hit.comp.x, y: y - hit.comp.y };
+            } else if (hit.type === 'terminal') {
+                this.dragging = hit.comp;
+                this.dragOffset = { x: x - hit.comp.x, y: y - hit.comp.y };
+                this.connectingTerminal = hit;
+            }
+        } else {
+            this.isDrawingWire = true;
+            this.wireStart = { x: this.snap(x), y: this.snap(y) };
+            this.wireEnd = { x: this.snap(x), y: this.snap(y) };
+            this.selectedComponent = null;
+            this.updatePropertiesPanel();
+        }
+    }
+
+    handleMove(x, y) {
+        this.dragMousePos = {x, y};
+        
+        if (this.isDrawingWire) {
+             this.wireEnd = { x: this.snap(x), y: this.snap(y) };
+        }
+        else if (this.draggingHandle) {
+            const c = this.draggingHandle.comp;
+            const side = this.draggingHandle.side; 
+            const otherSideId = side === 0 ? 1 : 0;
+            const fixedPos = this.getTerminalPos(c, otherSideId);
+            const snappedX = this.snap(x);
+            const snappedY = this.snap(y);
+            const dx = snappedX - fixedPos.x;
+            const dy = snappedY - fixedPos.y;
+            c.x = fixedPos.x + dx / 2;
+            c.y = fixedPos.y + dy / 2;
+            const newLen = Math.hypot(dx, dy);
+            c.width = Math.max(20, newLen); 
+            let angle = Math.atan2(dy, dx);
+            if (side === 0) angle += Math.PI;
+            c.rotation = angle;
+            this.solveCircuit();
+            this.updatePropertiesPanel(); 
+        } else if (this.dragging) {
+            const rawX = x - this.dragOffset.x;
+            const rawY = y - this.dragOffset.y;
+            
+            const c = this.dragging;
+            const hw = c.width / 2;
+            const cos = Math.cos(c.rotation);
+            const sin = Math.sin(c.rotation);
+            
+            const vecX = -hw * cos;
+            const vecY = -hw * sin;
+            const rawT0x = rawX + vecX;
+            const rawT0y = rawY + vecY;
+            const snappedT0x = this.snap(rawT0x);
+            const snappedT0y = this.snap(rawT0y);
+            this.dragging.x = snappedT0x - vecX;
+            this.dragging.y = snappedT0y - vecY;
+            
+            this.solveCircuit(); 
+        }
+    }
+
+    handleEnd() {
+        if (this.isDrawingWire) {
+            const dx = this.wireEnd.x - this.wireStart.x;
+            const dy = this.wireEnd.y - this.wireStart.y;
+            const dist = Math.hypot(dx, dy);
+            
+            if (dist > 10) { 
+                const cx = (this.wireStart.x + this.wireEnd.x) / 2;
+                const cy = (this.wireStart.y + this.wireEnd.y) / 2;
+                const angle = Math.atan2(dy, dx);
+                
+                const wire = new Component('wire', cx, cy, ++this.idCounter);
+                wire.width = dist;
+                wire.rotation = angle;
+                wire.bend = 0; 
+                this.components.push(wire);
+                this.solveCircuit();
+            }
+            this.isDrawingWire = false;
+        }
+        else if (this.connectingTerminal) {
+            const start = this.getTerminalPos(this.connectingTerminal.comp, this.connectingTerminal.id);
+            const end = { x: this.snap(this.dragMousePos.x), y: this.snap(this.dragMousePos.y) };
+            
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const dist = Math.hypot(dx, dy);
+            
+            const hit = this.hitTest(this.dragMousePos.x, this.dragMousePos.y);
+            
+            if (dist > 10 && (!hit || hit.type !== 'terminal')) {
+                 const cx = (start.x + end.x) / 2;
+                 const cy = (start.y + end.y) / 2;
+                 const angle = Math.atan2(dy, dx);
+                 
+                 const wire = new Component('wire', cx, cy, ++this.idCounter);
+                 wire.width = dist;
+                 wire.rotation = angle;
+                 wire.bend = 0;
+                 this.components.push(wire);
+                 this.solveCircuit();
+            }
+            this.connectingTerminal = null;
+        }
+        
+        this.dragging = null;
+        this.draggingHandle = null;
+        this.solveCircuit();
+    }
+
+    updatePropertiesPanel() {
+        const panel = document.getElementById('properties-panel');
+        const content = document.getElementById('prop-content');
+        
+        if (!this.selectedComponent) {
+            panel.style.opacity = '0';
+            panel.style.pointerEvents = 'none';
+            return;
+        }
+
+        panel.style.opacity = '1';
+        panel.style.pointerEvents = 'auto';
+        content.innerHTML = '';
+        
+        const c = this.selectedComponent;
+        
+        const typeLabel = document.createElement('div');
+        typeLabel.className = 'text-gray-500 text-sm mb-2 font-bold';
+        const typeName = this.t('comp_' + c.type); // Localized name
+        typeLabel.innerText = `${typeName} (ID:${c.id})`;
+        content.appendChild(typeLabel);
+
+        if (c.type === 'wire') {
+            const colorDiv = document.createElement('div');
+            colorDiv.className = 'flex gap-2 mb-3';
+            
+            const createColorBtn = (color, labelKey) => {
+                const btn = document.createElement('button');
+                btn.className = `flex-1 py-1 rounded text-xs font-bold border ${c.color === color ? 'ring-2 ring-blue-400' : ''}`;
+                btn.style.backgroundColor = color;
+                btn.style.color = color === '#000000' ? 'white' : 'black';
+                btn.innerText = this.t(labelKey);
+                btn.onclick = () => {
+                    c.color = color;
+                    this.updatePropertiesPanel();
+                    this.draw();
+                };
+                return btn;
+            };
+            
+            colorDiv.appendChild(createColorBtn('#000000', 'color_black'));
+            colorDiv.appendChild(createColorBtn('#ef4444', 'color_red')); 
+            content.appendChild(colorDiv);
+
+            this.createSlider(content, this.t('prop_length'), c.width, 20, 400, (val) => {
+                c.width = parseFloat(val);
+                this.solveCircuit();
+            });
+            this.createSlider(content, this.t('prop_curve'), c.bend, -60, 60, (val) => {
+                c.bend = parseFloat(val);
+            });
+        }
+        
+        if (c.type === 'resistor') {
+            this.createSlider(content, this.t('prop_resistance'), c.resistance, 1, 100, (val) => {
+                c.resistance = parseFloat(val);
+                this.solveCircuit();
+            });
+        }
+        
+        if (c.type === 'battery') {
+            const reverseBtn = document.createElement('button');
+            reverseBtn.className = 'w-full py-1 mb-3 bg-gray-200 hover:bg-gray-300 rounded text-sm text-gray-800 font-bold border border-gray-300';
+            reverseBtn.innerText = this.t('btn_reverse');
+            reverseBtn.onclick = () => {
+                c.rotation += Math.PI;
+                this.solveCircuit();
+                this.draw();
+            };
+            content.appendChild(reverseBtn);
+
+            this.createSlider(content, this.t('prop_voltage'), c.voltage, 1.5, 24, (val) => {
+                c.voltage = parseFloat(val);
+                this.solveCircuit();
+            });
+        }
+
+        if (c.type === 'bulb') {
+            this.createSlider(content, this.t('prop_rated_r'), c.resistance, 1, 50, (val) => {
+                c.resistance = parseFloat(val);
+                this.solveCircuit();
+            });
+        }
+        
+        if (c.type === 'switch') {
+             const btn = document.createElement('button');
+             btn.className = `w-full py-2 rounded font-bold shadow-sm ${c.isClosed ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`;
+             const stateText = c.isClosed ? this.t('state_on') : this.t('state_off');
+             btn.innerText = `${this.t('prop_state')}: ${stateText}`;
+             btn.onclick = () => {
+                 c.isClosed = !c.isClosed;
+                 this.solveCircuit();
+                 this.updatePropertiesPanel();
+             };
+             content.appendChild(btn);
+        }
+
+        const reading = document.createElement('div');
+        reading.className = 'mt-4 p-3 bg-gray-100 border border-gray-300 rounded text-xs font-mono shadow-inner';
+        reading.innerHTML = `
+            <div class="flex justify-between border-b border-gray-300 pb-1 mb-1"><span class="text-gray-600">${this.t('prop_v_drop')}</span> <span class="text-black font-bold">${Math.abs(c.voltageDrop).toFixed(3)} V</span></div>
+            <div class="flex justify-between"><span class="text-gray-600">${this.t('prop_current')}</span> <span class="text-blue-700 font-bold">${Math.abs(c.current).toFixed(3)} A</span></div>
+        `;
+        content.appendChild(reading);
+    }
+
+    createSlider(parent, label, value, min, max, callback) {
+        const container = document.createElement('div');
+        container.className = 'mb-3';
+        
+        const header = document.createElement('div');
+        header.className = 'flex justify-between text-sm mb-1 items-center';
+        
+        const spanLabel = document.createElement('span');
+        spanLabel.innerText = label;
+        
+        const spanValue = document.createElement('span');
+        const formatVal = (v) => parseFloat(v).toFixed(1).replace(/\.0$/, '');
+        
+        spanValue.innerText = formatVal(value);
+        spanValue.className = 'text-blue-600 font-bold cursor-pointer hover:bg-blue-100 px-1 rounded transition select-none';
+        spanValue.title = this.lang === 'zh' ? "點擊輸入數值" : "Click to edit";
+        
+        header.appendChild(spanLabel);
+        header.appendChild(spanValue);
+        container.appendChild(header);
+
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = min;
+        input.max = max;
+        input.value = value;
+        input.step = (max-min)/100;
+        input.className = 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600';
+        
+        const updateAll = (val) => {
+            const numVal = parseFloat(val);
+            spanValue.innerText = formatVal(numVal);
+            input.value = numVal;
+            callback(numVal);
+        };
+
+        input.oninput = (e) => {
+            spanValue.innerText = formatVal(e.target.value);
+            callback(e.target.value);
+        };
+
+        spanValue.onclick = () => {
+            const txtInput = document.createElement('input');
+            txtInput.type = 'number';
+            txtInput.className = 'w-20 text-right text-sm border border-blue-500 rounded px-1 focus:outline-none focus:ring-2 focus:ring-blue-300';
+            txtInput.value = parseFloat(spanValue.innerText);
+            txtInput.min = min;
+            txtInput.max = max;
+            
+            const confirmEdit = () => {
+                let v = parseFloat(txtInput.value);
+                if (isNaN(v)) v = parseFloat(input.value);
+                if (v < min) v = min;
+                if (v > max) v = max;
+                updateAll(v);
+                if (txtInput.parentNode === header) {
+                    header.replaceChild(spanValue, txtInput);
+                }
+            };
+
+            txtInput.onblur = confirmEdit;
+            txtInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    txtInput.blur();
+                }
+            };
+
+            header.replaceChild(txtInput, spanValue);
+            txtInput.focus();
+            txtInput.select();
+        };
+
+        container.appendChild(input);
+        parent.appendChild(container);
+    }
+
+    getTypeName(type) {
+        return this.t('comp_' + type);
+    }
+
+    loop() {
+        this.time++;
+        this.draw();
+        requestAnimationFrame(() => this.loop());
+    }
+}
+
+const circuitApp = new CircuitApp();
+
+</script>
+</body>
+</html>
