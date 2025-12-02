@@ -38,82 +38,116 @@
         }
         .cursor-grab { cursor: grab; }
         .cursor-grabbing { cursor: grabbing; }
+        
+        /* 語言切換按鈕樣式 */
+        .lang-btn {
+            @apply px-3 py-1 rounded text-sm font-medium transition-colors;
+        }
+        .lang-btn.active {
+            @apply bg-indigo-600 text-white;
+        }
+        .lang-btn.inactive {
+            @apply text-slate-400 hover:text-white hover:bg-slate-700;
+        }
     </style>
 </head>
-<body class="flex h-screen w-screen">
+<body class="flex flex-col h-screen w-screen bg-slate-950">
 
-    <!-- 左側控制面板 -->
-    <div class="w-80 flex-shrink-0 bg-slate-800 border-r border-slate-700 p-6 flex flex-col z-10 shadow-xl overflow-y-auto">
-        <h1 class="text-2xl font-bold mb-2 text-white glow-text">光學實驗室</h1>
-        <p class="text-slate-400 text-sm mb-8 border-b border-slate-600 pb-4">三稜鏡色散模擬器 v3.5 (正立稜鏡版)</p>
-
-        <div class="space-y-4 mb-8">
-            <div class="flex justify-between items-center">
-                <p class="text-sm font-semibold text-slate-300">光譜控制</p>
-                <button onclick="resetColors()" class="text-xs text-slate-500 hover:text-white transition-colors">重置</button>
-            </div>
-            
-            <div id="controls-container" class="space-y-2"></div>
+    <!-- Header Bar -->
+    <header class="h-16 flex-shrink-0 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 z-20 shadow-lg">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-white glow-text flex items-center gap-2">
+                <span class="text-2xl">🌈</span> 
+                <span id="app-title">光學實驗室</span>
+            </h1>
+            <span class="text-slate-500 hidden md:inline">|</span>
+            <p id="app-subtitle" class="text-slate-400 text-sm hidden md:block">三稜鏡色散模擬器 v3.6</p>
         </div>
 
-        <div class="mt-auto">
-             <div id="white-light-status" class="mb-4 p-3 rounded bg-indigo-900/40 text-xs text-center hidden text-indigo-200 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
-                ✨ 完美白光合成
-            </div>
-            <button onclick="toggleModal(true)" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 font-medium shadow-lg shadow-indigo-500/20">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                實驗原理
+        <div class="flex items-center gap-4">
+            <!-- 實驗原理按鈕 -->
+            <button onclick="toggleModal(true)" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors duration-200 flex items-center gap-2 font-medium shadow-lg shadow-indigo-500/20 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span id="btn-theory">實驗原理</span>
+            </button>
+
+            <!-- 語言切換 -->
+            <button onclick="toggleLanguage()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors border border-slate-600 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span id="lang-text">中 / EN</span>
             </button>
         </div>
-    </div>
+    </header>
 
-    <!-- 中央畫布區域 -->
-    <div class="flex-1 relative bg-slate-950 flex items-center justify-center overflow-hidden" id="canvas-container">
-        <div class="absolute top-4 left-4 text-slate-500 text-xs select-none z-10 pointer-events-none">
-            <ul class="space-y-1">
-                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span> 稜鏡已恢復正立狀態</li>
-                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span> 光源從左下方射入</li>
-            </ul>
+    <!-- 主內容區：側邊欄 + 畫布 -->
+    <main class="flex flex-1 overflow-hidden">
+        
+        <!-- 左側控制面板 -->
+        <aside class="w-72 flex-shrink-0 bg-slate-900/50 border-r border-slate-700 p-6 flex flex-col z-10 backdrop-blur-sm">
+            <div class="space-y-4 mb-8">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <p id="label-spectrum" class="text-sm font-semibold text-slate-300">光譜控制</p>
+                    <button id="btn-reset" onclick="resetColors()" class="text-xs text-slate-500 hover:text-white transition-colors bg-slate-800 px-2 py-1 rounded">重置</button>
+                </div>
+                
+                <div id="controls-container" class="space-y-2"></div>
+            </div>
+
+            <div class="mt-auto">
+                <div id="white-light-status" class="mb-4 p-3 rounded bg-indigo-900/40 text-xs text-center hidden text-indigo-200 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
+                    <span id="txt-white-light">✨ 完美白光合成</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中央畫布區域 -->
+        <div class="flex-1 relative bg-slate-950 flex items-center justify-center overflow-hidden" id="canvas-container">
+            <div class="absolute top-4 left-4 text-slate-500 text-xs select-none z-10 pointer-events-none">
+                <ul class="space-y-1">
+                    <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span> <span id="hint-prism">稜鏡已恢復正立狀態</span></li>
+                    <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span> <span id="hint-light">光源從左下方射入</span></li>
+                </ul>
+            </div>
+            <canvas id="simulationCanvas" class="cursor-default"></canvas>
         </div>
-        <canvas id="simulationCanvas" class="cursor-default"></canvas>
-    </div>
+    </main>
 
     <!-- 實驗原理 Modal -->
     <div id="principle-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-600 shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
             <div class="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-800 z-10">
-                <h2 class="text-xl font-bold text-white">真實玻璃的折射率</h2>
+                <h2 id="modal-title" class="text-xl font-bold text-white">真實玻璃的折射率</h2>
                 <button onclick="toggleModal(false)" class="text-slate-400 hover:text-white transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="p-6 space-y-6 text-slate-300 leading-relaxed">
                 <div class="flex flex-col gap-4">
-                    <p>
+                    <p id="modal-intro">
                         本模擬採用光學實驗常見的<b>火石玻璃 (Flint Glass, F2)</b> 作為材質。不同波長的光對應的真實折射率 ($n$) 如下：
                     </p>
                     <div class="bg-slate-700/50 p-4 rounded border border-slate-600">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <ul class="space-y-2">
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-red-400 font-bold">紅光 (Red)</span> <span>n ≈ 1.613</span></li>
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-orange-400 font-bold">橙光 (Orange)</span> <span>n ≈ 1.617</span></li>
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-yellow-400 font-bold">黃光 (Yellow)</span> <span>n ≈ 1.621</span></li>
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-green-400 font-bold">綠光 (Green)</span> <span>n ≈ 1.626</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-red" class="text-red-400 font-bold">紅光 (Red)</span> <span>n ≈ 1.613</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-orange" class="text-orange-400 font-bold">橙光 (Orange)</span> <span>n ≈ 1.617</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-yellow" class="text-yellow-400 font-bold">黃光 (Yellow)</span> <span>n ≈ 1.621</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-green" class="text-green-400 font-bold">綠光 (Green)</span> <span>n ≈ 1.626</span></li>
                             </ul>
                             <ul class="space-y-2">
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-blue-400 font-bold">藍光 (Blue)</span> <span>n ≈ 1.633</span></li>
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-indigo-400 font-bold">靛光 (Indigo)</span> <span>n ≈ 1.638</span></li>
-                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span class="text-purple-400 font-bold">紫光 (Violet)</span> <span>n ≈ 1.643</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-blue" class="text-blue-400 font-bold">藍光 (Blue)</span> <span>n ≈ 1.633</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-indigo" class="text-indigo-400 font-bold">靛光 (Indigo)</span> <span>n ≈ 1.638</span></li>
+                                <li class="flex justify-between border-b border-slate-600/50 pb-1"><span id="lbl-violet" class="text-purple-400 font-bold">紫光 (Violet)</span> <span>n ≈ 1.643</span></li>
                             </ul>
                         </div>
-                        <p class="mt-4 text-xs text-slate-400">
+                        <p id="modal-note" class="mt-4 text-xs text-slate-400">
                             * 註：我們將光源設定在較低的位置並略微向上射入正立的稜鏡，這樣可以產生良好的折射效果並避免全內反射。
                         </p>
                     </div>
                 </div>
             </div>
             <div class="p-6 border-t border-slate-700 bg-slate-800/50 text-right">
-                <button onclick="toggleModal(false)" class="px-6 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors">
+                <button id="btn-close" onclick="toggleModal(false)" class="px-6 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors">
                     關閉
                 </button>
             </div>
@@ -121,31 +155,110 @@
     </div>
 
     <script>
+        // --- 國際化 (i18n) 設定 ---
+        const i18n = {
+            zh: {
+                appTitle: "光學實驗室",
+                appSubtitle: "三稜鏡色散模擬器 v3.6",
+                btnTheory: "實驗原理",
+                labelSpectrum: "光譜控制",
+                btnReset: "重置",
+                txtWhiteLight: "✨ 完美白光合成",
+                hintPrism: "稜鏡已恢復正立狀態",
+                hintLight: "光源從左下方射入",
+                modalTitle: "真實玻璃的折射率",
+                modalIntro: "本模擬採用光學實驗常見的<b>火石玻璃 (Flint Glass, F2)</b> 作為材質。不同波長的光對應的真實折射率 (<i>n</i>) 如下：",
+                modalNote: "* 註：我們將光源設定在較低的位置並略微向上射入正立的稜鏡，這樣可以產生良好的折射效果並避免全內反射。",
+                btnClose: "關閉",
+                colors: {
+                    red: "紅光 (Red)", orange: "橙光 (Orange)", yellow: "黃光 (Yellow)", 
+                    green: "綠光 (Green)", blue: "藍光 (Blue)", indigo: "靛光 (Indigo)", violet: "紫光 (Violet)"
+                }
+            },
+            en: {
+                appTitle: "Optical Lab",
+                appSubtitle: "Prism Dispersion Simulator v3.6",
+                btnTheory: "Theory",
+                labelSpectrum: "Spectrum Control",
+                btnReset: "Reset",
+                txtWhiteLight: "✨ Perfect White Light",
+                hintPrism: "Prism in upright position",
+                hintLight: "Light source from bottom-left",
+                modalTitle: "Refractive Indices of Real Glass",
+                modalIntro: "This simulation uses <b>Flint Glass (F2)</b>, a common material in optical experiments. The real refractive indices (<i>n</i>) for different wavelengths are:",
+                modalNote: "* Note: The light source is positioned lower and angled upwards into the upright prism to produce good refraction and avoid total internal reflection.",
+                btnClose: "Close",
+                colors: {
+                    red: "Red", orange: "Orange", yellow: "Yellow", 
+                    green: "Green", blue: "Blue", indigo: "Indigo", violet: "Violet"
+                }
+            }
+        };
+
         // --- 配置與數據 ---
         const COLORS = [
-            { id: 'red', label: '紅光 Red', hex: '#FF3333', rgb: [255, 51, 51], ior: 1.613 },
-            { id: 'orange', label: '橙光 Orange', hex: '#FF9933', rgb: [255, 153, 51], ior: 1.617 },
-            { id: 'yellow', label: '黃光 Yellow', hex: '#FFFF33', rgb: [255, 255, 51], ior: 1.621 },
-            { id: 'green', label: '綠光 Green', hex: '#33FF33', rgb: [51, 255, 51], ior: 1.626 },
-            { id: 'blue', label: '藍光 Blue', hex: '#3333FF', rgb: [51, 51, 255], ior: 1.633 },
-            { id: 'indigo', label: '靛光 Indigo', hex: '#8A2BE2', rgb: [138, 43, 226], ior: 1.638 },
-            { id: 'violet', label: '紫光 Violet', hex: '#FF33FF', rgb: [255, 51, 255], ior: 1.643 }
+            { id: 'red', labelKey: 'red', hex: '#FF3333', rgb: [255, 51, 51], ior: 1.613 },
+            { id: 'orange', labelKey: 'orange', hex: '#FF9933', rgb: [255, 153, 51], ior: 1.617 },
+            { id: 'yellow', labelKey: 'yellow', hex: '#FFFF33', rgb: [255, 255, 51], ior: 1.621 },
+            { id: 'green', labelKey: 'green', hex: '#33FF33', rgb: [51, 255, 51], ior: 1.626 },
+            { id: 'blue', labelKey: 'blue', hex: '#3333FF', rgb: [51, 51, 255], ior: 1.633 },
+            { id: 'indigo', labelKey: 'indigo', hex: '#8A2BE2', rgb: [138, 43, 226], ior: 1.638 },
+            { id: 'violet', labelKey: 'violet', hex: '#FF33FF', rgb: [255, 51, 255], ior: 1.643 }
         ];
 
         // 狀態管理
         const state = {
+            lang: 'zh', // 當前語言
             activeColors: new Set(COLORS.map(c => c.id)),
-            // 保持低光源入射角 (-15度)
             incidentAngle: -Math.PI / 12, 
             isDragging: false,
             handlePos: { x: 0, y: 0 }
         };
+
+        // --- 語言切換邏輯 ---
+        function toggleLanguage() {
+            state.lang = state.lang === 'zh' ? 'en' : 'zh';
+            updateTexts();
+            renderControls(); // 重新渲染 checkbox 文字
+        }
+
+        function updateTexts() {
+            const t = i18n[state.lang];
+            
+            // 更新介面文字
+            document.getElementById('app-title').innerText = t.appTitle;
+            document.getElementById('app-subtitle').innerText = t.appSubtitle;
+            document.getElementById('btn-theory').innerText = t.btnTheory;
+            document.getElementById('label-spectrum').innerText = t.labelSpectrum;
+            document.getElementById('btn-reset').innerText = t.btnReset;
+            document.getElementById('txt-white-light').innerText = t.txtWhiteLight;
+            document.getElementById('hint-prism').innerText = t.hintPrism;
+            document.getElementById('hint-light').innerText = t.hintLight;
+            
+            // 更新 Modal 文字
+            document.getElementById('modal-title').innerText = t.modalTitle;
+            document.getElementById('modal-intro').innerHTML = t.modalIntro;
+            document.getElementById('modal-note').innerText = t.modalNote;
+            document.getElementById('btn-close').innerText = t.btnClose;
+
+            // 更新 Modal 內的顏色標籤
+            COLORS.forEach(c => {
+                const el = document.getElementById(`lbl-${c.id}`);
+                if (el) el.innerText = t.colors[c.labelKey];
+            });
+
+            // 更新按鈕狀態顯示
+            const langBtnText = document.getElementById('lang-text');
+            langBtnText.innerText = state.lang === 'zh' ? '中 / EN' : 'ZH / EN';
+        }
 
         // --- 初始化 UI ---
         const controlsContainer = document.getElementById('controls-container');
         
         function renderControls() {
             controlsContainer.innerHTML = '';
+            const t = i18n[state.lang];
+
             COLORS.forEach(color => {
                 const isActive = state.activeColors.has(color.id);
                 const wrapper = document.createElement('label');
@@ -168,7 +281,8 @@
 
                 const labelText = document.createElement('span');
                 labelText.className = `text-sm font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-400'}`;
-                labelText.innerText = color.label;
+                // 使用翻譯後的標籤
+                labelText.innerText = t.colors[color.labelKey];
 
                 wrapper.appendChild(input);
                 wrapper.appendChild(customCheck);
@@ -187,7 +301,7 @@
         
         function resetColors() {
             state.activeColors = new Set(COLORS.map(c => c.id));
-            state.incidentAngle = -Math.PI / 12; // 重置為低光源角度
+            state.incidentAngle = -Math.PI / 12; 
             renderControls();
             draw();
             checkWhiteLight();
@@ -331,9 +445,7 @@
 
         function getPrismVertices(cx, cy) {
             const r = PRISM_SIDE / Math.sqrt(3);
-            // 修改：恢復正立三稜鏡，角度偏移設為 0
             const angleOffset = 0; 
-            
             const v1 = { x: cx + r * Math.cos(-Math.PI/2 + angleOffset), y: cy + r * Math.sin(-Math.PI/2 + angleOffset) };
             const v2 = { x: cx + r * Math.cos(Math.PI/6 + angleOffset), y: cy + r * Math.sin(Math.PI/6 + angleOffset) };
             const v3 = { x: cx + r * Math.cos(5*Math.PI/6 + angleOffset), y: cy + r * Math.sin(5*Math.PI/6 + angleOffset) };
@@ -405,11 +517,9 @@
             const leftBot = vertices[1];
             const rightBot = vertices[2];
 
-            // 儲存幾何資訊
             const face1Mid = { x: (top.x + leftBot.x) / 2, y: (top.y + leftBot.y) / 2 };
             cachedGeometry = { face1Mid, top, leftBot, rightBot };
 
-            // 繪製稜鏡
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.strokeStyle = 'rgba(200, 200, 255, 0.4)';
             ctx.lineWidth = 2;
@@ -425,7 +535,6 @@
 
             if (state.activeColors.size === 0) return;
 
-            // Face 1 Normal for calculation
             const face1Vec = Vec2.sub(leftBot, top);
             const normal1 = Vec2.norm(Vec2.rotate(face1Vec, -Math.PI/2)); 
 
@@ -441,7 +550,6 @@
             const intersect1 = getIntersection(beamStart, beamEndTest, top, leftBot);
 
             if (intersect1) {
-                // 1. 繪製入射光
                 const mixedColor = getMixedColor(state.activeColors);
                 
                 ctx.shadowBlur = 10;
@@ -453,7 +561,6 @@
                 ctx.lineTo(intersect1.x, intersect1.y);
                 ctx.stroke();
 
-                // 拖曳控制點
                 ctx.beginPath();
                 ctx.arc(beamStart.x, beamStart.y, 8, 0, Math.PI * 2);
                 ctx.fillStyle = '#FFFFFF';
@@ -479,7 +586,6 @@
                 COLORS.forEach(color => {
                     if (!state.activeColors.has(color.id)) return;
 
-                    // 2. 第一折射 (Air -> Glass)
                     const refractDir1 = getRefractedRay(beamDir, normal1, 1.0, color.ior);
                     
                     if (refractDir1) {
@@ -487,7 +593,6 @@
                         const intersect2 = getIntersection(intersect1, farPoint, top, rightBot);
 
                         if (intersect2) {
-                            // 內部光線 1
                             ctx.strokeStyle = color.hex;
                             ctx.globalAlpha = 0.8;
                             ctx.beginPath();
@@ -496,13 +601,11 @@
                             ctx.stroke();
                             ctx.globalAlpha = 1.0;
 
-                            // 3. 第二折射 (Glass -> Air, Face 2)
                             const face2Vec = Vec2.sub(rightBot, top);
                             const normal2 = Vec2.norm(Vec2.rotate(face2Vec, -Math.PI/2)); 
                             const exitDir = getRefractedRay(refractDir1, normal2, color.ior, 1.0);
 
                             if (exitDir) {
-                                // 正常折射出射 - 延長繪製長度
                                 const exitEnd = Vec2.add(intersect2, Vec2.mul(exitDir, 3000));
                                 
                                 ctx.strokeStyle = color.hex;
@@ -517,7 +620,6 @@
                                 const arrowPos2 = Vec2.add(intersect2, Vec2.mul(exitDir, 120)); 
                                 drawArrow(ctx, intersect2, arrowPos2, color.hex, 8);
                             } else {
-                                // --- 全內反射 (Total Internal Reflection) 處理 ---
                                 const reflectDir = getReflectedRay(refractDir1, normal2);
                                 
                                 const baseCheck = getIntersection(intersect2, Vec2.add(intersect2, Vec2.mul(reflectDir, 2000)), leftBot, rightBot);
@@ -537,7 +639,6 @@
                                 }
 
                                 if (intersect3) {
-                                    // 繪製反射光線 (內部)
                                     ctx.strokeStyle = color.hex;
                                     ctx.globalAlpha = 0.6;
                                     ctx.beginPath();
@@ -546,11 +647,9 @@
                                     ctx.stroke();
                                     ctx.globalAlpha = 1.0;
 
-                                    // 繪製反射箭頭
                                     const arrowPosRef = Vec2.add(intersect2, Vec2.mul(reflectDir, 50));
                                     drawArrow(ctx, intersect2, arrowPosRef, color.hex, 6);
 
-                                    // 嘗試從第三個面折射出去
                                     const exitDir2 = getRefractedRay(reflectDir, normal3, color.ior, 1.0);
                                     if (exitDir2) {
                                         const exitEnd2 = Vec2.add(intersect3, Vec2.mul(exitDir2, 2000));
@@ -577,6 +676,7 @@
         renderControls();
         resize();
         checkWhiteLight();
+        updateTexts(); // Initial text update
 
     </script>
 </body>
