@@ -19,22 +19,24 @@
         .modal-exit { opacity: 1; transform: scale(1); }
         .modal-exit-active { opacity: 0; transform: scale(0.9); transition: opacity 300ms, transform 300ms; }
 
-        /* 星體標籤樣式 - 已移除外框 */
+        /* 星體標籤樣式 - 無外框 */
         .planet-label {
             color: rgba(255, 255, 255, 0.95);
             font-family: 'Noto Sans TC', sans-serif;
             font-size: 13px;
             font-weight: 500;
             padding: 2px 8px;
-            background: rgba(0, 0, 0, 0.4); /* 背景稍微透明一點 */
-            border-radius: 12px; /* 圓角稍微加大 */
-            /* border: 1px solid rgba(255, 255, 255, 0.3);  <-- 已移除 */
+            background: rgba(0, 0, 0, 0.4); 
+            border-radius: 12px;
             pointer-events: none;
             user-select: none;
             text-shadow: 0 0 4px #000;
             transition: opacity 0.3s;
             white-space: nowrap;
         }
+        
+        /* Loading 畫面 */
+        #loading { position: absolute; inset: 0; background: black; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
     </style>
     <!-- Import Map for Three.js -->
     <script type="importmap">
@@ -47,6 +49,12 @@
     </script>
 </head>
 <body class="text-white antialiased overflow-hidden">
+
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-blue-400 font-mono tracking-widest text-sm">LOADING TEXTURES (Wikimedia)...</p>
+    </div>
 
     <!-- 3D Canvas -->
     <div id="canvas-container"></div>
@@ -128,7 +136,7 @@
                 
                 <div class="space-y-4 text-gray-300 text-sm leading-relaxed">
                     <div class="bg-blue-900/30 p-3 rounded border border-blue-800">
-                        <p id="modal-tip"><span class="font-bold text-yellow-400">教學重點：</span> 本模型包含 <span class="text-white font-bold">小行星帶</span> 與 <span class="text-white font-bold">矮行星</span>。行星軌道為橢圓，並依真實相對速度運行。點擊星體可鎖定並顯示標示。</p>
+                        <p id="modal-tip"><span class="font-bold text-yellow-400">教學重點：</span> 本模型包含 <span class="text-white font-bold">小行星帶</span> 與 <span class="text-white font-bold">矮行星</span>。多數星體已還原為原色以確保清晰可見。點擊星體可鎖定並顯示標示。</p>
                     </div>
                     <ul class="list-disc pl-5 space-y-2">
                         <li id="modal-ctrl-1">點擊星體：聚焦並查看資訊</li>
@@ -157,7 +165,7 @@
                 help: "說明",
                 speed: "速度",
                 modalTitle: "模擬說明",
-                modalTip: `<span class="font-bold text-yellow-400">教學重點：</span> 本模型包含 <span class="text-white font-bold">小行星帶</span> 與 <span class="text-white font-bold">矮行星</span>。點擊星體可鎖定並顯示標示。`,
+                modalTip: `<span class="font-bold text-yellow-400">教學重點：</span> 本模型包含 <span class="text-white font-bold">小行星帶</span> 與 <span class="text-white font-bold">矮行星</span>。多數星體已還原為原色以確保清晰可見。點擊星體可鎖定並顯示標示。`,
                 modalCtrl1: "點擊星體：聚焦並查看資訊",
                 modalCtrl2: "拖曳滑鼠：旋轉視角",
                 modalCtrl3: "滾輪滑動：縮放遠近",
@@ -171,7 +179,7 @@
                 help: "Help",
                 speed: "SPEED",
                 modalTitle: "About Simulation",
-                modalTip: `<span class="font-bold text-yellow-400">Key Features:</span> Includes <span class="text-white font-bold">Asteroid Belt</span> and <span class="text-white font-bold">Dwarf Planets</span>. Click planets to focus.`,
+                modalTip: `<span class="font-bold text-yellow-400">Key Features:</span> Includes <span class="text-white font-bold">Asteroid Belt</span> and <span class="text-white font-bold">Dwarf Planets</span>. Most planets use original colors for visibility. Click planets to focus.`,
                 modalCtrl1: "Click Planet: Focus & Info",
                 modalCtrl2: "Drag: Rotate View",
                 modalCtrl3: "Scroll: Zoom In/Out",
@@ -186,61 +194,87 @@
         let scene, camera, renderer, labelRenderer, controls;
         let sun;
         let asteroidBelt;
-        let selectionIndicator; // 鎖定游標
+        let selectionIndicator; 
         const planets = []; 
         let moonPivot; 
         let isPaused = false;
         let speedMultiplier = 1;
         
         let targetObject = null;
-        let targetSize = 10; // 用於調整選取框大小
+        let targetSize = 10; 
         let currentLang = 'zh';
 
         // Raycasting
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
-        // --- 行星與矮行星資料 ---
+        // Texture Loader
+        const loadingManager = new THREE.LoadingManager();
+        const textureLoader = new THREE.TextureLoader(loadingManager);
+
+        loadingManager.onLoad = function() {
+            const loadingScreen = document.getElementById('loading');
+            if(loadingScreen) {
+                loadingScreen.style.opacity = 0;
+                setTimeout(() => loadingScreen.remove(), 500);
+            }
+        };
+
+        // Safety timeout for loading
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loading');
+            if(loadingScreen) loadingScreen.remove();
+        }, 5000);
+
+        // --- 行星與矮行星資料 (含 Wikimedia/NASA 貼圖) ---
+        // 注意：水星、金星、火星、土星、木星、海王星、穀神星、冥王星 已移除 tex 屬性，還原顏色
         const celestialData = [
             { 
                 name: "Mercury", zhName: "水星", type: "planet",
                 size: 1.2, distance: 20, speed: 4.1, color: 0xA5A5A5, eccentricity: 0.205, 
+                // tex removed for solid color
                 descZH: "離太陽最近，軌道離心率最大(最扁)。", 
                 descEN: "Closest to Sun, highest orbital eccentricity."
             },
             { 
                 name: "Venus", zhName: "金星", type: "planet",
                 size: 1.8, distance: 30, speed: 1.6, color: 0xE3BB76, eccentricity: 0.007,
-                descZH: "最亮的行星，有厚重的大氣層。", 
-                descEN: "Brightest planet with a thick atmosphere." 
+                // tex removed for solid color
+                descZH: "最亮的行星，使用大氣層貼圖顯示其真實外觀。", 
+                descEN: "Brightest planet, shown with its thick atmosphere." 
             },
             { 
                 name: "Earth", zhName: "地球", type: "planet",
                 size: 2.0, distance: 45, speed: 1.0, color: 0x2233FF, eccentricity: 0.017,
+                tex: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg/1024px-Solarsystemscope_texture_2k_earth_daymap.jpg",
                 descZH: "我們的家園，擁有液態水與生命。", 
                 descEN: "Our home, with liquid water and life." 
             },
             { 
                 name: "Mars", zhName: "火星", type: "planet",
                 size: 1.5, distance: 60, speed: 0.53, color: 0xDD4124, eccentricity: 0.094,
+                // tex removed for solid color
                 descZH: "紅色星球，表面富含氧化鐵。", 
                 descEN: "The Red Planet, surface rich in iron oxide." 
             },
             {
                 name: "Ceres", zhName: "穀神星", type: "dwarf",
                 size: 0.8, distance: 75, speed: 0.46, color: 0x888888, eccentricity: 0.076,
+                // tex removed for solid color
                 descZH: "位於小行星帶中唯一的矮行星。",
                 descEN: "The only dwarf planet located in the asteroid belt."
             },
             { 
                 name: "Jupiter", zhName: "木星", type: "planet",
                 size: 6.0, distance: 95, speed: 0.08, color: 0xD9A066, eccentricity: 0.049,
+                // tex removed for solid color
                 descZH: "太陽系最大的行星，巨大的氣體巨行星。", 
                 descEN: "Largest planet, a massive gas giant." 
             },
             { 
                 name: "Saturn", zhName: "土星", type: "planet",
                 size: 5.0, distance: 135, speed: 0.03, color: 0xEAD6B8, eccentricity: 0.057,
+                // tex removed for solid color
                 descZH: "擁有最壯觀的行星環系統。", 
                 descEN: "Famous for its spectacular ring system.", 
                 hasRing: true 
@@ -248,18 +282,21 @@
             { 
                 name: "Uranus", zhName: "天王星", type: "planet",
                 size: 3.5, distance: 175, speed: 0.01, color: 0xA0DDE0, eccentricity: 0.046,
+                tex: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Solarsystemscope_texture_2k_uranus.jpg/1024px-Solarsystemscope_texture_2k_uranus.jpg",
                 descZH: "躺著自轉的冰巨星。", 
                 descEN: "An ice giant that rotates on its side." 
             },
             { 
                 name: "Neptune", zhName: "海王星", type: "planet",
                 size: 3.4, distance: 205, speed: 0.006, color: 0x3F54BA, eccentricity: 0.011,
+                // tex removed for solid color
                 descZH: "離太陽最遠，風暴強烈的深藍色星球。", 
                 descEN: "Farthest from Sun, deep blue with strong storms." 
             },
             {
                 name: "Pluto", zhName: "冥王星", type: "dwarf",
                 size: 0.9, distance: 235, speed: 0.004, color: 0xE3D2B4, eccentricity: 0.248,
+                // tex removed for solid color
                 descZH: "曾經是第九大行星，擁有巨大的衛星「卡戎」。",
                 descEN: "Once the ninth planet, has a large moon Charon."
             },
@@ -307,33 +344,34 @@
             labelRenderer.setSize(window.innerWidth, window.innerHeight);
             labelRenderer.domElement.style.position = 'absolute';
             labelRenderer.domElement.style.top = '0px';
-            labelRenderer.domElement.style.pointerEvents = 'none'; // 重要：讓點擊穿透到 canvas
+            labelRenderer.domElement.style.pointerEvents = 'none'; 
             container.appendChild(labelRenderer.domElement);
 
             // 5. Controls
-            controls = new OrbitControls(camera, renderer.domElement); // 注意：controls 綁定到 renderer.domElement
+            controls = new OrbitControls(camera, renderer.domElement); 
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.minDistance = 15;
             controls.maxDistance = 1500;
 
-            // 6. Lighting
-            const sunLight = new THREE.PointLight(0xffffff, 2.5, 1200, 1.2);
+            // 6. Lighting (Enhanced)
+            // 太陽光增強
+            const sunLight = new THREE.PointLight(0xffffff, 2.5, 1500, 1);
             scene.add(sunLight);
-            const ambientLight = new THREE.AmbientLight(0x404040, 1.2); 
+            
+            // 環境光大幅增強，確保背光面與暗色紋理星體清晰可見
+            const ambientLight = new THREE.AmbientLight(0x404040, 2.0); 
             scene.add(ambientLight);
 
             // 7. Objects
-            createStarField();
+            createUniverse();
             createSun();
             createAsteroidBelt();
             createPlanets();
-            createSelectionIndicator(); // 建立選擇游標
+            createSelectionIndicator(); 
 
             // 8. Events
             window.addEventListener('resize', onWindowResize);
-            // 點擊事件監聽器加在 container 上比較保險，或者 renderer.domElement
-            // 由於 CSS2D 蓋在上面，pointer-events: none 應該讓 click 傳到 canvas
             renderer.domElement.addEventListener('click', onCanvasClick); 
             setupUI();
 
@@ -342,8 +380,6 @@
         }
 
         function createSelectionIndicator() {
-            // 建立一個高亮光環
-            // 使用 RingGeometry 製作一個圓環
             const geometry = new THREE.RingGeometry(1, 1.1, 64);
             const material = new THREE.MeshBasicMaterial({ 
                 color: 0x00ffff, 
@@ -352,30 +388,21 @@
                 opacity: 0.6 
             });
             selectionIndicator = new THREE.Mesh(geometry, material);
-            // 預設是 XY 平面 (垂直面對 Z 軸)，所以不需要旋轉，這樣就是「垂直圓形」
-            // 相比之下，之前的 Ring 是躺著的 (XZ平面)
-            selectionIndicator.visible = false; // 初始隱藏
+            selectionIndicator.visible = false;
             scene.add(selectionIndicator);
         }
 
         function updateSelectionIndicator() {
             if (targetObject && selectionIndicator) {
                 selectionIndicator.visible = true;
-                
-                // 位置跟隨目標
                 const worldPos = new THREE.Vector3();
                 targetObject.getWorldPosition(worldPos);
                 selectionIndicator.position.copy(worldPos);
-
-                // 大小調整 (比星體稍大)
+                
                 const scale = targetSize * 1.5; 
                 selectionIndicator.scale.set(scale, scale, scale);
+                selectionIndicator.rotation.y -= 0.03; // Vertical spin
 
-                // 自轉動畫：繞著 Y 軸旋轉 (像硬幣在桌上旋轉)
-                // 這樣可以確保從各個角度都能看到它是個圓環
-                selectionIndicator.rotation.y -= 0.03;
-
-                // 脈衝效果
                 const time = Date.now() * 0.003;
                 selectionIndicator.material.opacity = 0.5 + Math.sin(time) * 0.3;
             } else if (selectionIndicator) {
@@ -383,8 +410,6 @@
             }
         }
 
-        // --- Create Objects with Labels ---
-        
         function createLabel(name, zhName) {
             const div = document.createElement('div');
             div.className = 'planet-label';
@@ -393,26 +418,44 @@
             div.dataset.zh = zhName;
             
             const label = new CSS2DObject(div);
-            // 將標籤稍微往上移，以免遮住星體
             label.position.set(0, 0, 0); 
-            label.center.set(0.5, 1.5); // 0.5水平置中, 1.5垂直向上偏移
+            label.center.set(0.5, 1.5);
             return label;
+        }
+
+        function createUniverse() {
+            const geometry = new THREE.SphereGeometry(3000, 64, 64);
+            // Milky Way Panorama from Wikimedia/ESO
+            const texture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/ESO_-_The_Milky_Way_panorama_%28by%29.jpg/1920px-ESO_-_The_Milky_Way_panorama_%28by%29.jpg');
+            
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.BackSide
+            });
+            const universe = new THREE.Mesh(geometry, material);
+            scene.add(universe);
         }
 
         function createSun() {
             const geometry = new THREE.SphereGeometry(10, 64, 64);
-            const material = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+            // Sun Map (Flat map projection)
+            const texture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Map_of_the_full_sun.jpg/1024px-Map_of_the_full_sun.jpg');
+            
+            // 使用 Standard 材質以便控制發光強度，避免過度曝光
+            const material = new THREE.MeshStandardMaterial({ 
+                map: texture,
+                emissive: 0xffffff,
+                emissiveMap: texture,
+                emissiveIntensity: 0.6 
+            });
             sun = new THREE.Mesh(geometry, material);
             
-            // Glow
             const glowGeo = new THREE.SphereGeometry(12, 32, 32);
             const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.3, side: THREE.BackSide });
             const sunGlow = new THREE.Mesh(glowGeo, glowMat);
             sun.add(sunGlow);
 
-            // Label
             const label = createLabel("Sun", "太陽");
-            // 太陽比較大，標籤再高一點
             label.position.set(0, 12, 0);
             sun.add(label);
 
@@ -437,32 +480,46 @@
                 const orbitLine = new THREE.Line(orbitGeo, orbitMat);
                 scene.add(orbitLine); 
 
-                const geometry = new THREE.SphereGeometry(data.size, 32, 32);
+                const geometry = new THREE.SphereGeometry(data.size, 64, 64);
                 if (data.name === 'Haumea') geometry.scale(1.5, 1, 0.8);
 
-                const material = new THREE.MeshStandardMaterial({ 
-                    color: data.color,
-                    roughness: 0.7,
-                    metalness: 0.2,
-                    emissive: data.color,
-                    emissiveIntensity: 0.15
-                });
-                
-                if (data.name === 'Earth') material.roughness = 0.5;
+                let material;
+                if (data.tex) {
+                    const tex = textureLoader.load(data.tex);
+                    material = new THREE.MeshStandardMaterial({ 
+                        map: tex,
+                        roughness: 0.6,            // 統一粗糙度
+                        metalness: 0.1,
+                        emissive: 0xffffff,        
+                        emissiveMap: tex,          
+                        emissiveIntensity: 1.2     // 大幅提升自發光，確保所有有紋理行星都明亮
+                    });
+                } else {
+                    material = new THREE.MeshStandardMaterial({ 
+                        color: data.color,
+                        roughness: 0.6,            
+                        metalness: 0.1,
+                        emissive: data.color,      
+                        emissiveIntensity: 1.0     // 提升無紋理行星的亮度
+                    });
+                }
 
                 const planetMesh = new THREE.Mesh(geometry, material);
                 const startR = data.distance * (1 - data.eccentricity);
                 planetMesh.position.set(startR, 0, 0);
 
-                // Add Label
                 const label = createLabel(data.name, data.zhName);
-                // 根據星體大小調整標籤高度
                 label.position.set(0, data.size, 0);
                 planetMesh.add(label);
 
                 if (data.hasRing) {
                     const ringGeo = new THREE.RingGeometry(data.size * 1.4, data.size * 2.2, 64);
-                    const ringMat = new THREE.MeshBasicMaterial({ color: 0xC3B091, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+                    const ringMat = new THREE.MeshBasicMaterial({ 
+                        color: 0xC3B091, 
+                        side: THREE.DoubleSide, 
+                        transparent: true, 
+                        opacity: 0.6 
+                    });
                     const ring = new THREE.Mesh(ringGeo, ringMat);
                     ring.rotation.x = Math.PI / 2;
                     ring.rotation.y = Math.PI / 8;
@@ -472,8 +529,16 @@
                 if (data.name === 'Earth') {
                     moonPivot = new THREE.Group();
                     planetMesh.add(moonPivot);
-                    const moonGeo = new THREE.SphereGeometry(0.6, 16, 16);
-                    const moonMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, emissive: 0x222222 });
+                    const moonGeo = new THREE.SphereGeometry(0.6, 32, 32);
+                    const moonTex = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Solarsystemscope_texture_2k_moon.jpg/1024px-Solarsystemscope_texture_2k_moon.jpg');
+                    const moonMat = new THREE.MeshStandardMaterial({ 
+                        map: moonTex,
+                        roughness: 0.6,
+                        metalness: 0.1,
+                        emissive: 0xffffff,
+                        emissiveMap: moonTex,
+                        emissiveIntensity: 1.2 // 月球同樣提升亮度
+                    });
                     const moon = new THREE.Mesh(moonGeo, moonMat);
                     moon.position.x = 5;
                     moonPivot.add(moon);
@@ -489,19 +554,7 @@
             });
         }
 
-        function createStarField() {
-            const geometry = new THREE.BufferGeometry();
-            const count = 5000;
-            const positions = new Float32Array(count * 3);
-            for(let i = 0; i < count * 3; i++) {
-                positions[i] = (Math.random() - 0.5) * 4000;
-            }
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: 1.5, color: 0xffffff, transparent: true, opacity: 0.8 });
-            const stars = new THREE.Points(geometry, material);
-            scene.add(stars);
-        }
-
+        // ... (其餘函式保持不變)
         function createAsteroidBelt() {
             const geometry = new THREE.BufferGeometry();
             const count = 3000;
@@ -554,10 +607,10 @@
 
             controls.update();
             updateCameraFollow();
-            updateSelectionIndicator(); // 更新光環動畫
+            updateSelectionIndicator(); 
             
             renderer.render(scene, camera);
-            labelRenderer.render(scene, camera); // Render labels
+            labelRenderer.render(scene, camera); 
         }
 
         function updateCameraFollow() {
@@ -572,7 +625,6 @@
             }
         }
 
-        // --- Raycasting & Selection ---
         function onCanvasClick(event) {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -584,9 +636,7 @@
 
             if (intersects.length > 0) {
                 const object = intersects[0].object;
-                
                 document.getElementById('planet-info').style.opacity = '1';
-
                 if (object === sun) {
                     setTarget(sun, 10, 'Sun');
                 } else {
@@ -598,7 +648,6 @@
             }
         }
 
-        // Helper to center logic of setting target
         function setTarget(object, size, name) {
             targetObject = object;
             targetSize = size;
@@ -612,9 +661,7 @@
             labelRenderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- UI Logic ---
         function setupUI() {
-            // ... (Simple button listeners same as before) ...
             const btnPause = document.getElementById('btn-pause');
             const iconPause = document.getElementById('icon-pause');
             const iconPlay = document.getElementById('icon-play');
@@ -640,7 +687,6 @@
                 speedDisplay.textContent = speedMultiplier.toFixed(1) + 'x';
             });
 
-            // Nav Buttons
             const navPlanets = document.getElementById('nav-planets');
             const navOthers = document.getElementById('nav-others');
             
@@ -659,13 +705,11 @@
                 else navOthers.appendChild(btn);
             });
 
-            // Click listener for Nav Buttons
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const targetName = btn.getAttribute('data-target');
                     document.getElementById('planet-info').style.opacity = '1';
-                    
                     if (targetName === 'Sun') {
                         setTarget(sun, 10, 'Sun');
                     } else {
@@ -675,7 +719,6 @@
                 });
             });
 
-            // Modal & Lang (same as before)
             const modalOverlay = document.getElementById('modal-overlay');
             const modalContent = document.getElementById('modal-content');
             const btnHelp = document.getElementById('btn-help');
@@ -759,7 +802,6 @@
                 span.textContent = span.getAttribute(`data-${currentLang}`);
             });
             
-            // 更新3D標籤文字
             document.querySelectorAll('.planet-label').forEach(label => {
                 label.textContent = currentLang === 'zh' ? label.dataset.zh : label.dataset.en;
             });
