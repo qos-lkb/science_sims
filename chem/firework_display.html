@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化學實驗室：維港煙花匯演</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; }
+        canvas { display: block; }
+        /* 自定義發光效果 */
+        .glow-text {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        .metal-btn.active {
+            ring-width: 4px;
+            --tw-ring-opacity: 1;
+            transform: scale(1.1);
+        }
+        /* 滑桿樣式 */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #475569;
+            border-radius: 2px;
+        }
+        /* Modal 動畫 */
+        .modal {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="font-sans text-white select-none">
+
+    <!-- UI 層 -->
+    <div class="absolute inset-0 pointer-events-none flex flex-col justify-between z-10">
+        
+        <!-- Header Bar -->
+        <div class="bg-black/60 backdrop-blur-md p-3 flex flex-col md:flex-row justify-between items-center border-b border-white/10 pointer-events-auto gap-2">
+            <h1 class="text-xl md:text-2xl font-bold text-yellow-400 glow-text flex items-center gap-2" data-i18n="title">
+                🧪 維港煙花化學實驗室
+            </h1>
+            
+            <div class="flex gap-2">
+                <button onclick="toggleModal('usage-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition border border-white/20" data-i18n="btn_usage">
+                    使用方法
+                </button>
+                <button onclick="toggleModal('principle-modal')" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition border border-white/20" data-i18n="btn_principle">
+                    原理解說
+                </button>
+                <button onclick="switchLanguage()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition border border-white/20" id="lang-btn">
+                    中 / EN
+                </button>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="bg-black/70 backdrop-blur-xl p-4 md:pb-6 pointer-events-auto border-t border-white/10 flex flex-col gap-4">
+            
+            <div class="flex flex-col md:flex-row gap-6 justify-center items-center">
+                <!-- 左側：金屬選擇 -->
+                <div class="flex flex-wrap justify-center gap-2 max-w-2xl" id="metal-container">
+                    <!-- JS 生成按鈕 -->
+                </div>
+
+                <!-- 右側：變因控制 -->
+                <div class="flex flex-col gap-3 bg-white/5 p-4 rounded-xl border border-white/10 min-w-[250px]">
+                    
+                    <!-- 劑量滑桿 -->
+                    <div>
+                        <div class="flex justify-between text-xs text-blue-300 mb-1">
+                            <span data-i18n="label_dosage">金屬劑量 (爆炸半徑)</span>
+                            <span id="dosage-val">1.0x</span>
+                        </div>
+                        <input type="range" id="dosage-slider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+
+                    <!-- 時間滑桿 -->
+                    <div>
+                        <div class="flex justify-between text-xs text-green-300 mb-1">
+                            <span data-i18n="label_time">引信時間 (爆炸高度)</span>
+                            <span id="time-val" data-i18n="val_standard">標準</span>
+                        </div>
+                        <input type="range" id="time-slider" min="0" max="100" step="10" value="50" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex justify-center gap-4 mt-2">
+                <button id="launch-btn" class="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold py-2 px-8 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 text-lg flex items-center gap-2 border border-red-400/30">
+                    <span data-i18n="btn_launch">🔥 全部發射</span>
+                </button>
+                <button id="clear-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 border border-white/10">
+                    <span data-i18n="btn_clear">🌊 清除海面</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- 使用說明 Modal -->
+    <div id="usage-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-white/20 rounded-2xl max-w-lg w-full p-6 relative shadow-2xl">
+            <button onclick="toggleModal('usage-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+            <h2 class="text-2xl font-bold text-blue-400 mb-4" data-i18n="modal_usage_title">操作說明</h2>
+            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm md:text-base">
+                <li data-i18n="modal_usage_1">1. 選擇一種金屬元素（如 Na 鈉）。</li>
+                <li data-i18n="modal_usage_2">2. 調整「劑量」與「時間」滑桿。</li>
+                <li data-i18n="modal_usage_3">3. 點擊「海面」放置煙花筒，可放置多個。</li>
+                <li data-i18n="modal_usage_4">4. 點擊「🔥 全部發射」按鈕，或直接點擊海面上的煙花筒進行單獨發射。</li>
+                <li data-i18n="modal_usage_5">5. 觀察不同金屬在維港夜空綻放的顏色（焰色反應）。</li>
+            </ul>
+            <div class="mt-6 text-center">
+                <button onclick="toggleModal('usage-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-bold">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 原理解說 Modal -->
+    <div id="principle-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-white/20 rounded-2xl max-w-xl w-full p-6 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+            <button onclick="toggleModal('principle-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+            <h2 class="text-2xl font-bold text-purple-400 mb-4" data-i18n="modal_principle_title">焰色反應原理 (Flame Test)</h2>
+            
+            <div class="space-y-4 text-gray-300 text-sm md:text-base leading-relaxed">
+                <p>
+                    <strong class="text-white" data-i18n="principle_p1_title">為什麼金屬燃燒會有顏色？</strong><br>
+                    <span data-i18n="principle_p1_content">這是因為原子中的電子發生了「能階躍遷」。</span>
+                </p>
+                
+                <div class="bg-black/50 p-4 rounded-lg border border-white/10">
+                    <ol class="list-decimal pl-5 space-y-2">
+                        <li>
+                            <strong class="text-yellow-200" data-i18n="principle_step1_title">受熱激發 (Excitation)：</strong>
+                            <span data-i18n="principle_step1_content">當金屬鹽類受熱（煙花爆炸）時，原子外的電子吸收能量，從穩定的「基態」跳躍到能量較高的「激發態」。</span>
+                        </li>
+                        <li>
+                            <strong class="text-blue-200" data-i18n="principle_step2_title">返回基態 (Relaxation)：</strong>
+                            <span data-i18n="principle_step2_content">激發態很不穩定，電子會立刻跳回原本的低能量層。</span>
+                        </li>
+                        <li>
+                            <strong class="text-red-200" data-i18n="principle_step3_title">釋放光子 (Emission)：</strong>
+                            <span data-i18n="principle_step3_content">多餘的能量會以「光」的形式釋放出來。</span>
+                        </li>
+                    </ol>
+                </div>
+
+                <p data-i18n="principle_summary">
+                    不同的金屬元素，其電子能階的差距不同，釋放出的光波長也不同，因此我們能看到五顏六色的煙花！
+                    <br><br>
+                    例如：<span class="text-yellow-400">鈉(Na)</span> 釋放黃光，<span class="text-red-500">鍶(Sr)</span> 釋放紅光，<span class="text-green-400">鋇(Ba)</span> 釋放綠光。
+                </p>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button onclick="toggleModal('principle-modal')" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-full font-bold">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 畫布層 -->
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // --- 0. 語言與本地化 (Localization) ---
+        let currentLang = 'zh'; // 'zh' or 'en'
+        
+        const translations = {
+            zh: {
+                title: "🧪 維港煙花化學實驗室",
+                btn_usage: "使用方法",
+                btn_principle: "原理解說",
+                label_dosage: "金屬劑量 (爆炸半徑)",
+                label_time: "引信時間 (爆炸高度)",
+                val_standard: "標準",
+                val_low: "提早 (低空)",
+                val_high: "延遲 (高空)",
+                btn_launch: "🔥 全部發射",
+                btn_clear: "🌊 清除海面",
+                modal_usage_title: "操作說明",
+                modal_usage_1: "1. 選擇一種金屬元素（如 Na 鈉）。",
+                modal_usage_2: "2. 調整「劑量」與「時間」滑桿。",
+                modal_usage_3: "3. 點擊「海面」放置煙花筒，可放置多個。",
+                modal_usage_4: "4. 點擊「🔥 全部發射」按鈕，或直接點擊海面上的煙花筒進行單獨發射。",
+                modal_usage_5: "5. 觀察不同金屬在維港夜空綻放的顏色（焰色反應）。",
+                modal_principle_title: "焰色反應原理 (Flame Test)",
+                principle_p1_title: "為什麼金屬燃燒會有顏色？",
+                principle_p1_content: "這是因為原子中的電子發生了「能階躍遷」。",
+                principle_step1_title: "受熱激發 (Excitation)：",
+                principle_step1_content: "當金屬鹽類受熱（煙花爆炸）時，原子外的電子吸收能量，從穩定的「基態」跳躍到能量較高的「激發態」。",
+                principle_step2_title: "返回基態 (Relaxation)：",
+                principle_step2_content: "激發態很不穩定，電子會立刻跳回原本的低能量層。",
+                principle_step3_title: "釋放光子 (Emission)：",
+                principle_step3_content: "多餘的能量會以「光」的形式釋放出來。",
+                principle_summary: "不同的金屬元素，其電子能階的差距不同，釋放出的光波長也不同，因此我們能看到五顏六色的煙花！<br><br>例如：<span class='text-yellow-400'>鈉(Na)</span> 釋放黃光，<span class='text-red-500'>鍶(Sr)</span> 釋放紅光，<span class='text-green-400'>鋇(Ba)</span> 釋放綠光。",
+                // 金屬名稱
+                Sr_name: "鍶 (Strontium)",
+                Ca_name: "鈣 (Calcium)",
+                Na_name: "鈉 (Sodium)",
+                Ba_name: "鋇 (Barium)",
+                Cu_name: "銅 (Copper)",
+                K_name: "鉀 (Potassium)",
+                Mg_name: "鎂 (Magnesium)",
+                alert_place: "請先點擊海面放置煙花船！"
+            },
+            en: {
+                title: "🧪 Victoria Harbour Fireworks Lab",
+                btn_usage: "Instructions",
+                btn_principle: "Principles",
+                label_dosage: "Metal Dosage (Radius)",
+                label_time: "Fuse Time (Altitude)",
+                val_standard: "Standard",
+                val_low: "Early (Low)",
+                val_high: "Late (High)",
+                btn_launch: "🔥 Launch All",
+                btn_clear: "🌊 Clear Sea",
+                modal_usage_title: "How to Play",
+                modal_usage_1: "1. Select a Metal Element (e.g., Na).",
+                modal_usage_2: "2. Adjust 'Dosage' and 'Time' sliders.",
+                modal_usage_3: "3. Click on the 'Sea' to place fireworks barges.",
+                modal_usage_4: "4. Click 'Launch All' or click individual barges to fire.",
+                modal_usage_5: "5. Observe the unique colors produced by different metals (Flame Test).",
+                modal_principle_title: "Chemistry Principle: Flame Test",
+                principle_p1_title: "Why do metals burn with colors?",
+                principle_p1_content: "It's due to electron transitions within atoms.",
+                principle_step1_title: "Excitation:",
+                principle_step1_content: "When heated, electrons absorb energy and jump from the 'Ground State' to a higher energy 'Excited State'.",
+                principle_step2_title: "Relaxation:",
+                principle_step2_content: "The excited state is unstable. Electrons immediately fall back to lower energy levels.",
+                principle_step3_title: "Emission:",
+                principle_step3_content: "The excess energy is released in the form of light (Photons).",
+                principle_summary: "Different elements have different energy gaps, producing light of specific wavelengths (colors).<br><br>E.g., <span class='text-yellow-400'>Sodium(Na)</span> is Yellow, <span class='text-red-500'>Strontium(Sr)</span> is Red, <span class='text-green-400'>Barium(Ba)</span> is Green.",
+                // Metal Names
+                Sr_name: "Sr (Strontium)",
+                Ca_name: "Ca (Calcium)",
+                Na_name: "Na (Sodium)",
+                Ba_name: "Ba (Barium)",
+                Cu_name: "Cu (Copper)",
+                K_name: "K (Potassium)",
+                Mg_name: "Mg (Magnesium)",
+                alert_place: "Please click on the sea to place fireworks first!"
+            }
+        };
+
+        function switchLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            // 按鈕文字固定為 "中 / EN"，不再動態變更
+            // document.getElementById('lang-btn').textContent = currentLang === 'zh' ? 'EN' : '中';
+            updateTexts();
+            initUI(); // Re-render metal buttons
+        }
+
+        function updateTexts() {
+            const t = translations[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.innerHTML = t[key];
+            });
+            // Update Slider Text manually since it has dynamic values
+            const timeSlider = document.getElementById('time-slider');
+            // Trigger input event to refresh slider text logic
+            timeSlider.dispatchEvent(new Event('input'));
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal.classList.contains('open')) {
+                modal.classList.remove('open');
+            } else {
+                modal.classList.add('open');
+            }
+        }
+
+        // --- 1. 資料設定 ---
+        const metals = [
+            { symbol: 'Sr', key: 'Sr_name', color: '#FF0000' },
+            { symbol: 'Ca', key: 'Ca_name', color: '#FF4500' },
+            { symbol: 'Na', key: 'Na_name', color: '#FFFF00' },
+            { symbol: 'Ba', key: 'Ba_name', color: '#32CD32' },
+            { symbol: 'Cu', key: 'Cu_name', color: '#00FFFF' },
+            { symbol: 'K',  key: 'K_name',  color: '#C77CFF' },
+            { symbol: 'Mg', key: 'Mg_name', color: '#FFFFFF' }
+        ];
+
+        let selectedMetal = metals[0]; 
+        let currentDosage = 1.0;
+        let currentTimeSetting = 50; 
+
+        // --- 2. 系統變數 ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const launchBtn = document.getElementById('launch-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const metalContainer = document.getElementById('metal-container');
+        const dosageSlider = document.getElementById('dosage-slider');
+        const timeSlider = document.getElementById('time-slider');
+        const dosageVal = document.getElementById('dosage-val');
+        const timeVal = document.getElementById('time-val');
+
+        let width, height, seaLevel;
+        let fireworks = []; 
+        let particles = []; 
+        let stars = [];
+        
+        // --- Audio ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playExplosionSound() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 2; 
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 800; 
+            const gainNode = audioCtx.createGain();
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            gainNode.gain.setValueAtTime(0.5, now); 
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5); 
+            noise.start(now);
+            noise.stop(now + 0.5);
+        }
+
+        // --- 3. UI 初始化與事件 ---
+        function initUI() {
+            // 生成金屬按鈕 (支援多語言)
+            metalContainer.innerHTML = '';
+            const t = translations[currentLang];
+
+            metals.forEach((metal, index) => {
+                const btn = document.createElement('button');
+                btn.className = `metal-btn py-1.5 px-3 rounded-md font-bold text-sm transition border border-white/20 flex flex-col items-center min-w-[60px] bg-slate-800 hover:bg-slate-700`;
+                btn.style.color = metal.color;
+                
+                // Get localized name
+                const name = t[metal.key];
+                
+                btn.innerHTML = `<span class="text-base">${metal.symbol}</span><span class="text-[10px] opacity-70 whitespace-nowrap">${name.split('(')[0]}</span>`;
+                
+                if (metal.symbol === selectedMetal.symbol) {
+                    btn.classList.add('active', 'ring-2', 'ring-white');
+                }
+
+                btn.onclick = () => {
+                    initAudio(); 
+                    selectedMetal = metal;
+                    document.querySelectorAll('.metal-btn').forEach(b => b.classList.remove('active', 'ring-2', 'ring-white'));
+                    btn.classList.add('active', 'ring-2', 'ring-white');
+                };
+                metalContainer.appendChild(btn);
+            });
+
+            // 滑桿監聽
+            dosageSlider.addEventListener('input', (e) => {
+                currentDosage = parseFloat(e.target.value);
+                dosageVal.textContent = currentDosage.toFixed(1) + 'x';
+            });
+
+            timeSlider.addEventListener('input', (e) => {
+                currentTimeSetting = parseInt(e.target.value);
+                const t = translations[currentLang];
+                let text = t.val_standard;
+                if(currentTimeSetting < 30) text = t.val_low;
+                else if(currentTimeSetting > 70) text = t.val_high;
+                timeVal.textContent = text;
+            });
+        }
+
+        // --- 4. 場景與繪圖邏輯 (香港地標) ---
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (seaLevel - 100),
+                    size: Math.random() * 1.5,
+                    alpha: Math.random(),
+                    twinkleSpeed: Math.random() * 0.02 + 0.005
+                });
+            }
+        }
+
+        function drawBOC(x, y, w, h) {
+            ctx.fillStyle = '#111'; 
+            ctx.beginPath();
+            ctx.moveTo(x, y); 
+            ctx.lineTo(x + w, y); 
+            ctx.lineTo(x + w, y - h * 0.7); 
+            ctx.lineTo(x + w/2, y - h); 
+            ctx.lineTo(x, y - h * 0.85); 
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#64748b'; 
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x + w/2, y - h);
+            ctx.lineTo(x + w/2, y - h - 15);
+            ctx.stroke();
+        }
+
+        function drawIFC(x, y, w, h) {
+            ctx.fillStyle = '#141414';
+            let taper = 5;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x + w - taper, y - h);
+            ctx.lineTo(x + taper, y - h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#94a3b8'; 
+            ctx.fillRect(x + taper, y - h, w - taper*2, 6);
+            ctx.strokeStyle = '#334155';
+            ctx.beginPath();
+            for(let i=1; i<4; i++) {
+                let lx = x + (w/4)*i;
+                ctx.moveTo(lx, y);
+                ctx.lineTo(lx, y - h + 5);
+            }
+            ctx.stroke();
+        }
+
+        function drawHKCEC(x, y) {
+            const w = 140; 
+            const h = 40;  
+            ctx.fillStyle = '#334155'; 
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.bezierCurveTo(x + 20, y - h, x + 50, y - h - 10, x + 70, y - h + 5);
+            ctx.bezierCurveTo(x + 90, y - h - 10, x + 120, y - h, x + w, y);
+            ctx.fill();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=1; i<6; i++) {
+                ctx.moveTo(x + 20*i, y);
+                ctx.lineTo(x + 20*i + 10, y - 20);
+            }
+            ctx.stroke();
+        }
+
+        function drawScene() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#020617'); 
+            gradient.addColorStop(0.6, '#0f172a'); 
+            gradient.addColorStop(1, '#000000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#FFF';
+            stars.forEach(star => {
+                star.alpha += star.twinkleSpeed * (Math.random() < 0.5 ? 1 : -1);
+                if(star.alpha > 1) star.alpha = 1; else if(star.alpha < 0.2) star.alpha = 0.2;
+                ctx.globalAlpha = star.alpha;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+
+            ctx.beginPath();
+            ctx.moveTo(0, seaLevel);
+            ctx.lineTo(0, seaLevel - 120);
+            let peakX = width * 0.35; 
+            ctx.bezierCurveTo(width * 0.1, seaLevel - 150, peakX - 50, seaLevel - 320, peakX, seaLevel - 350); 
+            ctx.bezierCurveTo(peakX + 100, seaLevel - 320, width * 0.7, seaLevel - 150, width, seaLevel - 80);
+            ctx.lineTo(width, seaLevel);
+            ctx.fillStyle = '#0a0a0a'; 
+            ctx.fill();
+
+            /* 移除背景閃爍建築物
+            ctx.fillStyle = '#0f0f0f';
+            for(let i=0; i<width; i+=60) {
+                let h = Math.random() * 80 + 30;
+                if (i > width * 0.2 && i < width * 0.6) h += 40;
+                ctx.fillRect(i, seaLevel - h, 40, h);
+            }
+            */
+
+            let ifcX = width * 0.22;
+            drawIFC(ifcX, seaLevel, 50, 300);
+
+            ctx.fillStyle = '#111';
+            ctx.fillRect(width * 0.42, seaLevel - 240, 40, 240);
+            ctx.strokeStyle = '#0284c7'; 
+            ctx.beginPath();
+            ctx.moveTo(width*0.42+20, seaLevel-240);
+            ctx.lineTo(width*0.42+20, seaLevel);
+            ctx.stroke();
+
+            let hkcecX = width * 0.48;
+            drawHKCEC(hkcecX, seaLevel);
+
+            let bocX = width * 0.60;
+            drawBOC(bocX, seaLevel, 45, 260);
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, seaLevel, width, height - seaLevel);
+            
+            const reflectGrad = ctx.createLinearGradient(0, seaLevel, 0, height);
+            reflectGrad.addColorStop(0, 'rgba(255,255,255,0.08)');
+            reflectGrad.addColorStop(0.2, 'rgba(0,0,0,0)');
+            ctx.fillStyle = reflectGrad;
+            
+            ctx.fillRect(ifcX, seaLevel, 50, 100);
+            ctx.fillRect(bocX, seaLevel, 45, 80);
+            ctx.fillRect(hkcecX, seaLevel, 140, 40); 
+
+            ctx.beginPath();
+            ctx.moveTo(0, seaLevel);
+            ctx.lineTo(width, seaLevel);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // --- 5. 煙花類別 ---
+
+        class Firework {
+            constructor(x, metal, dosage, timeSetting) {
+                this.x = x;
+                this.y = seaLevel;
+                this.metal = metal;
+                this.dosage = dosage; 
+                this.timeSetting = timeSetting; 
+                this.state = 'waiting'; 
+                
+                const minH = height * 0.15;
+                const maxH = height * 0.5;
+                const ratio = this.timeSetting / 100; 
+                this.targetY = maxH - (maxH - minH) * ratio;
+                this.targetY += (Math.random() - 0.5) * 50;
+
+                const distance = seaLevel - this.targetY;
+                this.speed = Math.sqrt(distance) * 0.7; 
+                
+                this.radius = 4 + (dosage * 2); 
+                this.trail = []; 
+                this.floatOffset = Math.random() * Math.PI * 2;
+                this.hitRadius = 25;
+            }
+
+            isHit(mx, my) {
+                const dist = Math.sqrt((mx - this.x)**2 + (my - (seaLevel - 15))**2);
+                return dist < this.hitRadius;
+            }
+
+            launch() {
+                if (this.state === 'waiting') {
+                    initAudio(); 
+                    this.state = 'rising';
+                }
+            }
+
+            update() {
+                if (this.state === 'waiting') {
+                    this.floatOffset += 0.05;
+                } else if (this.state === 'rising') {
+                    this.y -= this.speed;
+                    this.speed *= 0.97; 
+
+                    this.trail.push({x: this.x, y: this.y, alpha: 1});
+                    if (this.trail.length > 15) this.trail.shift();
+                    this.trail.forEach(t => t.alpha -= 0.08);
+
+                    if (this.y <= this.targetY || this.speed < 1) {
+                        this.explode();
+                    }
+                }
+            }
+
+            draw() {
+                if (this.state === 'waiting') {
+                    const floatY = Math.sin(this.floatOffset) * 3;
+                    
+                    ctx.beginPath();
+                    ctx.arc(this.x, seaLevel - 15 + floatY, this.hitRadius, 0, Math.PI*2);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(this.x - 12, seaLevel - 5 + floatY, 24, 8);
+                    
+                    const w = 10 * this.dosage;
+                    ctx.fillStyle = '#64748b'; 
+                    ctx.fillRect(this.x - w/2, seaLevel - 25 + floatY, w, 20);
+                    
+                    ctx.fillStyle = this.metal.color;
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'black';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(this.metal.symbol, this.x, seaLevel - 30 + floatY);
+                    
+                    ctx.fillStyle = '#aaa';
+                    ctx.font = '10px Arial';
+                    ctx.fillText(`${this.dosage}x`, this.x, seaLevel + 15 + floatY);
+                    ctx.shadowBlur = 0;
+
+                } else if (this.state === 'rising') {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.metal.color;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    this.trail.forEach(t => {
+                        ctx.beginPath();
+                        ctx.arc(t.x, t.y, this.radius * 0.5, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 255, 255, ${t.alpha})`;
+                        ctx.fill();
+                    });
+                }
+            }
+
+            explode() {
+                this.state = 'exploded';
+                playExplosionSound(); 
+                createExplosion(this.x, this.y, this.metal.color, this.dosage);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, dosage) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                
+                const angle = Math.random() * Math.PI * 2;
+                const baseVel = 3 + (dosage * 3); 
+                const velocity = Math.random() * baseVel + 1; 
+                
+                this.vx = Math.cos(angle) * velocity;
+                this.vy = Math.sin(angle) * velocity;
+                
+                this.alpha = 1;
+                this.decay = Math.random() * 0.01 + 0.005;
+                this.gravity = 0.05;
+                this.friction = 0.95;
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createExplosion(x, y, color, dosage) {
+            const particleCount = Math.floor(80 * dosage); 
+            
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(x, y, color, dosage));
+            }
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.2 * dosage})`;
+            ctx.fillRect(0, 0, width, height);
+            
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.1 * dosage;
+            ctx.fillRect(0, seaLevel, width, height - seaLevel);
+            ctx.globalAlpha = 1.0;
+        }
+
+        // --- 6. 互動邏輯 ---
+
+        canvas.addEventListener('pointerdown', (e) => {
+            initAudio(); 
+            // 如果點擊的是 Modal，不處理 (雖然 pointer-events: auto 應該會擋住，但保險起見)
+            if (e.target !== canvas) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            let hitFirework = false;
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const fw = fireworks[i];
+                if (fw.state === 'waiting' && fw.isHit(clickX, clickY)) {
+                    fw.launch();
+                    hitFirework = true;
+                    break; 
+                }
+            }
+
+            if (hitFirework) return;
+
+            if (clickY >= seaLevel - 50) {
+                fireworks.push(new Firework(clickX, selectedMetal, currentDosage, currentTimeSetting));
+                
+                ctx.beginPath();
+                ctx.ellipse(clickX, seaLevel, 20, 5, 0, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.stroke();
+            }
+        });
+
+        launchBtn.addEventListener('click', () => {
+            initAudio(); 
+            let hasLaunched = false;
+            fireworks.forEach(fw => {
+                if (fw.state === 'waiting') {
+                    fw.launch();
+                    hasLaunched = true;
+                }
+            });
+            if (!hasLaunched && fireworks.length === 0) {
+                const t = translations[currentLang];
+                alert(t.alert_place);
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            fireworks = [];
+            particles = [];
+        });
+
+        // --- 7. 主循環 ---
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            seaLevel = height * 0.75;
+            initStars();
+        }
+        window.addEventListener('resize', resize);
+
+        function loop() {
+            drawScene();
+
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const fw = fireworks[i];
+                fw.update();
+                fw.draw();
+                if (fw.state === 'exploded') {
+                    fireworks.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // --- 啟動 ---
+        initUI();
+        resize();
+        loop();
+
+    </script>
+</body>
+</html>
