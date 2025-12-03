@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理教學模擬：質譜儀 (Mass Spectrometer)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- MathJax -->
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
+        
+        /* Header Bar */
+        #header-bar {
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .ui-panel {
+            backdrop-filter: blur(8px);
+            background-color: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #475569;
+            border-radius: 2px;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Modal Transitions */
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Pulse animation for active button */
+        .btn-active {
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+
+    <!-- Header Bar -->
+    <header id="header-bar" class="fixed top-0 left-0 w-full h-14 z-20 flex items-center justify-between px-6">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-atom text-sky-400 text-xl"></i>
+            <h1 class="font-bold text-lg text-slate-100 hidden md:block" data-i18n="appTitle">質譜儀模擬器</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- Controls Button -->
+            <button id="btn-controls" class="text-sm font-medium text-slate-300 hover:text-white transition flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700">
+                <i class="fa-solid fa-gamepad"></i>
+                <span data-i18n="btnControls">操作說明</span>
+            </button>
+            <!-- Info Button -->
+            <button id="btn-info" class="text-sm font-medium text-slate-300 hover:text-white transition flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700">
+                <i class="fa-regular fa-circle-question"></i>
+                <span data-i18n="btnExplain">原理解說</span>
+            </button>
+            <!-- Language Button -->
+            <button id="btn-lang" class="text-sm font-bold text-sky-400 hover:text-sky-300 transition bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700 w-20 text-center">
+                中 / EN
+            </button>
+        </div>
+    </header>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Main UI Overlay -->
+    <div class="absolute inset-0 pt-16 pointer-events-none flex flex-col md:flex-row p-4 gap-4 z-10">
+        
+        <!-- Left: Info Panel (Now at Bottom) -->
+        <div class="flex-1 flex flex-col justify-end pointer-events-none"> <!-- Changed justify-between to justify-end -->
+            <div class="ui-panel p-6 rounded-xl max-w-md pointer-events-auto shadow-lg animate-fade-in-up"> <!-- Changed animation to fade-in-up -->
+                <h2 class="text-xl font-bold text-sky-400 mb-2" data-i18n="panelTitle">即時模擬</h2>
+                <p class="text-sm text-slate-300 mb-4">
+                    <span data-i18n="panelDesc">模擬帶電粒子如何在電場中加速並在磁場中偏轉。</span>
+                    <br>
+                    <span class="text-yellow-400 font-bold mt-2 block" id="formula-main">
+                        $$ r = \frac{mv}{qB} $$
+                    </span>
+                </p>
+                <div class="flex flex-wrap gap-2 text-xs mb-4" id="legend-container">
+                    <!-- Dynamic Legend -->
+                </div>
+
+                <!-- Abundance Table -->
+                <div class="border-t border-slate-700 pt-3">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-2" data-i18n="tableTitle">同位素豐度 (標準值)</h3>
+                    <div class="overflow-x-auto rounded-lg border border-slate-700 max-h-32 overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-xs text-left text-slate-400">
+                            <thead class="text-xs text-slate-300 uppercase bg-slate-800 sticky top-0">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2" data-i18n="tableColIsotope">同位素</th>
+                                    <th scope="col" class="px-3 py-2" data-i18n="tableColMass">質量 (u)</th>
+                                    <th scope="col" class="px-3 py-2 text-right" data-i18n="tableColAbundance">豐度 (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="abundance-table-body" class="bg-slate-800/50">
+                                <!-- Rows will be populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Controls & Graph -->
+        <div class="w-full md:w-80 flex flex-col gap-4 pointer-events-auto">
+            
+            <!-- Controls -->
+            <div class="ui-panel p-5 rounded-xl shadow-lg">
+                <h2 class="text-lg font-semibold text-slate-100 mb-4 border-b border-slate-700 pb-2" data-i18n="controlsTitle">實驗參數</h2>
+                
+                <!-- Source Selection -->
+                <div class="mb-5">
+                    <label class="text-xs font-medium text-slate-300 mb-1 block" data-i18n="labelSource">離子源 (Element Source)</label>
+                    <select id="source-select" class="w-full bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block p-2.5">
+                        <option value="neon">Neon (Ne) - 氖</option>
+                        <option value="chlorine">Chlorine (Cl) - 氯</option>
+                        <option value="boron">Boron (B) - 硼</option>
+                        <option value="magnesium">Magnesium (Mg) - 鎂</option>
+                        <option value="lithium">Lithium (Li) - 鋰</option>
+                        <option value="bromine">Bromine (Br) - 溴</option>
+                        <option value="carbon">Carbon (C) - 碳</option>
+                    </select>
+                </div>
+
+                <!-- Voltage Control -->
+                <div class="mb-5">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-xs font-medium text-slate-300" data-i18n="labelVoltage">加速電壓 ($V$)</label>
+                        <span id="val-voltage" class="text-xs font-mono text-sky-400">2000 V</span>
+                    </div>
+                    <input type="range" id="voltage" min="500" max="5000" step="100" value="2000">
+                </div>
+
+                <!-- Magnetic Field Control -->
+                <div class="mb-5">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-xs font-medium text-slate-300" data-i18n="labelMagnetic">磁場強度 ($B$)</label>
+                        <span id="val-magnetic" class="text-xs font-mono text-sky-400">1.00 T</span>
+                    </div>
+                    <input type="range" id="magnetic" min="0.1" max="2.0" step="0.1" value="1.0">
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex flex-col gap-2 mt-4">
+                    <!-- Firing Toggle -->
+                    <button id="btn-toggle-fire" class="w-full bg-slate-700 hover:bg-slate-600 border border-slate-500 text-white py-3 px-4 rounded-lg transition text-base font-bold flex justify-center items-center shadow-md">
+                        <i class="fa-solid fa-power-off mr-2"></i> <span data-i18n="btnFireOn">開啟離子源</span>
+                    </button>
+
+                    <div class="flex gap-2">
+                        <button id="btn-reset" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-4 rounded transition text-sm font-medium flex justify-center items-center border border-slate-600">
+                            <i class="fa-solid fa-rotate-right mr-2"></i> <span data-i18n="btnReset">重置</span>
+                        </button>
+                        <button id="btn-toggle-cam" class="flex-1 bg-sky-700 hover:bg-sky-600 text-white py-2 px-4 rounded transition text-sm font-medium flex justify-center items-center border border-sky-600">
+                            <i class="fa-solid fa-video mr-2"></i> <span data-i18n="btnCamTop">俯視圖</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph -->
+            <div class="ui-panel p-4 rounded-xl shadow-lg flex-1 min-h-[200px] flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-semibold text-slate-200" data-i18n="graphTitle">偵測結果 (Abundance)</h2>
+                    <span class="text-xs text-slate-500" id="particle-count">Count: 0</span>
+                </div>
+                <div class="relative flex-1 bg-slate-900/50 rounded border border-slate-700/50 w-full overflow-hidden">
+                    <canvas id="graph-canvas" class="w-full h-full block"></canvas>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-500 mt-1 px-1 pl-8"> 
+                    <span data-i18n="graphXSmall">質量小 ($r$ 小)</span>
+                    <span data-i18n="graphXLarge">質量大 ($r$ 大)</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Info Modal (Explanation) -->
+    <div id="info-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative animate-fade-in-up">
+            <button id="btn-close-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-sky-400 mb-6 flex items-center gap-3">
+                    <i class="fa-solid fa-book-open"></i> <span data-i18n="modalTitle">質譜儀原理</span>
+                </h2>
+                
+                <div class="space-y-6 text-slate-300 leading-relaxed">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white mb-2" data-i18n="modalSec1Title">1. 離子化與加速</h3>
+                        <div data-i18n="modalSec1Desc">
+                            首先，樣品原子被游離成帶正電的離子。接著，它們進入電場（由電壓 $V$ 控制），獲得動能。
+                            <div class="bg-slate-900/50 p-2 my-2 rounded text-center">
+                                $$ qV = \frac{1}{2}mv^2 $$
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-white mb-2" data-i18n="modalSec2Title">2. 磁場偏轉</h3>
+                        <div data-i18n="modalSec2Desc">
+                            當帶電粒子進入垂直的磁場（$B$）時，會受到洛倫茲力作用而進行圓周運動。
+                            <div class="bg-slate-900/50 p-2 my-2 rounded text-center">
+                                $$ F = qvB = \frac{mv^2}{r} $$
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/50 p-4 rounded-lg border-l-4 border-sky-500">
+                        <h3 class="text-md font-bold text-sky-400 mb-1" data-i18n="modalSec3Title">關鍵公式：半徑</h3>
+                        <div class="text-lg text-white text-center py-2">
+                            $$ r = \frac{1}{B} \sqrt{\frac{2Vm}{q}} $$
+                        </div>
+                        <p class="text-sm mt-2 text-slate-400" data-i18n="modalSec3Desc">
+                            這表明半徑 $r$ 取決於質量 $m$。因此，不同質量的同位素會分開並擊中偵測器的不同位置。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button id="btn-close-modal-bottom" class="bg-sky-600 hover:bg-sky-500 text-white py-2 px-6 rounded-lg transition font-medium" data-i18n="btnClose">
+                        關閉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls Modal (New) -->
+    <div id="controls-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-xl max-w-sm w-full shadow-2xl relative animate-fade-in-up">
+            <button id="btn-close-controls" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-sky-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i> <span data-i18n="btnControls">操作說明</span>
+                </h2>
+                <ul class="space-y-4 text-slate-300 text-sm">
+                    <li class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-xl text-sky-400">
+                            <i class="fa-solid fa-arrow-pointer"></i>
+                        </div>
+                        <span data-i18n="ctrlLeft">左鍵拖曳：旋轉視角</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-xl text-sky-400">
+                            <i class="fa-solid fa-hand-paper"></i>
+                        </div>
+                        <span data-i18n="ctrlRight">右鍵拖曳：平移視角</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-xl text-sky-400">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </div>
+                        <span data-i18n="ctrlScroll">滾輪：縮放</span>
+                    </li>
+                </ul>
+                <div class="mt-6 text-center">
+                    <button id="btn-close-controls-bottom" class="bg-slate-700 hover:bg-slate-600 text-white py-2 px-6 rounded-lg transition font-medium w-full" data-i18n="btnClose">
+                        關閉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 0. LANGUAGE DATA & MANAGEMENT ---
+        const I18N = {
+            zh: {
+                appTitle: "質譜儀模擬器",
+                btnControls: "操作說明",
+                btnExplain: "原理解說",
+                panelTitle: "即時模擬",
+                panelDesc: "模擬帶電粒子如何在電場中加速並在磁場中偏轉。",
+                // mouseInstructions: "<i class='fa-solid fa-mouse mr-1'></i> 左鍵旋轉視角 / 右鍵平移 / 滾輪縮放", // Removed from bottom left
+                ctrlLeft: "左鍵拖曳：旋轉視角",
+                ctrlRight: "右鍵拖曳：平移視角",
+                ctrlScroll: "滑鼠滾輪：縮放",
+                controlsTitle: "實驗參數",
+                labelSource: "離子源 (Element Source)",
+                labelVoltage: "加速電壓 ($V$)",
+                labelMagnetic: "磁場強度 ($B$)",
+                btnFireOn: "開啟離子源",
+                btnFireOff: "關閉離子源",
+                btnReset: "重置",
+                btnCamTop: "俯視圖",
+                btnCamPersp: "透視圖",
+                graphTitle: "偵測結果 (Abundance)",
+                graphXSmall: "質量小 ($r$ 小)",
+                graphXLarge: "質量大 ($r$ 大)",
+                tableTitle: "同位素豐度 (標準值)",
+                tableColIsotope: "同位素",
+                tableColMass: "質量 (u)",
+                tableColAbundance: "豐度 (%)",
+                modalTitle: "質譜儀原理",
+                modalSec1Title: "1. 離子化與加速",
+                modalSec1Desc: "首先，樣品原子被游離成帶正電的離子。接著，它們進入電場（由電壓 $V$ 控制），獲得動能。<div class='bg-slate-900/50 p-2 my-2 rounded text-center'>$$ qV = \\frac{1}{2}mv^2 $$</div>",
+                modalSec2Title: "2. 磁場偏轉",
+                modalSec2Desc: "當帶電粒子進入垂直的磁場（$B$）時，會受到洛倫茲力作用而進行圓周運動。<div class='bg-slate-900/50 p-2 my-2 rounded text-center'>$$ F = qvB = \\frac{mv^2}{r} $$</div>",
+                modalSec3Title: "關鍵公式：半徑",
+                modalSec3Desc: "這表明半徑 $r$ 取決於質量 $m$。因此，不同質量的同位素會分開並擊中偵測器的不同位置。",
+                btnClose: "關閉",
+                sceneIonSource: "離子源",
+                sceneEField: "電場 E",
+                sceneBField: "磁場 B",
+                sceneDetector: "偵測器"
+            },
+            en: {
+                appTitle: "Mass Spectrometer Simulator",
+                btnControls: "Controls",
+                btnExplain: "Explanation",
+                panelTitle: "Live Simulation",
+                panelDesc: "Simulating how charged particles accelerate in an electric field and deflect in a magnetic field.",
+                // mouseInstructions: "<i class='fa-solid fa-mouse mr-1'></i> Left Click: Rotate / Right Click: Pan / Scroll: Zoom", // Removed
+                ctrlLeft: "Left Drag: Rotate Camera",
+                ctrlRight: "Right Drag: Pan Camera",
+                ctrlScroll: "Scroll: Zoom In/Out",
+                controlsTitle: "Parameters",
+                labelSource: "Ion Source",
+                labelVoltage: "Accelerating Voltage ($V$)",
+                labelMagnetic: "Magnetic Field ($B$)",
+                btnFireOn: "Turn On Source",
+                btnFireOff: "Turn Off Source",
+                btnReset: "Reset",
+                btnCamTop: "Top View",
+                btnCamPersp: "Perspective",
+                graphTitle: "Detector Results (Abundance)",
+                graphXSmall: "Low Mass (Small $r$)",
+                graphXLarge: "High Mass (Large $r$)",
+                tableTitle: "Natural Abundance",
+                tableColIsotope: "Isotope",
+                tableColMass: "Mass (u)",
+                tableColAbundance: "Abundance (%)",
+                modalTitle: "How it Works",
+                modalSec1Title: "1. Ionization & Acceleration",
+                modalSec1Desc: "First, atoms are ionized into positive ions. They enter an electric field (controlled by Voltage $V$) and gain kinetic energy.<div class='bg-slate-900/50 p-2 my-2 rounded text-center'>$$ qV = \\frac{1}{2}mv^2 $$</div>",
+                modalSec2Title: "2. Magnetic Deflection",
+                modalSec2Desc: "Entering a perpendicular magnetic field ($B$), the ions undergo circular motion due to Lorentz Force.<div class='bg-slate-900/50 p-2 my-2 rounded text-center'>$$ F = qvB = \\frac{mv^2}{r} $$</div>",
+                modalSec3Title: "Key Formula: Radius",
+                modalSec3Desc: "The radius $r$ depends on mass $m$. Thus, isotopes of different masses separate and hit the detector at different locations.",
+                btnClose: "Close",
+                sceneIonSource: "Ion Source",
+                sceneEField: "Electric Field E",
+                sceneBField: "Magnetic Field B",
+                sceneDetector: "Detector"
+            }
+        };
+
+        let currentLang = 'zh';
+
+        // --- GLOBAL REFERENCES ---
+        let magnetCurve = null; 
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            const data = I18N[lang];
+            
+            // Update DOM Elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (data[key]) el.innerHTML = data[key];
+            });
+
+            // Keep button text constant as requested
+            const btnLang = document.getElementById('btn-lang');
+            // btnLang.textContent = lang === 'zh' ? 'EN' : '中'; // Removed dynamic change
+
+            // Update Camera Button if necessary
+            const btnCam = document.getElementById('btn-toggle-cam');
+            if (STATE.cameraMode === 'ortho') {
+                btnCam.innerHTML = `<i class="fa-solid fa-video mr-2"></i> ${data.btnCamTop}`;
+            } else {
+                btnCam.innerHTML = `<i class="fa-solid fa-video mr-2"></i> ${data.btnCamPersp}`;
+            }
+
+            // Update Fire Button Text
+            const btnFire = document.getElementById('btn-toggle-fire');
+            if (STATE.isFiring) {
+                btnFire.innerHTML = `<i class="fa-solid fa-power-off mr-2"></i> ${data.btnFireOff}`;
+            } else {
+                btnFire.innerHTML = `<i class="fa-solid fa-power-off mr-2"></i> ${data.btnFireOn}`;
+            }
+
+            // Re-render Labels in 3D Scene
+            if (STATE.labels) {
+                // Clear old labels from DOM
+                STATE.labels.forEach(lbl => {
+                    if (lbl.element && lbl.element.parentNode) {
+                        lbl.element.parentNode.removeChild(lbl.element);
+                    }
+                });
+                STATE.labels = []; // Clear array
+                
+                // Re-create labels
+                createLabel(data.sceneIonSource, 0, 8, 0);
+                createLabel(data.sceneEField, 10, 12, 0, "#facc15");
+                createLabel(data.sceneBField, 90, 18, 30, "#38bdf8");
+                createLabel(data.sceneDetector, 113, 8, 110);
+            }
+
+            // Trigger MathJax re-render safely
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+            }
+        }
+
+        function updateAbundanceTable() {
+            const tbody = document.getElementById('abundance-table-body');
+            tbody.innerHTML = '';
+            
+            const isotopes = SOURCE_DATA[STATE.sourceType];
+            isotopes.forEach(iso => {
+                const row = document.createElement('tr');
+                row.className = "border-b border-slate-700 last:border-0 hover:bg-slate-700/50 transition";
+                
+                const hexColor = '#' + iso.color.toString(16).padStart(6, '0');
+                
+                row.innerHTML = `
+                    <td class="px-3 py-2 font-medium text-slate-300 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full shadow-sm" style="background-color: ${hexColor}"></span>
+                        ${iso.name}
+                    </td>
+                    <td class="px-3 py-2 font-mono text-slate-400">${iso.mass}</td>
+                    <td class="px-3 py-2 text-right font-mono text-sky-400">${(iso.abundance * 100).toFixed(2)}%</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // --- 1. CONFIGURATION & STATE ---
+        const CONFIG = {
+            particleSpawnRate: 3, 
+            maxParticles: 500,
+            charge: 1,
+            dt: 0.1, 
+            scale: 0.5,
+            accelZoneEnd: 20,
+            magnetZoneStart: 25,
+            detectorZ: 60,
+        };
+
+        // UPDATED SOURCE DATA WITH REAL ABUNDANCES
+        const SOURCE_DATA = {
+            neon: [
+                { mass: 20, abundance: 0.9048, color: 0xef4444, name: "Ne-20" },
+                { mass: 21, abundance: 0.0027, color: 0x22c55e, name: "Ne-21" },
+                { mass: 22, abundance: 0.0925, color: 0x3b82f6, name: "Ne-22" } 
+            ],
+            chlorine: [
+                { mass: 35, abundance: 0.7576, color: 0xfacc15, name: "Cl-35" },
+                { mass: 37, abundance: 0.2424, color: 0xa855f7, name: "Cl-37" }
+            ],
+            boron: [
+                { mass: 10, abundance: 0.199, color: 0xf97316, name: "B-10" }, 
+                { mass: 11, abundance: 0.801, color: 0x14b8a6, name: "B-11" } 
+            ],
+            magnesium: [
+                { mass: 24, abundance: 0.7899, color: 0xff00ff, name: "Mg-24" },
+                { mass: 25, abundance: 0.1000, color: 0x00ffff, name: "Mg-25" },
+                { mass: 26, abundance: 0.1101, color: 0xffff00, name: "Mg-26" }
+            ],
+            lithium: [
+                { mass: 6, abundance: 0.0759, color: 0xff4500, name: "Li-6" }, // OrangeRed
+                { mass: 7, abundance: 0.9241, color: 0x32cd32, name: "Li-7" }  // LimeGreen
+            ],
+            bromine: [
+                { mass: 79, abundance: 0.5069, color: 0x8a2be2, name: "Br-79" }, // BlueViolet
+                { mass: 81, abundance: 0.4931, color: 0xd2691e, name: "Br-81" }  // Chocolate
+            ],
+            carbon: [
+                { mass: 12, abundance: 0.9893, color: 0x708090, name: "C-12" }, // SlateGray
+                { mass: 13, abundance: 0.0107, color: 0xffd700, name: "C-13" }  // Gold
+            ]
+        };
+
+        const STATE = {
+            voltage: 2000,
+            magneticField: 1.0,
+            sourceType: 'neon',
+            particles: [],
+            detectedCounts: new Array(300).fill(0),
+            totalCounts: 0,
+            cameraMode: 'ortho',
+            orbitControls: null,
+            labels: [],
+            isFiring: false 
+        };
+
+        // --- 2. THREE.JS SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.002);
+
+        const aspect = window.innerWidth / window.innerHeight;
+        const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+        // Adjusted initial camera position (Farther out and higher)
+        camera.position.set(90, 160, 240);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        // Adjusted target to center of apparatus
+        controls.target.set(60, 0, 50);
+        controls.update();
+        STATE.orbitControls = controls;
+
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 50, 20);
+        scene.add(dirLight);
+
+        // --- 3. SCENE OBJECTS ---
+
+        // Grid helper Removed
+        // const gridHelper = new THREE.GridHelper(200, 50, 0x1e293b, 0x0f172a);
+        // gridHelper.position.y = -5;
+        // scene.add(gridHelper);
+
+        // -- VACUUM CHAMBER CONSTRUCTION --
+        
+        const chamberMat = new THREE.MeshPhysicalMaterial({
+            color: 0x94a3b8,
+            metalness: 0.5,
+            roughness: 0.1,
+            transmission: 0.7,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide
+        });
+
+        // Path Definition
+        const path = new THREE.CurvePath();
+        
+        const lineStart = new THREE.LineCurve3(
+            new THREE.Vector3(-10, 0, 0),
+            new THREE.Vector3(25, 0, 0)
+        );
+        path.add(lineStart);
+        
+        // Define Bezier Curve for Magnet Part
+        magnetCurve = new THREE.QuadraticBezierCurve3(
+            new THREE.Vector3(25, 0, 0),
+            new THREE.Vector3(113, 0, 0),
+            new THREE.Vector3(113, 0, 110)
+        );
+        path.add(magnetCurve);
+
+        const curvePoints = magnetCurve.getSpacedPoints(40); // LUT for collision
+
+        // Create Tube
+        const tubeGeo = new THREE.TubeGeometry(path, 64, 15, 16, false);
+        const chamberMesh = new THREE.Mesh(tubeGeo, chamberMat);
+        scene.add(chamberMesh);
+
+        // A. Ion Source
+        const sourceGeo = new THREE.BoxGeometry(10, 10, 10);
+        const sourceMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.4 });
+        const source = new THREE.Mesh(sourceGeo, sourceMat);
+        source.position.set(0, 0, 0);
+        scene.add(source);
+        
+        // B. Accelerator Plates
+        const plateGeo = new THREE.BoxGeometry(2, 12, 8); 
+        const plateMat = new THREE.MeshStandardMaterial({ 
+            color: 0x334155, 
+            transparent: false, 
+            opacity: 1.0,
+            roughness: 0.5,
+            metalness: 0.2
+        });
+        const plate1 = new THREE.Mesh(plateGeo, plateMat);
+        plate1.position.set(10, 0, 0);
+        const plate2 = new THREE.Mesh(plateGeo, plateMat);
+        plate2.position.set(CONFIG.accelZoneEnd, 0, 0);
+        scene.add(plate1, plate2);
+
+        // -- High Voltage Power Source --
+        function createHighVoltageSource() {
+            const hvGeo = new THREE.CylinderGeometry(4, 4, 12, 16);
+            const hvMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.3, metalness: 0.5 });
+            const hvSource = new THREE.Mesh(hvGeo, hvMat);
+            hvSource.position.set(15, -6, -20);
+            scene.add(hvSource);
+
+            const capGeo = new THREE.CylinderGeometry(2, 2, 2, 16);
+            const capMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const cap = new THREE.Mesh(capGeo, capMat);
+            cap.position.set(0, 7, 0);
+            hvSource.add(cap);
+
+            const labelGeo = new THREE.PlaneGeometry(4, 4);
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#eab308';
+            context.fillRect(0,0,64,64);
+            context.fillStyle = '#000000';
+            context.font = 'bold 50px Arial';
+            context.fillText('HV', 0, 48);
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMat = new THREE.MeshBasicMaterial({ map: texture });
+            const label = new THREE.Mesh(labelGeo, labelMat);
+            label.position.set(0, 0, 4.1);
+            hvSource.add(label);
+
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xffff00 });
+            const points1 = [new THREE.Vector3(15, 0, -20), new THREE.Vector3(10, 0, -20), new THREE.Vector3(10, 0, -5)];
+            const wire1Geo = new THREE.BufferGeometry().setFromPoints(points1);
+            scene.add(new THREE.Line(wire1Geo, wireMat));
+
+            const points2 = [new THREE.Vector3(15, 0, -20), new THREE.Vector3(20, 0, -20), new THREE.Vector3(20, 0, -5)];
+            const wire2Geo = new THREE.BufferGeometry().setFromPoints(points2);
+            scene.add(new THREE.Line(wire2Geo, wireMat));
+        }
+        createHighVoltageSource();
+
+        // Electric Field Arrow
+        const arrowDir = new THREE.Vector3(1, 0, 0);
+        const arrowOrigin = new THREE.Vector3(5, 10, 0);
+        const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, 10, 0xffff00, 2, 1);
+        scene.add(arrowHelper);
+
+        // C. Magnetic Field Zone & Lines (UPDATED PLACEMENT)
+        function createMagneticFieldLines() {
+            if (!magnetCurve) return;
+
+            const bDir = new THREE.Vector3(0, 1, 0); // B Field Up
+            const color = 0x38bdf8;
+            
+            // Sample points along the curve
+            const points = magnetCurve.getSpacedPoints(10); // 10 sections along the curve
+            
+            points.forEach((pt, index) => {
+                if (index === 0) return; // Skip start to avoid clutter
+                
+                // Calculate tangent to get normal
+                const tangent = magnetCurve.getTangentAt(index / 10);
+                const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+                
+                // Center arrow
+                const origin = new THREE.Vector3(pt.x, -5, pt.z);
+                scene.add(new THREE.ArrowHelper(bDir, origin, 10, color, 2, 1));
+                
+                // Side arrows to fill the tube width (Radius 15, so +/- 8 is safe)
+                const leftOrigin = origin.clone().add(normal.clone().multiplyScalar(8));
+                const rightOrigin = origin.clone().add(normal.clone().multiplyScalar(-8));
+                
+                scene.add(new THREE.ArrowHelper(bDir, leftOrigin, 10, color, 2, 1));
+                scene.add(new THREE.ArrowHelper(bDir, rightOrigin, 10, color, 2, 1));
+            });
+        }
+        createMagneticFieldLines();
+
+        // D. Detector Screen 
+        const detectorGeo = new THREE.BoxGeometry(30, 10, 2);
+        const detectorMat = new THREE.MeshStandardMaterial({ color: 0x334155, emissive: 0x1e293b });
+        const detector = new THREE.Mesh(detectorGeo, detectorMat);
+        detector.position.set(113, 0, 110); 
+        scene.add(detector);
+
+        const centerLineGeo = new THREE.BoxGeometry(2, 11, 3);
+        const centerLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+        const centerLine = new THREE.Mesh(centerLineGeo, centerLineMat);
+        centerLine.position.set(113, 0, 110);
+        scene.add(centerLine);
+
+        // --- 4. PHYSICS ENGINE ---
+
+        class Particle {
+            constructor() {
+                const isotopes = SOURCE_DATA[STATE.sourceType];
+                const rand = Math.random();
+                let cumulative = 0;
+                let type = isotopes[isotopes.length - 1]; 
+                
+                for (let iso of isotopes) {
+                    cumulative += iso.abundance;
+                    if (rand <= cumulative) {
+                        type = iso;
+                        break;
+                    }
+                }
+
+                this.mass = type.mass;
+                this.charge = CONFIG.charge;
+                this.color = type.color;
+                
+                this.mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.8, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: this.color })
+                );
+                
+                this.mesh.position.set(0, 0, 0); 
+                this.velocity = new THREE.Vector3(0.5, 0, 0); 
+                this.isDead = false;
+
+                scene.add(this.mesh);
+            }
+
+            update() {
+                if (this.isDead) return;
+
+                const pos = this.mesh.position;
+                
+                // 1. Acceleration Zone
+                if (pos.x < CONFIG.accelZoneEnd) {
+                    const acceleration = (STATE.voltage * 0.005) / this.mass; 
+                    this.velocity.x += acceleration * CONFIG.dt;
+                }
+                
+                // 2. Magnetic Field Zone
+                else if (pos.x >= CONFIG.magnetZoneStart && pos.z < 110) {
+                    const B = STATE.magneticField * 1.0; 
+                    const fx = -this.charge * this.velocity.z * B;
+                    const fz =  this.charge * this.velocity.x * B;
+
+                    const ax = fx / this.mass;
+                    const az = fz / this.mass;
+
+                    this.velocity.x += ax * CONFIG.dt;
+                    this.velocity.z += az * CONFIG.dt;
+                }
+
+                pos.add(this.velocity.clone().multiplyScalar(CONFIG.dt));
+
+                // --- COLLISION DETECTION ---
+                // A. Y Bounds
+                if (Math.abs(pos.y) > 14) {
+                    this.kill(); return;
+                }
+
+                // B. Tube Path Bounds
+                if (pos.x < 25) {
+                    if (Math.abs(pos.z) > 14) { this.kill(); return; }
+                } 
+                else {
+                    let minDstSq = Infinity;
+                    for(let i=0; i<curvePoints.length; i++) {
+                        const pt = curvePoints[i];
+                        const dx = pos.x - pt.x;
+                        const dz = pos.z - pt.z;
+                        const dSq = dx*dx + dz*dz;
+                        if (dSq < minDstSq) minDstSq = dSq;
+                    }
+                    if (minDstSq > 14*14) { this.kill(); return; }
+                }
+
+                // 3. Collision with Detector [98, 128]
+                if (pos.z >= 108 && pos.x > 98 && pos.x < 128) {
+                    this.hitDetector(pos.x);
+                }
+
+                // 4. Cleanup
+                if (pos.x > 250 || pos.z > 160 || pos.x < -50 || pos.z < -20) {
+                    this.kill();
+                }
+            }
+
+            hitDetector(xPos) {
+                this.kill();
+                
+                const splash = new THREE.Mesh(
+                    new THREE.RingGeometry(0.5, 2, 8),
+                    new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+                );
+                splash.position.set(xPos, 0, 110.1);
+                splash.rotation.x = Math.PI / 2;
+                scene.add(splash);
+                
+                let opacity = 1.0;
+                const fadeAnim = () => {
+                    opacity -= 0.05;
+                    if (opacity <= 0) {
+                        scene.remove(splash);
+                        splash.geometry.dispose();
+                        splash.material.dispose();
+                    } else {
+                        splash.material.opacity = opacity;
+                        splash.scale.multiplyScalar(1.1);
+                        requestAnimationFrame(fadeAnim);
+                    }
+                };
+                fadeAnim();
+
+                recordHit(xPos);
+            }
+
+            kill() {
+                this.isDead = true;
+                scene.remove(this.mesh);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+            }
+        }
+
+        // --- 5. UI HELPERS ---
+        function createLabel(text, x, y, z, color = "#ffffff") {
+            const div = document.createElement('div');
+            div.className = 'absolute text-xs font-bold pointer-events-none select-none px-2 py-1 rounded bg-black/50 backdrop-blur-sm border border-white/10';
+            div.style.color = color;
+            div.textContent = text;
+            
+            const labelObj = { element: div, pos: new THREE.Vector3(x, y, z) };
+            document.body.appendChild(div);
+            STATE.labels.push(labelObj);
+        }
+
+        function updateLabelsPosition() {
+            if (!STATE.labels) return;
+            STATE.labels.forEach(lbl => {
+                const vector = lbl.pos.clone();
+                vector.project(camera);
+
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = (-(vector.y * .5) + .5) * window.innerHeight;
+
+                if (vector.z > 1) {
+                    lbl.element.style.display = 'none';
+                } else {
+                    lbl.element.style.display = 'block';
+                    lbl.element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                }
+            });
+        }
+
+        function updateLegend() {
+            // Optional: You can keep the old badge legend if desired, but table covers it.
+            // Let's clear it to avoid duplication or keep it minimal.
+            const container = document.getElementById('legend-container');
+            container.innerHTML = '';
+        }
+
+        // --- 6. GRAPH LOGIC ---
+        const canvas = document.getElementById('graph-canvas');
+        const ctx = canvas.getContext('2d');
+        let graphWidth, graphHeight;
+
+        function resizeGraph() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            graphWidth = rect.width;
+            graphHeight = rect.height;
+        }
+        window.addEventListener('resize', resizeGraph);
+        setTimeout(resizeGraph, 100);
+
+        function recordHit(xPos) {
+            // Range [98, 128]
+            const rangeStart = 98;
+            const rangeEnd = 128;
+            let idx = Math.floor(((xPos - rangeStart) / (rangeEnd - rangeStart)) * STATE.detectedCounts.length);
+            
+            if (idx >= 0 && idx < STATE.detectedCounts.length) {
+                STATE.detectedCounts[idx]++;
+                STATE.totalCounts++;
+                document.getElementById('particle-count').innerText = `Count: ${STATE.totalCounts}`;
+            }
+        }
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, graphWidth, graphHeight);
+            
+            const paddingLeft = 35; 
+            const paddingBottom = 20;
+            const drawAreaWidth = graphWidth - paddingLeft;
+            const drawAreaHeight = graphHeight - paddingBottom;
+            
+            const scaleBase = STATE.totalCounts > 0 ? STATE.totalCounts : 1; 
+            const barWidth = drawAreaWidth / STATE.detectedCounts.length;
+
+            ctx.strokeStyle = "#334155";
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "10px sans-serif";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "middle";
+
+            [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
+                const y = drawAreaHeight * (1 - pct);
+                ctx.beginPath();
+                ctx.moveTo(paddingLeft, y);
+                ctx.lineTo(graphWidth, y);
+                ctx.stroke();
+                const label = Math.round(pct * 100) + "%";
+                ctx.fillText(label, paddingLeft - 5, y);
+            });
+
+            ctx.fillStyle = "#38bdf8"; 
+            ctx.beginPath();
+            
+            for (let i = 0; i < STATE.detectedCounts.length; i++) {
+                const count = STATE.detectedCounts[i];
+                if (count === 0) continue;
+
+                const h = (count / scaleBase) * drawAreaHeight;
+                const x = paddingLeft + i * barWidth;
+                const y = drawAreaHeight - h;
+
+                ctx.fillRect(x, y, barWidth + 0.5, h);
+            }
+        }
+
+        function clearSimulation() {
+            STATE.detectedCounts.fill(0);
+            STATE.totalCounts = 0;
+            document.getElementById('particle-count').innerText = "Count: 0";
+            STATE.particles.forEach(p => p.kill());
+            STATE.particles = [];
+        }
+
+        // --- 7. ANIMATION LOOP ---
+        let frame = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (controls) controls.update();
+
+            if (STATE.isFiring && frame % CONFIG.particleSpawnRate === 0 && STATE.particles.length < CONFIG.maxParticles) {
+                const p = new Particle();
+                STATE.particles.push(p);
+            }
+
+            for (let i = STATE.particles.length - 1; i >= 0; i--) {
+                const p = STATE.particles[i];
+                p.update();
+                if (p.isDead) {
+                    STATE.particles.splice(i, 1);
+                }
+            }
+            
+            updateLabelsPosition();
+            renderer.render(scene, camera);
+            drawGraph();
+            frame++;
+        }
+
+        // --- 8. EVENTS ---
+        
+        document.getElementById('voltage').addEventListener('input', (e) => {
+            STATE.voltage = parseFloat(e.target.value);
+            document.getElementById('val-voltage').innerText = STATE.voltage + " V";
+        });
+        document.getElementById('magnetic').addEventListener('input', (e) => {
+            STATE.magneticField = parseFloat(e.target.value);
+            document.getElementById('val-magnetic').innerText = STATE.magneticField.toFixed(2) + " T";
+        });
+
+        document.getElementById('source-select').addEventListener('change', (e) => {
+            STATE.sourceType = e.target.value;
+            clearSimulation();
+            updateLegend();
+            updateAbundanceTable();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', clearSimulation);
+
+        document.getElementById('btn-toggle-fire').addEventListener('click', () => {
+            STATE.isFiring = !STATE.isFiring;
+            const btn = document.getElementById('btn-toggle-fire');
+            const data = I18N[currentLang];
+            
+            if (STATE.isFiring) {
+                btn.classList.add('btn-active');
+                btn.classList.replace('bg-slate-700', 'bg-green-600');
+                btn.classList.replace('hover:bg-slate-600', 'hover:bg-green-500');
+                btn.classList.replace('border-slate-500', 'border-green-500');
+                btn.innerHTML = `<i class="fa-solid fa-power-off mr-2"></i> ${data.btnFireOff}`;
+            } else {
+                btn.classList.remove('btn-active');
+                btn.classList.replace('bg-green-600', 'bg-slate-700');
+                btn.classList.replace('hover:bg-green-500', 'hover:bg-slate-600');
+                btn.classList.replace('border-green-500', 'border-slate-500');
+                btn.innerHTML = `<i class="fa-solid fa-power-off mr-2"></i> ${data.btnFireOn}`;
+            }
+        });
+
+        const btnCam = document.getElementById('btn-toggle-cam');
+        btnCam.addEventListener('click', () => {
+            const data = I18N[currentLang];
+            if (STATE.cameraMode === 'ortho') {
+                camera.position.set(80, 200, 80); 
+                camera.lookAt(80, 0, 50);
+                STATE.cameraMode = 'top';
+                btnCam.innerHTML = `<i class="fa-solid fa-video mr-2"></i> ${data.btnCamPersp}`;
+            } else {
+                camera.position.set(90, 160, 240); // Updated to new far position
+                camera.lookAt(60, 0, 50);
+                STATE.cameraMode = 'ortho';
+                btnCam.innerHTML = `<i class="fa-solid fa-video mr-2"></i> ${data.btnCamTop}`;
+            }
+            controls.target.set(60, 0, 50);
+        });
+
+        // -- Modal & Lang Events --
+        const modal = document.getElementById('info-modal');
+        const btnInfo = document.getElementById('btn-info');
+        const btnClose = document.getElementById('btn-close-modal');
+        const btnCloseBtm = document.getElementById('btn-close-modal-bottom');
+        const btnLang = document.getElementById('btn-lang');
+
+        // Controls Modal
+        const controlsModal = document.getElementById('controls-modal');
+        const btnControls = document.getElementById('btn-controls');
+        const btnCloseControls = document.getElementById('btn-close-controls');
+        const btnCloseControlsBottom = document.getElementById('btn-close-controls-bottom');
+
+        function toggleModal(targetModal, show) {
+            if (show) {
+                targetModal.classList.add('active');
+                if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+                }
+            } else {
+                targetModal.classList.remove('active');
+            }
+        }
+
+        // Info Modal Listeners
+        btnInfo.addEventListener('click', () => toggleModal(modal, true));
+        btnClose.addEventListener('click', () => toggleModal(modal, false));
+        btnCloseBtm.addEventListener('click', () => toggleModal(modal, false));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) toggleModal(modal, false);
+        });
+
+        // Controls Modal Listeners
+        btnControls.addEventListener('click', () => toggleModal(controlsModal, true));
+        btnCloseControls.addEventListener('click', () => toggleModal(controlsModal, false));
+        btnCloseControlsBottom.addEventListener('click', () => toggleModal(controlsModal, false));
+        controlsModal.addEventListener('click', (e) => {
+            if (e.target === controlsModal) toggleModal(controlsModal, false);
+        });
+
+        btnLang.addEventListener('click', () => {
+            const newLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateLanguage(newLang);
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Init
+        updateLegend();
+        updateAbundanceTable();
+        updateLanguage('zh'); // Initialize text and labels
+        animate();
+
+    </script>
+</body>
+</html>
