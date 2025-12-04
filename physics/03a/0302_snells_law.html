@@ -69,12 +69,13 @@
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-rainbow text-2xl"></i>
                 <div>
-                    <h1 class="text-xl font-bold">斯涅耳定律虛擬實驗室</h1>
-                    <p class="text-xs text-indigo-200">測定透明介質的折射率 (Snell's Law)</p>
+                    <h1 class="text-xl font-bold" data-i18n="title">斯涅耳定律虛擬實驗室</h1>
+                    <p class="text-xs text-indigo-200" data-i18n="subtitle">測定透明介質的折射率 (Snell's Law)</p>
                 </div>
             </div>
-            <button onclick="resetExperiment()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded text-sm transition">
-                <i class="fa-solid fa-rotate-right mr-1"></i> 重置實驗
+            <!-- Language Switcher -->
+            <button onclick="toggleLanguage()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded text-sm transition font-bold tracking-wide border border-indigo-400">
+                <i class="fa-solid fa-globe mr-1"></i> <span id="lang-display">EN</span>
             </button>
         </div>
     </header>
@@ -89,34 +90,34 @@
                 <div class="absolute top-4 left-4 bg-white/90 backdrop-blur p-2 rounded shadow text-sm z-10 pointer-events-none">
                     <div class="flex items-center gap-2 text-red-600 font-bold">
                         <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
-                        入射角 ($i$): <span id="val-i">30.0</span>°
+                        <span data-i18n="lblI">入射角 ($i$)</span>: <span id="val-i">30.0</span>°
                     </div>
                     <div class="flex items-center gap-2 text-blue-600 font-bold mt-1">
                         <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                        折射角 ($r$): <span id="val-r">0.0</span>°
+                        <span data-i18n="lblR">折射角 ($r$)</span>: <span id="val-r">0.0</span>°
                     </div>
                 </div>
                 <canvas id="simCanvas" class="w-full h-auto bg-gray-50 block cursor-pointer" height="400" width="600"></canvas>
-                <p class="text-center text-xs text-gray-400 py-1">點擊或拖曳畫布可直接改變角度</p>
+                <p class="text-center text-xs text-gray-400 py-1" data-i18n="hint">點擊或拖曳畫布可直接改變角度</p>
             </div>
 
             <!-- Controls -->
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
                 <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-sliders text-indigo-500"></i> 實驗參數控制
+                    <i class="fa-solid fa-sliders text-indigo-500"></i> <span data-i18n="ctrlTitle">實驗參數控制</span>
                 </h2>
                 
                 <div class="space-y-6">
                     <!-- Incident Angle Slider -->
                     <div>
                         <div class="flex justify-between mb-2">
-                            <label class="font-medium text-gray-700">入射角 ($i$)</label>
+                            <label class="font-medium text-gray-700" data-i18n="ctrlAngle">入射角 ($i$)</label>
                             <span class="text-indigo-600 font-mono font-bold" id="display-angle">30°</span>
                         </div>
                         <input type="range" id="angleSlider" min="0" max="85" step="0.5" value="30" 
                             class="slider-thumb slider-track w-full appearance-none bg-transparent">
                         <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>0° (法線)</span>
+                            <span data-i18n="txtNormal">0° (法線)</span>
                             <span>85°</span>
                         </div>
                     </div>
@@ -124,22 +125,25 @@
                     <!-- Refractive Index Slider -->
                     <div>
                         <div class="flex justify-between mb-2">
-                            <label class="font-medium text-gray-700">透明介質折射率 ($n$)</label>
+                            <label class="font-medium text-gray-700" data-i18n="ctrlN">透明介質折射率 ($n$)</label>
                             <span class="text-indigo-600 font-mono font-bold" id="display-ri">1.50</span>
                         </div>
                         <input type="range" id="nSlider" min="1.00" max="2.50" step="0.01" value="1.50" 
                             class="slider-thumb slider-track w-full appearance-none bg-transparent">
                         <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>1.0 (空氣)</span>
-                            <span>1.5 (玻璃)</span>
-                            <span>2.4 (鑽石)</span>
+                            <span data-i18n="txtAir">1.0 (空氣)</span>
+                            <span data-i18n="txtGlass">1.5 (玻璃)</span>
+                            <span data-i18n="txtDiamond">2.4 (鑽石)</span>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="pt-2">
-                        <button onclick="recordData()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex items-center justify-center gap-2 active:scale-95">
-                            <i class="fa-solid fa-plus-circle"></i> 記錄數據點
+                    <!-- Action Buttons (Updated Layout) -->
+                    <div class="pt-2 grid grid-cols-2 gap-3">
+                        <button onclick="recordData()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex items-center justify-center gap-2 active:scale-95">
+                            <i class="fa-solid fa-plus-circle"></i> <span data-i18n="btnRecord">記錄數據點</span>
+                        </button>
+                        <button onclick="resetExperiment()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow transition flex items-center justify-center gap-2 active:scale-95">
+                            <i class="fa-solid fa-rotate-right"></i> <span data-i18n="btnReset">重置實驗</span>
                         </button>
                     </div>
                 </div>
@@ -152,22 +156,22 @@
             <!-- Graph Section -->
             <div class="bg-white rounded-xl shadow-md p-4 border border-gray-200">
                 <h2 class="text-lg font-semibold mb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-line text-indigo-500"></i> $\sin(i)$ 對 $\sin(r)$ 關係圖
+                    <i class="fa-solid fa-chart-line text-indigo-500"></i> <span data-i18n="graphTitle">$\sin(i)$ 對 $\sin(r)$ 關係圖</span>
                 </h2>
                 <div class="relative w-full h-64 bg-white border border-gray-100 rounded">
                     <canvas id="graphCanvas" class="w-full h-full block"></canvas>
                 </div>
                 <div class="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-100 flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div class="text-center sm:text-left">
-                        <p class="text-sm text-gray-600">最佳擬合直線斜率 (Slope)</p>
+                        <p class="text-sm text-gray-600" data-i18n="slope">最佳擬合直線斜率 (Slope)</p>
                         <p class="text-2xl font-bold text-indigo-700" id="slopeValue">--</p>
                     </div>
                     <div class="text-center sm:text-right">
-                        <p class="text-sm text-gray-600">計算得出的折射率 ($n$)</p>
+                        <p class="text-sm text-gray-600" data-i18n="calcN">計算得出的折射率 ($n$)</p>
                         <p class="text-2xl font-bold text-green-600" id="calcN">--</p>
                     </div>
                 </div>
-                <div class="text-xs text-gray-500 mt-2 text-center bg-gray-50 p-2 rounded">
+                <div class="text-xs text-gray-500 mt-2 text-center bg-gray-50 p-2 rounded" id="theoryBlock" data-i18n-html="theory">
                     <p class="mb-1 font-semibold">理論依據:</p>
                     <p>$$n_1 \sin(i) = n_2 \sin(r)$$</p>
                     <p>設 $n_1=1$ (空氣)，則 $\sin(i) = n \sin(r)$。</p>
@@ -179,10 +183,10 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200 overflow-hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fa-solid fa-table text-indigo-500"></i> 實驗數據表
+                        <i class="fa-solid fa-table text-indigo-500"></i> <span data-i18n="tableTitle">實驗數據表</span>
                     </h2>
                     <button onclick="clearData()" class="text-sm text-red-500 hover:text-red-700 font-medium">
-                        <i class="fa-solid fa-trash"></i> 清除數據
+                        <i class="fa-solid fa-trash"></i> <span data-i18n="btnClear">清除數據</span>
                     </button>
                 </div>
                 <div class="overflow-x-auto">
@@ -198,11 +202,6 @@
                         </thead>
                         <tbody id="dataTableBody">
                             <!-- Data rows will appear here -->
-                            <tr class="border-b hover:bg-gray-50">
-                                <td colspan="5" class="px-4 py-4 text-center text-gray-400 italic">
-                                    尚未記錄數據。調整角度並點擊「記錄數據點」。
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -210,7 +209,7 @@
         </div>
     </main>
 
-    <footer class="text-center p-4 text-gray-400 text-xs">
+    <footer class="text-center p-4 text-gray-400 text-xs" data-i18n="footer">
         &copy; 2023 物理實驗室教學工具
     </footer>
 
@@ -228,6 +227,59 @@
 
         // Interaction State
         let isDragging = false; 
+        let currentLang = 'zh';
+
+        // Translation Data
+        const i18n = {
+            zh: {
+                title: "斯涅耳定律虛擬實驗室",
+                subtitle: "測定透明介質的折射率 (Snell's Law)",
+                lblI: "入射角 ($i$)",
+                lblR: "折射角 ($r$)",
+                hint: "點擊或拖曳畫布可直接改變角度",
+                ctrlTitle: "實驗參數控制",
+                ctrlAngle: "入射角 ($i$)",
+                ctrlN: "透明介質折射率 ($n$)",
+                txtNormal: "0° (法線)",
+                txtAir: "1.0 (空氣)",
+                txtGlass: "1.5 (玻璃)",
+                txtDiamond: "2.4 (鑽石)",
+                btnRecord: "記錄數據點",
+                btnReset: "重置實驗",
+                graphTitle: "$\\sin(i)$ 對 $\\sin(r)$ 關係圖",
+                slope: "最佳擬合直線斜率 (Slope)",
+                calcN: "計算得出的折射率 ($n$)",
+                theory: `<p class="mb-1 font-semibold">理論依據:</p><p>$$n_1 \\sin(i) = n_2 \\sin(r)$$</p><p>設 $n_1=1$ (空氣)，則 $\\sin(i) = n \\sin(r)$。</p><p class="mt-1">$$m = \\frac{\\Delta \\sin(i)}{\\Delta \\sin(r)} \\approx n$$</p>`,
+                tableTitle: "實驗數據表",
+                btnClear: "清除數據",
+                emptyTable: "尚未記錄數據。調整角度並點擊「記錄數據點」。",
+                footer: "&copy; 2023 物理實驗室教學工具"
+            },
+            en: {
+                title: "Snell's Law Virtual Lab",
+                subtitle: "Refractive Index Experiment",
+                lblI: "Incident Angle ($i$)",
+                lblR: "Refracted Angle ($r$)",
+                hint: "Click or drag canvas to change angle",
+                ctrlTitle: "Controls",
+                ctrlAngle: "Incident Angle ($i$)",
+                ctrlN: "Refractive Index ($n$)",
+                txtNormal: "0° (Normal)",
+                txtAir: "1.0 (Air)",
+                txtGlass: "1.5 (Glass)",
+                txtDiamond: "2.4 (Diamond)",
+                btnRecord: "Record Data",
+                btnReset: "Reset",
+                graphTitle: "Graph of $\\sin(i)$ vs $\\sin(r)$",
+                slope: "Best Fit Slope",
+                calcN: "Calculated Index ($n$)",
+                theory: `<p class="mb-1 font-semibold">Theory:</p><p>$$n_1 \\sin(i) = n_2 \\sin(r)$$</p><p>Let $n_1=1$ (Air), then $\\sin(i) = n \\sin(r)$。</p><p class="mt-1">$$m = \\frac{\\Delta \\sin(i)}{\\Delta \\sin(r)} \\approx n$$</p>`,
+                tableTitle: "Data Table",
+                btnClear: "Clear Data",
+                emptyTable: "No data recorded. Adjust angle and click 'Record Data'.",
+                footer: "&copy; 2023 Physics Lab Tools"
+            }
+        };
 
         // DOM Elements
         const simCanvas = document.getElementById('simCanvas');
@@ -242,8 +294,9 @@
         const valI = document.getElementById('val-i');
         const valR = document.getElementById('val-r');
         const slopeValue = document.getElementById('slopeValue');
-        const calcN = document.getElementById('calcN');
+        const calcNElement = document.getElementById('calcN'); // Renamed to avoid ID conflict in updating text
         const dataTableBody = document.getElementById('dataTableBody');
+        const langDisplay = document.getElementById('lang-display');
 
         // Init
         function init() {
@@ -270,6 +323,44 @@
             window.addEventListener('mouseup', endDrag);
             window.addEventListener('touchend', endDrag);
 
+            updateTable(); // Initialize empty row
+            updateSimulation();
+            updateGraph();
+        }
+
+        // Language Logic
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            langDisplay.textContent = currentLang === 'zh' ? 'EN' : '中';
+            applyLanguage();
+        }
+
+        function applyLanguage() {
+            const t = i18n[currentLang];
+            
+            // Text Content
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.textContent = t[key];
+            });
+
+            // HTML Content (For Theory)
+            document.querySelectorAll('[data-i18n-html]').forEach(el => {
+                const key = el.getAttribute('data-i18n-html');
+                if (t[key]) el.innerHTML = t[key];
+            });
+
+            // Refresh Table Empty Message
+            if (state.dataPoints.length === 0) {
+                updateTable();
+            }
+
+            // Re-render LaTeX
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+
+            // Redraw Canvases (if they used lang-specific text, though mostly symbols here)
             updateSimulation();
             updateGraph();
         }
@@ -310,16 +401,11 @@
             simCtx.clearRect(0, 0, width, height);
 
             // Physics Calc
-            // n1 * sin(i) = n2 * sin(r)
-            // Air (n1=1) -> Block (n2=n)
             const n1 = 1.0;
             const n2 = state.refractiveIndex;
             const thetaI = degToRad(state.angleIncident);
-            
-            // sin(r) = (n1/n2) * sin(i)
             const sinR = (n1 / n2) * Math.sin(thetaI);
             const thetaR = Math.asin(sinR);
-            
             const angleR_deg = radToDeg(thetaR);
 
             // Update UI Text
@@ -330,10 +416,9 @@
 
             // Draw Semi-Circle Block
             simCtx.beginPath();
-            // Draw bottom half (0 to PI) instead of top half
             simCtx.arc(centerX, centerY, radius, 0, Math.PI); 
-            simCtx.closePath(); // Close the top flat side
-            simCtx.fillStyle = 'rgba(199, 210, 254, 0.5)'; // Indigo-200 with opacity
+            simCtx.closePath(); 
+            simCtx.fillStyle = 'rgba(199, 210, 254, 0.5)'; 
             simCtx.fill();
             simCtx.strokeStyle = '#4F46E5';
             simCtx.lineWidth = 2;
@@ -343,25 +428,22 @@
             simCtx.beginPath();
             simCtx.setLineDash([5, 5]);
             simCtx.moveTo(centerX, centerY - radius - 20);
-            // Extend normal line through the bottom block
             simCtx.lineTo(centerX, centerY + radius + 20);
-            simCtx.strokeStyle = '#6B7280'; // Gray
+            simCtx.strokeStyle = '#6B7280';
             simCtx.lineWidth = 1;
             simCtx.stroke();
             simCtx.setLineDash([]);
 
-            // --- Draw Angle Arcs (New Addition) ---
+            // --- Draw Angle Arcs ---
             const arcRadius = 50;
 
             // Incident Angle Arc (i) - Red
             if (state.angleIncident > 1) { 
                 simCtx.beginPath();
-                // Normal is Up (1.5 PI), Ray is to the Left (1.5 PI - thetaI)
                 simCtx.arc(centerX, centerY, arcRadius, 1.5 * Math.PI - thetaI, 1.5 * Math.PI);
                 simCtx.strokeStyle = '#EF4444'; 
                 simCtx.lineWidth = 2;
                 simCtx.stroke();
-                // Fill sector
                 simCtx.fillStyle = 'rgba(239, 68, 68, 0.15)';
                 simCtx.lineTo(centerX, centerY);
                 simCtx.fill();
@@ -370,19 +452,16 @@
             // Refracted Angle Arc (r) - Blue
             if (angleR_deg > 1) {
                 simCtx.beginPath();
-                // Normal is Down (0.5 PI), Ray is to the Right (0.5 PI - thetaR)
                 simCtx.arc(centerX, centerY, arcRadius, 0.5 * Math.PI - thetaR, 0.5 * Math.PI);
                 simCtx.strokeStyle = '#2563EB'; 
                 simCtx.lineWidth = 2;
                 simCtx.stroke();
-                // Fill sector
                 simCtx.fillStyle = 'rgba(37, 99, 235, 0.15)';
                 simCtx.lineTo(centerX, centerY);
                 simCtx.fill();
             }
 
             // Draw Incident Ray (Air)
-            // Comes from top-left
             const rayLength = radius + 40;
             const incX = centerX - rayLength * Math.sin(thetaI);
             const incY = centerY - rayLength * Math.cos(thetaI);
@@ -398,9 +477,8 @@
             drawArrow(simCtx, incX, incY, centerX, centerY, '#EF4444');
 
             // Draw Refracted Ray (Block)
-            // Goes into the block
             const refX = centerX + radius * Math.sin(thetaR);
-            const refY = centerY + radius * Math.cos(thetaR); // Positive Y is down
+            const refY = centerY + radius * Math.cos(thetaR); 
 
             simCtx.beginPath();
             simCtx.moveTo(centerX, centerY);
@@ -417,23 +495,21 @@
             simCtx.textAlign = "center";
             simCtx.textBaseline = "middle";
             
-            // Label i (Positioned at half-angle)
+            // Label i
             const labelDist = 75;
             const angleIPos = 1.5 * Math.PI - thetaI / 2;
             simCtx.fillStyle = "#EF4444";
             simCtx.fillText("i", centerX + labelDist * Math.cos(angleIPos), centerY + labelDist * Math.sin(angleIPos));
             
-            // Label r (Positioned at half-angle)
+            // Label r
             const angleRPos = 0.5 * Math.PI - thetaR / 2;
             simCtx.fillStyle = "#2563EB";
             simCtx.fillText("r", centerX + labelDist * Math.cos(angleRPos), centerY + labelDist * Math.sin(angleRPos));
 
-            // Reset text align for other labels
             simCtx.textAlign = "left";
             simCtx.textBaseline = "alphabetic";
 
             simCtx.fillStyle = "#374151";
-            // Move label 'n' inside the bottom block
             simCtx.fillText(`n = ${state.refractiveIndex.toFixed(2)}`, centerX + radius - 70, centerY + 30);
         }
 
@@ -442,7 +518,6 @@
             const dx = toX - fromX;
             const dy = toY - fromY;
             const angle = Math.atan2(dy, dx);
-            // Midpoint for arrow
             const midX = (fromX + toX) / 2;
             const midY = (fromY + toY) / 2;
 
@@ -462,7 +537,6 @@
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
             
-            // Check if near incident ray area (upper half)
             if (y < 400/2 + 50) {
                 isDragging = true;
                 updateAngleFromMouse(x, y);
@@ -471,7 +545,7 @@
 
         function doDrag(e) {
             if (!isDragging) return;
-            e.preventDefault(); // prevent scroll on touch
+            e.preventDefault(); 
             const rect = simCanvas.getBoundingClientRect();
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
@@ -484,26 +558,18 @@
 
         function updateAngleFromMouse(x, y) {
             const width = simCanvas.getBoundingClientRect().width;
-            const height = 400; // fixed height logic from resize
+            const height = 400;
             const centerX = width / 2;
             const centerY = height / 2 + 50;
 
-            // Calculate angle relative to vertical normal (up)
-            // Mouse is at (x, y). Vector from center to mouse is (x - cx, y - cy).
-            // But incident is in upper quadrants.
-            
-            // dx is horizontal distance from normal.
-            let dx = centerX - x; // Positive if mouse is left
-            let dy = centerY - y; // Positive if mouse is above
+            let dx = centerX - x; 
+            let dy = centerY - y; 
 
-            if (dy < 0) return; // Only allow dragging above the line
+            if (dy < 0) return; 
 
-            // atan2(x, y) gives angle from Y axis in math usually? 
-            // let's use simple atan
             let angleRad = Math.atan2(dx, dy);
             let angleDeg = radToDeg(angleRad);
 
-            // Clamp
             if (angleDeg < 0) angleDeg = 0;
             if (angleDeg > 85) angleDeg = 85;
 
@@ -530,7 +596,6 @@
             };
 
             state.dataPoints.push(newData);
-            // Sort by i ascending for cleaner graph lines if we connected them (we won't, just scatter)
             state.dataPoints.sort((a, b) => a.i - b.i);
 
             updateTable();
@@ -542,16 +607,17 @@
             updateTable();
             updateGraph();
             slopeValue.textContent = "--";
-            calcN.textContent = "--";
+            calcNElement.textContent = "--";
         }
 
         function updateTable() {
             dataTableBody.innerHTML = "";
             if (state.dataPoints.length === 0) {
+                const emptyMsg = i18n[currentLang].emptyTable;
                 dataTableBody.innerHTML = `
                     <tr class="border-b hover:bg-gray-50">
                         <td colspan="5" class="px-4 py-4 text-center text-gray-400 italic">
-                            尚未記錄數據。調整角度並點擊「記錄數據點」。
+                            ${emptyMsg}
                         </td>
                     </tr>`;
                 return;
@@ -569,7 +635,7 @@
                 `;
                 dataTableBody.appendChild(row);
             });
-            // Ask MathJax to re-render the new table rows
+            
             if(window.MathJax) {
                 MathJax.typesetPromise([dataTableBody]);
             }
@@ -590,7 +656,6 @@
             const height = graphCanvas.height / (window.devicePixelRatio || 1);
             graphCtx.clearRect(0, 0, width, height);
 
-            // Margins (Increased top/right padding for labels)
             const padLeft = 50;
             const padBottom = 40;
             const padRight = 50; 
@@ -603,11 +668,9 @@
             graphCtx.strokeStyle = '#9CA3AF';
             graphCtx.lineWidth = 2;
             
-            // Y Axis Line (Bottom to Top)
             graphCtx.moveTo(padLeft, height - padBottom);
             graphCtx.lineTo(padLeft, padTop);
             
-            // X Axis Line (Left to Right)
             graphCtx.moveTo(padLeft, height - padBottom);
             graphCtx.lineTo(width - padRight, height - padBottom);
             graphCtx.stroke();
@@ -616,13 +679,11 @@
             graphCtx.beginPath();
             const headLen = 8;
             
-            // Y Axis Arrow Head (Up)
             graphCtx.moveTo(padLeft, padTop);
             graphCtx.lineTo(padLeft - 5, padTop + headLen);
             graphCtx.moveTo(padLeft, padTop);
             graphCtx.lineTo(padLeft + 5, padTop + headLen);
 
-            // X Axis Arrow Head (Right)
             const xEnd = width - padRight;
             const yEnd = height - padBottom;
             graphCtx.moveTo(xEnd, yEnd);
@@ -631,45 +692,68 @@
             graphCtx.lineTo(xEnd - headLen, yEnd + 5);
             graphCtx.stroke();
 
-            // Labels positioned near arrows
+            // Labels
             graphCtx.fillStyle = '#374151';
             graphCtx.font = "bold 14px sans-serif";
             
-            // sin(r) label - Next to X arrow
             graphCtx.textAlign = "left";
             graphCtx.fillText("sin(r)", xEnd + 8, yEnd + 4);
             
-            // sin(i) label - Above Y arrow
             graphCtx.textAlign = "center";
             graphCtx.fillText("sin(i)", padLeft, padTop - 10);
 
-            // Max Scale (Both Sin values max out at 1)
-            // X Axis: 0 to 1 (sin r) - Actually max sin(r) depends on n. 
-            // If n=1.5, max sin(r) = 1/1.5 = 0.66.
-            // Let's fix scale 0 to 1 for both to be intuitive.
-            const maxX = 0.8; // usually sin(r) is smaller
+            // Updated Scales: Max 1.0 for both
+            const maxX = 1.0;
             const maxY = 1.0;
 
-            // Helper: Data to Pixels
             const d2pX = (val) => padLeft + (val / maxX) * gW;
             const d2pY = (val) => height - padBottom - (val / maxY) * gH;
 
-            // Grid Lines
+            // Grid Lines & Numeric Labels (Step 0.1)
             graphCtx.strokeStyle = '#E5E7EB';
             graphCtx.lineWidth = 1;
+            graphCtx.fillStyle = '#6B7280'; // Gray for numbers
+            graphCtx.font = "10px sans-serif";
+            
+            // Draw Grid Lines first
             graphCtx.beginPath();
-            for(let i=0.2; i<=1.0; i+=0.2) {
-                // Horizontal
-                let y = d2pY(i);
+            for(let i=0.1; i<=1.05; i+=0.1) {
+                let val = Math.round(i * 10) / 10;
+                if(val > 1.0) break;
+
+                // Horizontal Line
+                let y = d2pY(val);
                 graphCtx.moveTo(padLeft, y);
                 graphCtx.lineTo(width - padRight, y);
-                // Vertical
-                let x = d2pX(i * maxX); // Scale x relative to maxX
-                if (i*maxX <= maxX) { // Bounds check roughly
-                     // Not perfect grid logic but simple visual aid
-                }
+
+                // Vertical Line
+                let x = d2pX(val);
+                graphCtx.moveTo(x, height - padBottom);
+                graphCtx.lineTo(x, padTop);
             }
             graphCtx.stroke();
+
+            // Draw Numeric Labels
+            for(let i=0.0; i<=1.05; i+=0.1) {
+                let val = Math.round(i * 10) / 10;
+                if(val > 1.0) break;
+
+                // Y Axis Labels (skip 0 to avoid clutter)
+                if (val > 0) {
+                    graphCtx.textAlign = "right";
+                    graphCtx.textBaseline = "middle";
+                    graphCtx.fillText(val.toFixed(1), padLeft - 8, d2pY(val));
+                } else {
+                    graphCtx.textAlign = "right";
+                    graphCtx.textBaseline = "middle";
+                    graphCtx.fillText("0", padLeft - 8, d2pY(val));
+                }
+
+                // X Axis Labels
+                graphCtx.textAlign = "center";
+                graphCtx.textBaseline = "top";
+                graphCtx.fillText(val.toFixed(1), d2pX(val), height - padBottom + 8);
+            }
 
             // Draw Points
             if (state.dataPoints.length > 0) {
@@ -683,9 +767,7 @@
                     graphCtx.fill();
                 });
 
-                // Calculate Linear Regression (Constraint: Must pass through 0,0 theoretically)
-                // Model: y = mx
-                // m = sum(x*y) / sum(x*x)
+                // Regression
                 let sumXY = 0;
                 let sumXX = 0;
                 state.dataPoints.forEach(pt => {
@@ -696,11 +778,8 @@
                 if (sumXX > 0) {
                     const slope = sumXY / sumXX;
                     
-                    // Draw Line
                     graphCtx.beginPath();
-                    graphCtx.moveTo(d2pX(0), d2pY(0)); // 0,0
-                    // End point at edge of graph
-                    // y = slope * x => if x=maxX, y=slope*maxX. 
+                    graphCtx.moveTo(d2pX(0), d2pY(0));
                     let endX = maxX;
                     let endY = slope * endX;
                     if (endY > maxY) {
@@ -713,9 +792,8 @@
                     graphCtx.lineWidth = 2;
                     graphCtx.stroke();
 
-                    // Update Results Text
                     slopeValue.textContent = slope.toFixed(3);
-                    calcN.textContent = slope.toFixed(3);
+                    calcNElement.textContent = slope.toFixed(3);
                 }
             }
         }
