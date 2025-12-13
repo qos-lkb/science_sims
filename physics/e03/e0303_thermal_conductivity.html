@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熱傳導模擬器 (Thermal Conductivity)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering formulas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Three.js Imports -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: #60a5fa; /* blue-400 */
+            margin-top: -6px;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        input[type=range]:focus { outline: none; }
+        
+        /* MathJax Container */
+        .math-container {
+            font-size: 1.2em;
+            overflow-x: auto;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="h-16 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-6 shadow-md z-20">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+            </div>
+            <h1 class="text-xl font-bold tracking-wider" data-i18n="title">熱傳導實驗室</h1>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <button id="modal-btn" class="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm transition">
+                <span data-i18n="btnFormula">原理公式</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+            <button id="lang-btn" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-bold transition">
+                中 / EN
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar Controls -->
+        <aside class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col p-6 z-10 overflow-y-auto shadow-xl">
+            <h2 class="text-blue-400 font-semibold mb-6 uppercase text-xs tracking-widest border-b border-gray-700 pb-2" data-i18n="controlsHeader">參數設定</h2>
+
+            <!-- Area Control -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-sm text-gray-300" data-i18n="labelArea">截面積 (A)</label>
+                    <span class="text-blue-400 font-mono text-sm"><span id="val-area">1.0</span> m²</span>
+                </div>
+                <input type="range" id="input-area" min="0.1" max="5.0" step="0.1" value="1.0">
+            </div>
+
+            <!-- Thickness Control -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-sm text-gray-300" data-i18n="labelThickness">厚度 (d)</label>
+                    <span class="text-blue-400 font-mono text-sm"><span id="val-thickness">2.0</span> m</span>
+                </div>
+                <input type="range" id="input-thickness" min="0.5" max="10.0" step="0.5" value="2.0">
+            </div>
+
+            <!-- Kappa Control -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-sm text-gray-300" data-i18n="labelKappa">導熱率 (κ)</label>
+                    <span class="text-blue-400 font-mono text-sm"><span id="val-kappa">50</span> W/m·K</span>
+                </div>
+                <input type="range" id="input-kappa" min="10" max="400" step="10" value="50">
+                <div class="text-xs text-gray-500 mt-1 italic" id="material-hint">Example: Steel</div>
+            </div>
+
+            <!-- Temp Diff Control -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-sm text-gray-300" data-i18n="labelDt">溫差 (ΔT)</label>
+                    <span class="text-red-400 font-mono text-sm"><span id="val-dt">100</span> K</span>
+                </div>
+                <input type="range" id="input-dt" min="0" max="500" step="10" value="100">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Low</span>
+                    <span>High</span>
+                </div>
+            </div>
+
+            <!-- Result Box -->
+            <div class="mt-auto bg-gray-900/50 p-4 rounded-lg border border-gray-600">
+                <div class="text-xs text-gray-400 mb-1 uppercase tracking-wider" data-i18n="labelResult">熱流速率 (P)</div>
+                <div class="flex items-baseline gap-2">
+                    <span id="result-p" class="text-3xl font-bold text-green-400">2500.00</span>
+                    <span class="text-sm text-gray-500">Watts (J/s)</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 3D Canvas Container -->
+        <main class="flex-1 relative bg-black">
+            <div id="canvas-container" class="w-full h-full cursor-move"></div>
+            
+            <!-- Floating Labels in 3D Space -->
+            <div class="absolute top-4 left-4 bg-black/60 backdrop-blur border border-red-500/30 px-3 py-1 rounded text-xs text-red-400 pointer-events-none select-none">
+                <span data-i18n="labelHot">熱源 (Hot)</span>
+            </div>
+            <div class="absolute top-4 right-4 bg-black/60 backdrop-blur border border-blue-500/30 px-3 py-1 rounded text-xs text-blue-400 pointer-events-none select-none">
+                <span data-i18n="labelCold">冷端 (Cold)</span>
+            </div>
+            <div class="absolute bottom-4 right-4 text-gray-600 text-xs pointer-events-none select-none">
+                Powered by Three.js & MathJax
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Modal (Formula) -->
+    <div id="modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity opacity-0">
+        <div class="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl max-w-2xl w-full mx-4 transform transition-transform scale-95" id="modal-content">
+            <div class="flex justify-between items-center p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold text-white" data-i18n="modalTitle">傅立葉熱傳導定律</h3>
+                <button id="modal-close" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-300 mb-4" data-i18n="modalDesc">
+                    熱流速率 (Rate of Heat Flow) 是指單位時間內通過給定截面積的熱能。根據實驗結果，熱流速率與截面積及溫差成正比，與厚度成反比。
+                </p>
+
+                <div class="bg-gray-900 rounded p-6 text-center mb-6 border border-gray-700 math-container text-yellow-400">
+                    $$ P = \frac{Q}{t} = \kappa A \frac{\Delta T}{d} $$
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 text-center font-bold text-blue-400">P</span>
+                        <span data-i18n="varP">熱流速率 (Watts)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 text-center font-bold text-blue-400">κ</span>
+                        <span data-i18n="varK">導熱率 (W/m·K)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 text-center font-bold text-blue-400">A</span>
+                        <span data-i18n="varA">截面面積 (m²)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 text-center font-bold text-blue-400">d</span>
+                        <span data-i18n="varD">物質厚度 (m)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 text-center font-bold text-blue-400">ΔT</span>
+                        <span data-i18n="varDT">兩端溫差 (K)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Configuration & State ---
+        const state = {
+            area: 1.0,
+            thickness: 2.0,
+            kappa: 50,
+            dt: 100,
+            lang: 'zh'
+        };
+
+        const materials = {
+            10: { en: "Insulator / Glass", zh: "絕緣體 / 玻璃" },
+            50: { en: "Steel", zh: "鋼" },
+            100: { en: "Iron", zh: "鐵" },
+            200: { en: "Aluminum", zh: "鋁" },
+            300: { en: "Gold", zh: "金" },
+            400: { en: "Copper / Silver", zh: "銅 / 銀" }
+        };
+
+        const i18n = {
+            zh: {
+                title: "熱傳導實驗室",
+                btnFormula: "定義與公式",
+                controlsHeader: "實驗參數",
+                labelArea: "截面面積 (A)",
+                labelThickness: "厚度 (d)",
+                labelKappa: "導熱率 (κ)",
+                labelDt: "溫差 (ΔT)",
+                labelResult: "熱流速率 (P)",
+                labelHot: "熱源 (高溫)",
+                labelCold: "冷端 (低溫)",
+                modalTitle: "傅立葉熱傳導定律",
+                modalDesc: "熱流速率 (Rate of Heat Flow) 是指單位時間內通過給定截面積的熱能。根據實驗結果，熱流速率與截面積及溫差成正比，與厚度成反比。",
+                varP: "熱流速率 (Watts)",
+                varK: "導熱率 (W/m·K) - 物質屬性",
+                varA: "截面面積 (m²)",
+                varD: "物質厚度 (m)",
+                varDT: "兩端溫差 (K)",
+                hintPre: "近似材質："
+            },
+            en: {
+                title: "Conduction Lab",
+                btnFormula: "Formula",
+                controlsHeader: "Parameters",
+                labelArea: "Area (A)",
+                labelThickness: "Thickness (d)",
+                labelKappa: "Conductivity (κ)",
+                labelDt: "Temp. Diff (ΔT)",
+                labelResult: "Rate of Heat Flow (P)",
+                labelHot: "Heat Source",
+                labelCold: "Cold Sink",
+                modalTitle: "Fourier's Law",
+                modalDesc: "The rate of heat flow is the amount of heat energy transferred per unit time. It is proportional to the area and temperature difference, and inversely proportional to thickness.",
+                varP: "Heat Flow Rate (Watts)",
+                varK: "Thermal Conductivity (W/m·K)",
+                varA: "Cross-sectional Area (m²)",
+                varD: "Thickness (m)",
+                varDT: "Temp. Difference (K)",
+                hintPre: "Approx Material: "
+            }
+        };
+
+        // --- Three.js Setup ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(4, 5, 8); // Start position
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 1);
+        spotLight.position.set(5, 10, 5);
+        spotLight.angle = Math.PI / 4;
+        spotLight.penumbra = 0.1;
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        // --- Objects ---
+        
+        // Grid
+        const gridHelper = new THREE.GridHelper(20, 20, 0x333333, 0x111111);
+        scene.add(gridHelper);
+
+        const group = new THREE.Group();
+        scene.add(group);
+
+        // Materials
+        // Main block material
+        const blockMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x888888,
+            metalness: 0.7,
+            roughness: 0.2,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.1
+        });
+
+        // Hot plate material (Emissive Red)
+        const hotMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000, emissive: 0xaa0000, emissiveIntensity: 0.5 });
+        // Cold plate material (Blue)
+        const coldMaterial = new THREE.MeshLambertMaterial({ color: 0x0000ff, emissive: 0x0000aa, emissiveIntensity: 0.2 });
+
+        // Geometries (We will scale these)
+        const blockGeo = new THREE.BoxGeometry(1, 1, 1); // Base 1x1x1
+        const plateGeo = new THREE.BoxGeometry(0.1, 1, 1); // Thin plate
+
+        const mainBlock = new THREE.Mesh(blockGeo, blockMaterial);
+        mainBlock.castShadow = true;
+        mainBlock.receiveShadow = true;
+        
+        const hotPlate = new THREE.Mesh(plateGeo, hotMaterial);
+        const coldPlate = new THREE.Mesh(plateGeo, coldMaterial);
+
+        group.add(mainBlock);
+        group.add(hotPlate);
+        group.add(coldPlate);
+
+        // Arrows for heat flow (Visualization)
+        const arrowGroup = new THREE.Group();
+        group.add(arrowGroup);
+
+        function createArrows() {
+            // Clear old arrows
+            while(arrowGroup.children.length > 0){ 
+                arrowGroup.remove(arrowGroup.children[0]); 
+            }
+
+            // Create 2 arrows showing direction Left -> Right
+            const dir = new THREE.Vector3(1, 0, 0);
+            const len = 1;
+            const col = 0xffff00; // Yellow
+            
+            // Generate 2 arrows (Top and Bottom)
+            for(let i=0; i<2; i++) {
+                // Head length 0.3, Head width 0.2 for better visibility
+                const arrowHelper = new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), len, col, 0.3, 0.2);
+                arrowGroup.add(arrowHelper);
+            }
+        }
+        createArrows();
+
+
+        // --- Logic Updates ---
+
+        function updatePhysics() {
+            // 1. Calculate Heat Flow
+            // P = k * A * dT / d
+            const P = (state.kappa * state.area * state.dt) / state.thickness;
+            
+            // UI Update
+            document.getElementById('result-p').textContent = P.toFixed(2);
+            document.getElementById('val-area').textContent = state.area.toFixed(1);
+            document.getElementById('val-thickness').textContent = state.thickness.toFixed(1);
+            document.getElementById('val-kappa').textContent = state.kappa;
+            document.getElementById('val-dt').textContent = state.dt;
+
+            // Material Hint Update
+            const kVal = state.kappa;
+            let matText = "";
+            let closest = 0;
+            let minDiff = Infinity;
+            
+            for (let key in materials) {
+                let diff = Math.abs(key - kVal);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = key;
+                }
+            }
+            // Use closest match if within reasonable range (e.g., +/- 20), otherwise generic
+            const hintPre = i18n[state.lang].hintPre;
+            if (minDiff < 30) {
+                matText = hintPre + materials[closest][state.lang];
+            } else {
+                matText = "";
+            }
+            document.getElementById('material-hint').textContent = matText;
+
+            // 2. 3D Visualization Update
+            
+            // Side length of the square cross-section: A = s^2 -> s = sqrt(A)
+            const side = Math.sqrt(state.area);
+            const thick = state.thickness;
+
+            // Scale Main Block
+            // X is thickness, Y is Height, Z is Width
+            mainBlock.scale.set(thick, side, side);
+            
+            // Position Plates
+            // Hot plate at -thick/2, Cold at +thick/2
+            hotPlate.scale.set(1, side, side); // Thickness of plate is constant 0.1 in geo, scaled by 1
+            hotPlate.position.set(-(thick/2) - 0.05, 0, 0);
+
+            coldPlate.scale.set(1, side, side);
+            coldPlate.position.set((thick/2) + 0.05, 0, 0);
+
+            // Adjust Group height so it sits on grid
+            group.position.y = side / 2;
+
+            // Visual Effects based on P (Heat Flow)
+            // Make arrows scale with thickness and glow with P
+            const pRatio = Math.min(P / 4000, 1); // Normalize roughly
+            
+            // Update Arrows
+            arrowGroup.children.forEach((arrow, index) => {
+                // Reposition based on new thickness (Start from left)
+                arrow.position.x = -(thick/2) + 0.1;
+                
+                // Move arrows to the FRONT face so they are clearly visible
+                arrow.position.z = side/2 + 0.1;
+
+                // Separate them vertically based on block height
+                // index 0 -> Go Up, index 1 -> Go Down
+                const yOffset = side * 0.25; 
+                arrow.position.y = (index === 0) ? yOffset : -yOffset;
+
+                // Length spans the block
+                // Increase head size slightly for better visibility
+                arrow.setLength(Math.max(thick - 0.2, 0.1), 0.4, 0.25);
+                
+                // Visibility based on P (if P is 0, no flow)
+                arrow.visible = P > 0;
+            });
+
+            // Block Glow
+            // Make the block emit heat color if P is high
+            blockMaterial.emissive = new THREE.Color(0xff4400);
+            blockMaterial.emissiveIntensity = pRatio * 0.8;
+        }
+
+        // --- Event Listeners ---
+        
+        // Sliders
+        document.getElementById('input-area').addEventListener('input', (e) => {
+            state.area = parseFloat(e.target.value);
+            updatePhysics();
+        });
+        document.getElementById('input-thickness').addEventListener('input', (e) => {
+            state.thickness = parseFloat(e.target.value);
+            updatePhysics();
+        });
+        document.getElementById('input-kappa').addEventListener('input', (e) => {
+            state.kappa = parseFloat(e.target.value);
+            updatePhysics();
+        });
+        document.getElementById('input-dt').addEventListener('input', (e) => {
+            state.dt = parseFloat(e.target.value);
+            updatePhysics();
+        });
+
+        // Language Switch
+        document.getElementById('lang-btn').addEventListener('click', () => {
+            state.lang = state.lang === 'zh' ? 'en' : 'zh';
+            applyLanguage();
+            updatePhysics(); // To update material hint
+        });
+
+        function applyLanguage() {
+            const t = i18n[state.lang];
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    el.textContent = t[key];
+                }
+            });
+        }
+
+        // Modal Logic
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalBtn = document.getElementById('modal-btn');
+        const modalClose = document.getElementById('modal-close');
+
+        modalBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        });
+
+        const hideModal = () => {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        modalClose.addEventListener('click', hideModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) hideModal();
+        });
+
+
+        // Resize Handle
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize
+        updatePhysics();
+        animate();
+
+    </script>
+</body>
+</html>

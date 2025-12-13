@@ -17,6 +17,15 @@
         .animate-bounce-custom {
             animation: bounce 2s infinite;
         }
+        /* 新增蒸氣動畫 */
+        @keyframes steam {
+            0% { transform: translateY(0) scale(1); opacity: 0.6; }
+            50% { transform: translateY(-15px) scale(1.2); opacity: 0.3; }
+            100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
+        }
+        .animate-steam {
+            animation: steam 2s ease-out infinite;
+        }
         @keyframes pulse-custom {
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
@@ -68,9 +77,14 @@
             <div class="flex items-center gap-2">
                 <!-- Icon: Thermometer -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><path d="M12 12v.01"/></svg>
-                <h1 class="text-2xl font-bold">物理實驗室：溫度計校正</h1>
+                <h1 class="text-xl md:text-2xl font-bold" data-i18n="appTitle">物理實驗室：溫度計校正</h1>
             </div>
-            <div class="text-sm opacity-90">假設線性膨脹模型</div>
+            <div class="flex items-center gap-4">
+                <div class="text-sm opacity-90 hidden md:block" data-i18n="appSubtitle">假設線性膨脹模型</div>
+                <button onclick="toggleLanguage()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm font-bold border border-blue-400 transition-colors">
+                    中 / EN
+                </button>
+            </div>
         </div>
     </header>
 
@@ -82,9 +96,9 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold flex items-center gap-2">
                         <span class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
-                        實驗操作與觀察
+                        <span data-i18n="section1Title">實驗操作與觀察</span>
                     </h2>
-                    <button onclick="resetExperiment()" class="text-slate-400 hover:text-red-500 transition-colors" title="重置實驗">
+                    <button onclick="resetExperiment()" class="text-slate-400 hover:text-red-500 transition-colors" title="Reset Experiment">
                         <!-- Icon: RotateCcw -->
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                     </button>
@@ -94,50 +108,87 @@
                 <div class="relative h-80 bg-slate-100 rounded-lg border-2 border-slate-300 flex justify-center items-end overflow-hidden mb-6" id="simulation-container">
                     
                     <!-- 背景環境特效 (JS控制顯示) -->
-                    <div id="ice-effect" class="absolute inset-0 flex items-end justify-center opacity-30 pointer-events-none hidden">
-                        <div class="w-full h-32 bg-blue-200 animate-pulse-custom"></div>
-                        <div class="absolute bottom-10 left-1/3 animate-bounce-custom">
-                            <!-- Icon: Snowflake -->
-                            <svg class="text-blue-400" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
+                    <div id="ice-effect" class="absolute inset-0 flex items-end justify-center pointer-events-none hidden z-0">
+                        <!-- 標籤 -->
+                        <div class="absolute top-4 right-[55%] bg-blue-100/90 text-blue-700 px-4 py-1 rounded-full font-bold shadow-sm border border-blue-200 z-50" data-i18n="labelIce">
+                            純熔冰
                         </div>
-                        <div class="absolute bottom-20 right-1/3 animate-bounce-custom" style="animation-delay: 0.1s;">
-                            <svg class="text-blue-400" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
+                        
+                        <!-- 冰水背景 -->
+                        <div class="w-full h-32 bg-blue-200/50 animate-pulse-custom absolute bottom-0"></div>
+                        
+                        <!-- 冰塊 (位於燒杯區域內) -->
+                        <div class="relative w-48 h-40 flex flex-wrap content-end justify-center p-4 gap-2 pb-2">
+                             <div class="w-10 h-10 bg-white/70 border border-blue-300 rounded shadow-sm rotate-12 backdrop-blur-sm"></div>
+                             <div class="w-8 h-8 bg-white/70 border border-blue-300 rounded shadow-sm -rotate-6 backdrop-blur-sm"></div>
+                             <div class="w-12 h-8 bg-white/70 border border-blue-300 rounded shadow-sm rotate-3 backdrop-blur-sm"></div>
+                             <div class="w-9 h-9 bg-white/70 border border-blue-300 rounded shadow-sm rotate-45 backdrop-blur-sm"></div>
                         </div>
                     </div>
 
-                    <div id="boil-effect" class="absolute inset-0 flex items-end justify-center opacity-30 pointer-events-none hidden">
-                        <div class="w-full h-32 bg-orange-200 animate-pulse-custom"></div>
-                        <div class="absolute bottom-0 w-full flex justify-around">
-                             <!-- 簡單的氣泡動畫 -->
-                             <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping-custom" style="animation-delay: 0s;"></div>
-                             <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping-custom" style="animation-delay: 0.2s;"></div>
-                             <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping-custom" style="animation-delay: 0.4s;"></div>
-                             <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping-custom" style="animation-delay: 0.6s;"></div>
-                             <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping-custom" style="animation-delay: 0.8s;"></div>
+                    <div id="boil-effect" class="absolute inset-0 flex items-end justify-center pointer-events-none hidden z-0">
+                        <!-- 標籤 -->
+                        <div class="absolute top-4 right-[55%] bg-orange-100/90 text-orange-700 px-4 py-1 rounded-full font-bold shadow-sm border border-orange-200 z-50" data-i18n="labelBoil">
+                            純沸水
+                        </div>
+
+                        <!-- 沸水背景 -->
+                        <div class="w-full h-32 bg-orange-100/50 animate-pulse-custom absolute bottom-0"></div>
+
+                        <div class="relative w-48 h-40 flex flex-col items-center justify-end pb-2">
+                             <!-- 氣泡 -->
+                             <div class="absolute bottom-4 w-full flex justify-around px-4">
+                                 <div class="w-3 h-3 bg-orange-400/60 rounded-full animate-ping-custom" style="animation-delay: 0s;"></div>
+                                 <div class="w-2 h-2 bg-orange-400/60 rounded-full animate-ping-custom" style="animation-delay: 0.3s;"></div>
+                                 <div class="w-4 h-4 bg-orange-400/60 rounded-full animate-ping-custom" style="animation-delay: 0.5s;"></div>
+                                 <div class="w-2 h-2 bg-orange-400/60 rounded-full animate-ping-custom" style="animation-delay: 0.7s;"></div>
+                             </div>
+                             
+                             <!-- 蒸氣 (使用 SVG 路徑) -->
+                             <div class="absolute -top-8 flex gap-6 opacity-50">
+                                <svg class="text-slate-400 animate-steam" width="24" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation-delay: 0s;">
+                                    <path d="M12 2c0 5-4 7-4 12s4 7 4 12" />
+                                </svg>
+                                <svg class="text-slate-400 animate-steam" width="24" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation-delay: 0.5s;">
+                                    <path d="M8 2c0 5 4 7 4 12s-4 7-4 12" />
+                                </svg>
+                                <svg class="text-slate-400 animate-steam" width="24" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation-delay: 1s;">
+                                    <path d="M16 2c0 5-4 7-4 12s4 7 4 12" />
+                                </svg>
+                             </div>
                         </div>
                     </div>
 
                     <!-- 燒杯 -->
-                    <div class="absolute bottom-0 w-48 h-40 border-x-4 border-b-4 border-slate-400 rounded-b-xl bg-blue-50/50 backdrop-blur-sm z-10"></div>
+                    <div class="absolute bottom-0 w-48 h-40 border-x-4 border-b-4 border-slate-400 rounded-b-xl bg-blue-50/20 backdrop-blur-[2px] z-10 pointer-events-none"></div>
                     
                     <!-- 溫度計主體 -->
                     <div class="relative z-20 mb-4 flex flex-col items-center group">
-                        <!-- 刻度尺 (Ruler) -->
-                        <div class="absolute -right-16 bottom-0 h-64 w-12 border-l-2 border-slate-800 flex flex-col justify-end text-[10px] font-mono text-slate-600" id="ruler-marks">
-                            <!-- JS 會生成刻度 -->
-                            <!-- 液面指示標記 -->
-                            <div id="level-indicator" class="absolute left-0 w-16 border-t-2 border-red-600 border-dashed flex items-center transition-all duration-500" style="bottom: 35%;">
-                                <span id="level-text" class="ml-14 bg-red-100 text-red-600 px-1 rounded text-xs font-bold whitespace-nowrap">
+                        <!-- Wrapper 用於對齊刻度尺與玻管 (排除球部高度影響) -->
+                        <div class="relative">
+                            <!-- 刻度尺 (Ruler) -->
+                            <div class="absolute -right-16 bottom-0 h-full w-12 border-l-2 border-slate-800 flex flex-col justify-end text-[10px] font-mono text-slate-600" id="ruler-marks">
+                                <!-- JS 會生成刻度 -->
+                            </div>
+
+                            <!-- 液面高度指示器 (新位置：作為玻管的兄弟元素，精確對齊底部) -->
+                            <!-- left-full 對齊玻管右側，bottom 用 JS 控制 -->
+                            <div id="level-indicator" class="absolute left-full w-40 transition-all duration-500 z-50 pointer-events-none" style="bottom: 35%; height: 0;">
+                                <!-- 虛線：使用 border-b 確保線位於容器的 bottom 0 位置 -->
+                                <div class="absolute left-0 bottom-0 w-20 border-b-2 border-red-600 border-dashed opacity-80"></div>
+                                <!-- 文字：絕對定位，放大字體 -->
+                                <span id="level-text" class="absolute left-20 -top-5 text-2xl font-bold text-red-600 bg-white/90 px-2 py-1 rounded shadow-sm whitespace-nowrap border border-red-100 backdrop-blur-sm">
                                     7.00 cm
                                 </span>
                             </div>
-                        </div>
 
-                        <!-- 玻管 -->
-                        <div class="w-4 h-64 bg-white border-2 border-slate-300 rounded-t-full relative overflow-hidden shadow-inner">
-                            <!-- 液柱 (紅色酒精/水銀) -->
-                            <div id="liquid-column" class="w-full bg-red-500 absolute bottom-0 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(239,68,68,0.5)]" style="height: 35%;"></div>
+                            <!-- 玻管 -->
+                            <div class="w-4 h-64 bg-white border-2 border-slate-300 rounded-t-full relative overflow-hidden shadow-inner">
+                                <!-- 液柱 (紅色酒精/水銀) -->
+                                <div id="liquid-column" class="w-full bg-red-500 absolute bottom-0 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(239,68,68,0.5)]" style="height: 35%;"></div>
+                            </div>
                         </div>
+                        
                         <!-- 球部 -->
                         <div class="w-8 h-8 bg-red-500 rounded-full -mt-1 border-2 border-red-600 shadow-md z-30"></div>
                     </div>
@@ -148,28 +199,28 @@
                     <button id="btn-ice" onclick="handleEnvironmentChange('ice')" class="p-4 rounded-lg border-2 flex flex-col items-center transition-all border-slate-200 hover:border-blue-300">
                         <!-- Icon: Snowflake -->
                         <svg class="mb-2 text-blue-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
-                        <span class="font-bold text-slate-700">放入純熔冰</span>
+                        <span class="font-bold text-slate-700" data-i18n="btnIce">放入純熔冰</span>
                         <span class="text-xs text-slate-500">(0°C)</span>
                     </button>
 
                     <button id="btn-boil" onclick="handleEnvironmentChange('boil')" class="p-4 rounded-lg border-2 flex flex-col items-center transition-all border-slate-200 hover:border-orange-300">
                         <!-- Icon: Flame -->
                         <svg class="mb-2 text-orange-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-                        <span class="font-bold text-slate-700">放入純沸水</span>
+                        <span class="font-bold text-slate-700" data-i18n="btnBoil">放入純沸水</span>
                         <span class="text-xs text-slate-500">(100°C)</span>
                     </button>
                 </div>
 
                 <!-- 數據記錄按鈕 -->
                 <div id="record-controls" class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p class="text-sm text-yellow-800 mb-3 font-medium">
+                    <p class="text-sm text-yellow-800 mb-3 font-medium" data-i18n="recordInstruction">
                         當前環境穩定後，請記錄溫度計液柱長度：
                     </p>
                     <div class="flex gap-4">
-                        <button id="btn-record-0" disabled onclick="recordData('ice')" class="flex-1 px-4 py-2 bg-blue-600 disabled:bg-slate-300 text-white rounded hover:bg-blue-700 transition shadow-sm">
+                        <button id="btn-record-0" disabled onclick="recordData('ice')" class="flex-1 px-4 py-2 bg-blue-600 disabled:bg-slate-300 text-white rounded hover:bg-blue-700 transition shadow-sm" data-i18n="btnRecord0">
                             記錄 0°C 長度
                         </button>
-                        <button id="btn-record-100" disabled onclick="recordData('boil')" class="flex-1 px-4 py-2 bg-orange-600 disabled:bg-slate-300 text-white rounded hover:bg-orange-700 transition shadow-sm">
+                        <button id="btn-record-100" disabled onclick="recordData('boil')" class="flex-1 px-4 py-2 bg-orange-600 disabled:bg-slate-300 text-white rounded hover:bg-orange-700 transition shadow-sm" data-i18n="btnRecord100">
                             記錄 100°C 長度
                         </button>
                     </div>
@@ -180,21 +231,23 @@
             <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
                 <h2 class="text-xl font-bold flex items-center gap-2 mb-4">
                     <span class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
-                    實驗數據記錄
+                    <span data-i18n="section2Title">實驗數據記錄</span>
                 </h2>
                 <div class="grid grid-cols-2 gap-8">
                     <div class="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        <div class="text-sm text-slate-500 mb-1">冰點長度 (L₀)</div>
-                        <div id="display-l0" class="text-3xl font-mono font-bold text-slate-300">--</div>
+                        <div class="text-sm text-slate-500 mb-1" data-i18n="labelL0">冰點長度 (L₀)</div>
+                        <!-- 字體放大 -->
+                        <div id="display-l0" class="text-4xl font-mono font-bold text-slate-300">--</div>
                     </div>
                     <div class="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        <div class="text-sm text-slate-500 mb-1">沸點長度 (L₁₀₀)</div>
-                        <div id="display-l100" class="text-3xl font-mono font-bold text-slate-300">--</div>
+                        <div class="text-sm text-slate-500 mb-1" data-i18n="labelL100">沸點長度 (L₁₀₀)</div>
+                        <!-- 字體放大 -->
+                        <div id="display-l100" class="text-4xl font-mono font-bold text-slate-300">--</div>
                     </div>
                 </div>
                 
                 <button id="btn-analyze" onclick="switchToAnalysisMode()" class="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-green-700 hidden animate-pulse flex items-center justify-center gap-2">
-                    數據收集完成，開始繪圖分析 
+                    <span data-i18n="btnAnalyze">數據收集完成，開始繪圖分析</span>
                     <!-- Icon: ArrowRight -->
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 </button>
@@ -207,14 +260,14 @@
             <div id="chart-section" class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 transition-opacity duration-500 disabled-area">
                 <h2 class="text-xl font-bold flex items-center gap-2 mb-2">
                     <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
-                    溫度-長度關係線圖
+                    <span data-i18n="section3Title">溫度-長度關係線圖</span>
                 </h2>
-                <p class="text-slate-500 text-sm mb-6">根據實驗數據建立線性校正曲線。</p>
+                <p class="text-slate-500 text-sm mb-6" data-i18n="chartDesc">根據實驗數據建立線性校正曲線。</p>
                 
                 <div class="h-64 w-full relative">
                     <canvas id="calibrationChart"></canvas>
                 </div>
-                <div class="text-center text-xs text-slate-400 mt-2">
+                <div class="text-center text-xs text-slate-400 mt-2" data-i18n="chartHint">
                     提示：藍點與橘點為實驗數據，紅點為預測點
                 </div>
             </div>
@@ -223,14 +276,14 @@
             <div id="calc-section" class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 transition-all duration-500 disabled-area">
                 <h2 class="text-xl font-bold flex items-center gap-2 mb-4">
                     <span class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
-                    互動推算
+                    <span data-i18n="section4Title">互動推算</span>
                 </h2>
                 
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2 flex justify-between">
-                            <span>調整溫度 (T)</span>
-                            <span id="slider-temp-val" class="text-red-600 font-bold">50°C</span>
+                            <span data-i18n="sliderLabel">調整溫度 (T)</span>
+                            <span id="slider-temp-val" class="text-red-600 font-bold text-lg">50°C</span>
                         </label>
                         <input 
                             id="temp-slider"
@@ -253,17 +306,17 @@
                         <svg class="absolute right-4 top-4 opacity-20" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
                         
                         <div class="relative z-10">
-                            <div class="text-xs text-slate-400 mb-1">推算長度 (L)</div>
-                            <div id="calc-result" class="text-3xl font-bold">-- cm</div>
-                            <div id="calc-formula" class="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-500">
+                            <div class="text-xs text-slate-400 mb-1" data-i18n="calcResultLabel">推算長度 (L)</div>
+                            <div id="calc-result" class="text-4xl font-bold">-- cm</div>
+                            <div id="calc-formula" class="mt-2 pt-2 border-t border-slate-700 text-sm text-slate-500" data-i18n="calcFormula">
                                 公式: 請先完成實驗
                             </div>
                         </div>
                     </div>
                     
                     <div class="text-sm text-slate-600 bg-blue-50 p-3 rounded border border-blue-100">
-                        <strong>教學重點：</strong> 
-                        拖動上方滑桿，觀察左側「虛擬溫度計」的液柱高度變化，這展示了我們如何利用校正後的線圖來測量未知的溫度。
+                        <strong data-i18n="teachingPointTitle">教學重點：</strong> 
+                        <span data-i18n="teachingPointContent">拖動上方滑桿，觀察左側「虛擬溫度計」的液柱高度變化，這展示了我們如何利用校正後的線圖來測量未知的溫度。</span>
                     </div>
                 </div>
             </div>
@@ -271,9 +324,77 @@
     </main>
 
     <script>
+        // --- 國際化 (I18n) 設定 ---
+        const translations = {
+            zh: {
+                appTitle: "物理實驗室：溫度計校正",
+                appSubtitle: "假設線性膨脹模型",
+                section1Title: "實驗操作與觀察",
+                labelIce: "純熔冰",
+                labelBoil: "純沸水",
+                btnIce: "放入純熔冰",
+                btnBoil: "放入純沸水",
+                recordInstruction: "當前環境穩定後，請記錄溫度計液柱長度：",
+                btnRecord0: "記錄 0°C 長度",
+                btnRecord100: "記錄 100°C 長度",
+                section2Title: "實驗數據記錄",
+                labelL0: "冰點長度 (L₀)",
+                labelL100: "沸點長度 (L₁₀₀)",
+                btnAnalyze: "數據收集完成，開始繪圖分析",
+                section3Title: "溫度-長度關係線圖",
+                chartDesc: "根據實驗數據建立線性校正曲線。",
+                chartHint: "提示：藍點與橘點為實驗數據，紅點為預測點",
+                section4Title: "互動推算",
+                sliderLabel: "調整溫度 (T)",
+                calcResultLabel: "推算長度 (L)",
+                calcFormula: "公式: 請先完成實驗",
+                calcFormulaTemplate: "公式: L = {L0} + ({slope}) × T",
+                teachingPointTitle: "教學重點：",
+                teachingPointContent: "拖動上方滑桿，觀察左側「虛擬溫度計」的液柱高度變化，這展示了我們如何利用校正後的線圖來測量未知的溫度。",
+                chartXAxis: "溫度 (°C)",
+                chartYAxis: "液柱長度 (cm)",
+                chartLabelCurve: "校正曲線",
+                chartLabelData: "實驗數據",
+                chartLabelPrediction: "預測點"
+            },
+            en: {
+                appTitle: "Physics Lab: Thermometer Calibration",
+                appSubtitle: "Assuming Linear Expansion Model",
+                section1Title: "Experiment & Observation",
+                labelIce: "Melting Ice",
+                labelBoil: "Boiling Water",
+                btnIce: "Place in Ice",
+                btnBoil: "Place in Boil",
+                recordInstruction: "Record the length after the reading stabilizes:",
+                btnRecord0: "Record 0°C Length",
+                btnRecord100: "Record 100°C Length",
+                section2Title: "Data Recording",
+                labelL0: "Ice Point Length (L₀)",
+                labelL100: "Boiling Point Length (L₁₀₀)",
+                btnAnalyze: "Data Collected, Start Analysis",
+                section3Title: "Temp-Length Graph",
+                chartDesc: "Linear calibration curve based on experimental data.",
+                chartHint: "Hint: Blue/Orange dots are data, Red dot is prediction.",
+                section4Title: "Interactive Calculation",
+                sliderLabel: "Adjust Temp (T)",
+                calcResultLabel: "Calculated Length (L)",
+                calcFormula: "Formula: Please complete experiment first",
+                calcFormulaTemplate: "Formula: L = {L0} + ({slope}) × T",
+                teachingPointTitle: "Key Concept:",
+                teachingPointContent: "Drag the slider above and observe the 'virtual thermometer' on the left. This demonstrates how we use the calibrated graph to measure unknown temperatures.",
+                chartXAxis: "Temperature (°C)",
+                chartYAxis: "Length (cm)",
+                chartLabelCurve: "Calibration Curve",
+                chartLabelData: "Experimental Data",
+                chartLabelPrediction: "Prediction"
+            }
+        };
+
+        let currentLang = 'zh';
+
         // --- 物理常數與狀態 ---
-        const REAL_L0 = 4.0;
-        const REAL_L100 = 16.0;
+        const REAL_L0 = 3.0;   // 0度時的長度
+        const REAL_L100 = 15.0; // 100度時的長度
         
         let currentTemp = 25;
         let currentLength = 7.0;
@@ -289,24 +410,55 @@
             updateSimulation();
         };
 
+        // --- 語言切換邏輯 ---
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateLanguageUI();
+        }
+
+        function updateLanguageUI() {
+            const t = translations[currentLang];
+            
+            // 更新所有帶有 data-i18n 屬性的元素
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    if (key === 'calcFormula' && recordedL0 !== null && recordedL100 !== null) {
+                        updateCalculation(document.getElementById('temp-slider').value);
+                    } else {
+                        el.innerText = t[key];
+                    }
+                }
+            });
+
+            // 更新圖表
+            if (chartInstance) {
+                chartInstance.options.scales.x.title.text = t.chartXAxis;
+                chartInstance.options.scales.y.title.text = t.chartYAxis;
+                chartInstance.data.datasets[0].label = t.chartLabelCurve;
+                chartInstance.data.datasets[1].label = t.chartLabelData;
+                chartInstance.data.datasets[2].label = t.chartLabelPrediction;
+                chartInstance.update();
+            }
+        }
+
         // 生成刻度線
         function generateRulerMarks() {
             const rulerContainer = document.getElementById('ruler-marks');
             let html = '';
-            // 液面指示器已經在 HTML 中，保留它
-            const indicatorHTML = document.getElementById('level-indicator').outerHTML;
             
             for(let i = 0; i <= 20; i++) {
                 const bottom = i * 5;
                 const isMain = i % 5 === 0;
                 const widthClass = isMain ? 'w-4' : 'w-2';
+                // 加大刻度數字字體 (text-sm, font-bold)
                 html += `<div class="border-b border-slate-400 ${widthClass} absolute right-full" style="bottom: ${bottom}%">`;
                 if (isMain) {
-                    html += `<span class="absolute left-5 -bottom-1.5 whitespace-nowrap">${i}cm</span>`;
+                    html += `<span class="absolute left-5 -bottom-2 whitespace-nowrap text-sm font-bold">${i}cm</span>`;
                 }
                 html += `</div>`;
             }
-            rulerContainer.innerHTML = html + indicatorHTML;
+            rulerContainer.innerHTML = html;
         }
 
         // --- 模擬邏輯 ---
@@ -317,7 +469,6 @@
             currentEnvironment = env;
             updateEnvironmentUI(env);
             
-            // 啟用對應的記錄按鈕
             document.getElementById('btn-record-0').disabled = (env !== 'ice');
             document.getElementById('btn-record-100').disabled = (env !== 'boil');
 
@@ -330,14 +481,12 @@
             const iceBtn = document.getElementById('btn-ice');
             const boilBtn = document.getElementById('btn-boil');
             
-            // Reset styles
             iceBtn.className = "p-4 rounded-lg border-2 flex flex-col items-center transition-all border-slate-200 hover:border-blue-300";
             boilBtn.className = "p-4 rounded-lg border-2 flex flex-col items-center transition-all border-slate-200 hover:border-orange-300";
             
             document.getElementById('ice-effect').classList.add('hidden');
             document.getElementById('boil-effect').classList.add('hidden');
 
-            // Apply active style
             if(env === 'ice') {
                 iceBtn.className = "p-4 rounded-lg border-2 flex flex-col items-center transition-all border-blue-500 bg-blue-50 ring-2 ring-blue-200";
                 document.getElementById('ice-effect').classList.remove('hidden');
@@ -367,12 +516,10 @@
         }
 
         function updateSimulation() {
-            // 根據物理公式計算長度
             const length = REAL_L0 + (REAL_L100 - REAL_L0) * (currentTemp / 100);
             currentLength = length.toFixed(2);
 
-            // 更新 DOM
-            const heightPercent = currentLength * 5; // 20cm = 100%, so 1cm = 5%
+            const heightPercent = currentLength * 5; 
             document.getElementById('liquid-column').style.height = `${heightPercent}%`;
             document.getElementById('level-indicator').style.bottom = `${heightPercent}%`;
             document.getElementById('level-text').innerText = `${currentLength} cm`;
@@ -393,7 +540,6 @@
                 display.classList.add('text-orange-600');
             }
 
-            // 檢查是否都記錄了
             if (recordedL0 !== null && recordedL100 !== null) {
                 const btnAnalyze = document.getElementById('btn-analyze');
                 btnAnalyze.classList.remove('hidden');
@@ -409,11 +555,10 @@
             currentEnvironment = 'room';
             mode = 'experiment';
             
-            // UI Reset
             document.getElementById('display-l0').innerText = '--';
-            document.getElementById('display-l0').className = 'text-3xl font-mono font-bold text-slate-300';
+            document.getElementById('display-l0').className = 'text-4xl font-mono font-bold text-slate-300'; // updated size
             document.getElementById('display-l100').innerText = '--';
-            document.getElementById('display-l100').className = 'text-3xl font-mono font-bold text-slate-300';
+            document.getElementById('display-l100').className = 'text-4xl font-mono font-bold text-slate-300'; // updated size
             document.getElementById('btn-analyze').classList.add('hidden');
             document.getElementById('btn-analyze').style.display = 'none';
             
@@ -427,8 +572,9 @@
 
             updateEnvironmentUI('room');
             updateSimulation();
+            
+            document.getElementById('calc-formula').innerText = translations[currentLang].calcFormula;
 
-            // 清除圖表
             if(chartInstance) {
                 chartInstance.destroy();
                 chartInstance = null;
@@ -440,12 +586,10 @@
         function switchToAnalysisMode() {
             mode = 'analysis';
             
-            // 隱藏/禁用左側控制
             document.getElementById('experiment-controls').classList.add('opacity-50', 'pointer-events-none');
             document.getElementById('record-controls').classList.add('hidden');
             document.getElementById('btn-analyze').classList.add('hidden');
             
-            // 顯示右側
             const chartSec = document.getElementById('chart-section');
             const calcSec = document.getElementById('calc-section');
             
@@ -454,10 +598,7 @@
             calcSec.classList.remove('disabled-area');
             calcSec.classList.add('opacity-100');
 
-            // 初始化計算器
-            updateCalculation(50); // 預設 50度
-
-            // 初始化圖表
+            updateCalculation(50);
             initChart();
         }
 
@@ -466,20 +607,22 @@
             document.getElementById('slider-temp-val').innerText = `${temp}°C`;
             document.getElementById('temp-slider').value = temp;
 
-            // 更新左側模擬 (互動模式)
             currentTemp = temp;
             updateSimulation();
 
-            // 計算
             if(recordedL0 !== null && recordedL100 !== null) {
                 const slope = (recordedL100 - recordedL0) / 100;
                 const calculatedL = recordedL0 + slope * temp;
+                const t = translations[currentLang];
+
                 document.getElementById('calc-result').innerText = `${calculatedL.toFixed(2)} cm`;
-                document.getElementById('calc-formula').innerText = `公式: L = ${recordedL0} + (${slope.toFixed(4)}) × T`;
                 
-                // 更新圖表上的紅點
+                const formulaStr = t.calcFormulaTemplate
+                    .replace('{L0}', recordedL0)
+                    .replace('{slope}', slope.toFixed(4));
+                document.getElementById('calc-formula').innerText = formulaStr;
+                
                 if(chartInstance) {
-                    // Index 2 is the prediction point
                     chartInstance.data.datasets[2].data = [{x: temp, y: calculatedL}];
                     chartInstance.update();
                 }
@@ -488,8 +631,8 @@
 
         function initChart() {
             const ctx = document.getElementById('calibrationChart').getContext('2d');
+            const t = translations[currentLang];
             
-            // 準備線的數據 (-10 到 110)
             const lineData = [];
             const slope = (recordedL100 - recordedL0) / 100;
             for(let t = -10; t <= 110; t+=10) {
@@ -501,7 +644,7 @@
                 data: {
                     datasets: [
                         {
-                            label: '校正曲線',
+                            label: t.chartLabelCurve,
                             data: lineData,
                             showLine: true,
                             borderColor: '#8884d8',
@@ -511,7 +654,7 @@
                             order: 2
                         },
                         {
-                            label: '實驗數據',
+                            label: t.chartLabelData,
                             data: [
                                 {x: 0, y: recordedL0},
                                 {x: 100, y: recordedL100}
@@ -522,8 +665,8 @@
                             order: 1
                         },
                         {
-                            label: '預測點',
-                            data: [], // 一開始是空的，由 slider 更新
+                            label: t.chartLabelPrediction,
+                            data: [],
                             backgroundColor: '#ef4444',
                             borderColor: 'white',
                             borderWidth: 2,
@@ -551,18 +694,17 @@
                     },
                     scales: {
                         x: {
-                            title: { display: true, text: '溫度 (°C)' },
+                            title: { display: true, text: t.chartXAxis },
                             min: -10,
                             max: 110
                         },
                         y: {
-                            title: { display: true, text: '液柱長度 (cm)' },
+                            title: { display: true, text: t.chartYAxis },
                             min: 0,
                             max: 20
                         }
                     },
                     onClick: (e, elements, chart) => {
-                        // 允許點擊圖表來設置滑桿
                         const canvasPosition = Chart.helpers.getRelativePosition(e, chart);
                         const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
                         if(dataX >= -10 && dataX <= 110) {
@@ -571,8 +713,6 @@
                     }
                 }
             });
-            
-            // 初始更新一次點
             updateCalculation(50);
         }
     </script>

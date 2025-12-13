@@ -59,12 +59,20 @@
             display: inline-grid;
             overflow: hidden;
         }
+        /* Modal Animation Classes */
+        .modal-active {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        .modal-content-active {
+            transform: scale(1) !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
 
     <!-- Header -->
-    <header class="bg-indigo-600 text-white p-4 shadow-lg">
+    <header class="bg-indigo-600 text-white p-4 shadow-lg relative z-20">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-rainbow text-2xl"></i>
@@ -73,15 +81,23 @@
                     <p class="text-xs text-indigo-200" data-i18n="subtitle">測定透明介質的折射率 (Snell's Law)</p>
                 </div>
             </div>
-            <!-- Language Switcher -->
-            <button onclick="toggleLanguage()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded text-sm transition font-bold tracking-wide border border-indigo-400">
-                <i class="fa-solid fa-globe mr-1"></i> <span id="lang-display">EN</span>
-            </button>
+            
+            <div class="flex items-center gap-3">
+                <!-- Theory Button -->
+                <button onclick="openTheoryModal()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded text-sm transition font-bold tracking-wide border border-white/30 backdrop-blur-sm flex items-center gap-1">
+                    <i class="fa-solid fa-book-open"></i> <span data-i18n="btnTheory">原理</span>
+                </button>
+
+                <!-- Language Switcher -->
+                <button onclick="toggleLanguage()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded text-sm transition font-bold tracking-wide border border-indigo-400">
+                    <i class="fa-solid fa-globe mr-1"></i> <span id="lang-display">中 / EN</span>
+                </button>
+            </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-grow p-4 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <main class="flex-grow p-4 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-0">
         
         <!-- Left Column: Simulation & Controls -->
         <div class="space-y-6">
@@ -172,6 +188,7 @@
                     </div>
                 </div>
                 <div class="text-xs text-gray-500 mt-2 text-center bg-gray-50 p-2 rounded" id="theoryBlock" data-i18n-html="theory">
+                    <!-- Default Theory Block (visible under graph) -->
                     <p class="mb-1 font-semibold">理論依據:</p>
                     <p>$$n_1 \sin(i) = n_2 \sin(r)$$</p>
                     <p>設 $n_1=1$ (空氣)，則 $\sin(i) = n \sin(r)$。</p>
@@ -208,6 +225,36 @@
             </div>
         </div>
     </main>
+
+    <!-- Theory Modal -->
+    <div id="theoryModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm hidden items-center justify-center z-50 opacity-0 transition-opacity duration-300" onclick="if(event.target === this) closeTheoryModal()">
+        <div id="theoryModalContent" class="bg-white rounded-xl shadow-2xl max-w-lg w-full m-4 p-8 transform scale-95 transition-transform duration-300 relative border border-indigo-100">
+            <!-- Close Button -->
+            <button onclick="closeTheoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                    <i class="fa-solid fa-book-open text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800" data-i18n="modalTitle">實驗原理解說</h3>
+            </div>
+
+            <!-- Content -->
+            <div class="space-y-4 text-gray-600 leading-relaxed max-h-[60vh] overflow-y-auto pr-2" data-i18n-html="modalContent">
+                <!-- Content injected by JS -->
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-8 pt-4 border-t border-gray-100 text-right">
+                <button onclick="closeTheoryModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition font-medium shadow-md active:scale-95">
+                    <span data-i18n="btnClose">明白</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <footer class="text-center p-4 text-gray-400 text-xs" data-i18n="footer">
         &copy; 2023 物理實驗室教學工具
@@ -253,7 +300,51 @@
                 tableTitle: "實驗數據表",
                 btnClear: "清除數據",
                 emptyTable: "尚未記錄數據。調整角度並點擊「記錄數據點」。",
-                footer: "&copy; 2023 物理實驗室教學工具"
+                footer: "&copy; 2023 物理實驗室教學工具",
+                
+                // Modal
+                btnTheory: "原理",
+                modalTitle: "實驗原理解說",
+                modalContent: `
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2">1. 斯涅耳定律 (Snell's Law)</p>
+                    <p>當光線從介質 1 進入介質 2 時，入射角 $\\theta_1$ 與折射角 $\\theta_2$ 的關係如下：</p>
+                    <div class="bg-indigo-50 p-3 rounded text-center my-3 border border-indigo-100">
+                        $$n_1 \\sin(\\theta_1) = n_2 \\sin(\\theta_2)$$
+                    </div>
+                    <ul class="list-disc pl-5 space-y-1 text-sm bg-gray-50 p-3 rounded mb-4">
+                        <li>$n_1$：介質 1 (空氣) 的折射率，通常約為 1.00。</li>
+                        <li>$n_2$：介質 2 (半圓形透明塊) 的折射率。</li>
+                        <li>$\\theta_1$：入射角 $i$ (相對於法線)。</li>
+                        <li>$\\theta_2$：折射角 $r$ (相對於法線)。</li>
+                    </ul>
+
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">2. 實驗目的與圖表分析</p>
+                    <p>將公式重寫，假設光從空氣 ($n_1 \\approx 1$) 進入介質：</p>
+                    <p class="text-center my-1">$$1 \\cdot \\sin(i) = n \\cdot \\sin(r) \\implies \\sin(i) = n \\cdot \\sin(r)$$</p>
+                    <p class="mt-2">這符合直線方程 <span class="font-mono text-indigo-600 font-bold">y = m ⋅ x</span> 的形式：</p>
+                    <ul class="list-disc pl-5 space-y-1 text-sm mt-2">
+                        <li>Y 軸 ($y$)：$\\sin(i)$</li>
+                        <li>X 軸 ($x$)：$\\sin(r)$</li>
+                        <li>斜率 ($m$)：折射率 $n$</li>
+                    </ul>
+                    <p class="mt-2">因此，通過測量多組 $i$ 和 $r$，繪製關係圖並找出最佳擬合直線的<strong>斜率</strong>，即可求得透明塊的折射率。</p>
+                    
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">3. 為什麼使用半圓形玻璃塊？</p>
+                    <div class="flex gap-4 items-start">
+                        <div class="flex-1">
+                            <p>光線從上方的平直面進入玻璃塊時發生折射。但當光線從玻璃塊底部的<strong>圓弧面射出</strong>時，因為光線是沿著半徑方向行進的，這意味著光線與曲面邊界<strong>垂直</strong> (入射角為 0°)。</p>
+                            <p class="mt-2 text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-100"><i class="fa-solid fa-lightbulb text-yellow-500 mr-1"></i> 關鍵點：光線在離開圓弧面時<strong>不發生偏折</strong>。這讓我們能直接測量光線在玻璃內部的行進角度作為折射角 $r$。</p>
+                        </div>
+                    </div>
+
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">4. 折射率的物理意義</p>
+                    <p>折射率 $n$ 不僅決定光線偏折的程度，還代表光在真空中的速度 $c$ 與在該介質中的速度 $v$ 的比值：</p>
+                    <div class="text-center my-2">
+                        $$n = \\frac{c}{v}$$
+                    </div>
+                    <p class="text-sm text-gray-600">由於光在介質中速度總是小於真空光速 ($v < c$)，所以折射率 $n$ 總是大多於 1。</p>
+                `,
+                btnClose: "明白"
             },
             en: {
                 title: "Snell's Law Virtual Lab",
@@ -277,7 +368,51 @@
                 tableTitle: "Data Table",
                 btnClear: "Clear Data",
                 emptyTable: "No data recorded. Adjust angle and click 'Record Data'.",
-                footer: "&copy; 2023 Physics Lab Tools"
+                footer: "&copy; 2023 Physics Lab Tools",
+                
+                // Modal
+                btnTheory: "Theory",
+                modalTitle: "Principle Explanation",
+                modalContent: `
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2">1. Snell's Law</p>
+                    <p>The relationship between the angle of incidence $\\theta_1$ and the angle of refraction $\\theta_2$ when light passes from medium 1 to medium 2 is given by:</p>
+                    <div class="bg-indigo-50 p-3 rounded text-center my-3 border border-indigo-100">
+                        $$n_1 \\sin(\\theta_1) = n_2 \\sin(\\theta_2)$$
+                    </div>
+                    <ul class="list-disc pl-5 space-y-1 text-sm bg-gray-50 p-3 rounded mb-4">
+                        <li>$n_1$: Refractive index of medium 1 (Air), approx 1.00.</li>
+                        <li>$n_2$: Refractive index of medium 2 (Block).</li>
+                        <li>$\\theta_1$: Angle of incidence $i$ (relative to normal).</li>
+                        <li>$\\theta_2$: Angle of refraction $r$ (relative to normal).</li>
+                    </ul>
+
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">2. Experiment Goal & Graph Analysis</p>
+                    <p>Rewriting the formula for air ($n_1 \\approx 1$) to medium:</p>
+                    <p class="text-center my-1">$$1 \\cdot \\sin(i) = n \\cdot \\sin(r) \\implies \\sin(i) = n \\cdot \\sin(r)$$</p>
+                    <p class="mt-2">This matches the linear equation form <span class="font-mono text-indigo-600 font-bold">y = m ⋅ x</span>:</p>
+                    <ul class="list-disc pl-5 space-y-1 text-sm mt-2">
+                        <li>Y-axis ($y$): $\\sin(i)$</li>
+                        <li>X-axis ($x$): $\\sin(r)$</li>
+                        <li>Slope ($m$): Refractive Index $n$</li>
+                    </ul>
+                    <p class="mt-2">By measuring multiple pairs of $i$ and $r$, plotting the graph, and finding the slope of the best-fit line, we can determine $n$.</p>
+                    
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">3. Why use a Semicircular Block?</p>
+                    <div class="flex gap-4 items-start">
+                        <div class="flex-1">
+                            <p>Refraction occurs when light enters the flat top surface. However, when light exits through the <strong>curved bottom surface</strong>, it travels along the radius. This means the light hits the boundary <strong>perpendicularly</strong> (angle of incidence is 0°).</p>
+                            <p class="mt-2 text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-100"><i class="fa-solid fa-lightbulb text-yellow-500 mr-1"></i> Key Point: <strong>No refraction</strong> occurs at the curved exit. This allows us to measure the angle inside the glass directly.</p>
+                        </div>
+                    </div>
+
+                    <p class="font-bold text-gray-800 text-lg border-b border-gray-200 pb-1 mb-2 mt-6">4. Physical Meaning of Refractive Index</p>
+                    <p>The refractive index $n$ is defined as the ratio of the speed of light in a vacuum $c$ to the speed of light in the medium $v$:</p>
+                    <div class="text-center my-2">
+                        $$n = \\frac{c}{v}$$
+                    </div>
+                    <p class="text-sm text-gray-600">Since light travels slower in a medium than in a vacuum ($v < c$), $n$ is always greater than 1.</p>
+                `,
+                btnClose: "Close"
             }
         };
 
@@ -297,6 +432,10 @@
         const calcNElement = document.getElementById('calcN'); // Renamed to avoid ID conflict in updating text
         const dataTableBody = document.getElementById('dataTableBody');
         const langDisplay = document.getElementById('lang-display');
+        
+        // Modal Elements
+        const theoryModal = document.getElementById('theoryModal');
+        const theoryModalContent = document.getElementById('theoryModalContent');
 
         // Init
         function init() {
@@ -328,10 +467,32 @@
             updateGraph();
         }
 
+        // Modal Logic
+        function openTheoryModal() {
+            theoryModal.classList.remove('hidden');
+            theoryModal.classList.add('flex');
+            // Small timeout to allow display:flex to apply before opacity transition
+            setTimeout(() => {
+                theoryModal.classList.add('modal-active');
+                theoryModalContent.classList.add('modal-content-active');
+            }, 10);
+        }
+
+        function closeTheoryModal() {
+            theoryModal.classList.remove('modal-active');
+            theoryModalContent.classList.remove('modal-content-active');
+            
+            // Wait for transition to finish before hiding
+            setTimeout(() => {
+                theoryModal.classList.remove('flex');
+                theoryModal.classList.add('hidden');
+            }, 300);
+        }
+
         // Language Logic
         function toggleLanguage() {
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
-            langDisplay.textContent = currentLang === 'zh' ? 'EN' : '中';
+            // langDisplay.textContent = currentLang === 'zh' ? 'EN' : '中'; // Removed dynamic text update
             applyLanguage();
         }
 
@@ -344,7 +505,7 @@
                 if (t[key]) el.textContent = t[key];
             });
 
-            // HTML Content (For Theory)
+            // HTML Content (For Theory & Modal)
             document.querySelectorAll('[data-i18n-html]').forEach(el => {
                 const key = el.getAttribute('data-i18n-html');
                 if (t[key]) el.innerHTML = t[key];

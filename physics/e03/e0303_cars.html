@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車輛物理原理模擬器 (EV/Petrol/Hybrid)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            overscroll-behavior: none;
+            user-select: none;
+        }
+
+        /* 動畫類別 */
+        .flow-line { stroke-dasharray: 10; animation: flow 0.5s linear infinite; }
+        .flow-slow { stroke-dasharray: 10; animation: flow 1s linear infinite; }
+        .flow-reverse { stroke-dasharray: 10; animation: flow-reverse 0.5s linear infinite; }
+
+        @keyframes flow { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }
+        @keyframes flow-reverse { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 20; } }
+
+        /* 踏板與互動 */
+        .interactive-pedal { cursor: pointer; transition: transform 0.1s; }
+        .interactive-pedal:active { transform: scale(0.95); transform-box: fill-box; transform-origin: center; }
+        .interactive-pedal.pedal-active rect { fill: #fbbf24 !important; filter: drop-shadow(0 0 5px orange); }
+        .interactive-pedal.pedal-active text { fill: #fbbf24 !important; }
+
+        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 48px; background: transparent; cursor: pointer; position: relative; z-index: 50; }
+        .pedal-track { box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2); }
+        
+        /* 側邊欄樣式 */
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 12px 4px; color: #94a3b8; transition: all 0.2s; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-item:hover { background-color: #1e293b; color: #e2e8f0; }
+        .nav-item.active { background-color: #1e293b; color: #3b82f6; border-left-color: #3b82f6; }
+        .nav-item svg { width: 24px; height: 24px; margin-bottom: 4px; }
+        .nav-item span { font-size: 12px; text-align: center; }
+
+        /* 組件顯示控制 */
+        .comp-ev, .comp-petrol, .comp-hybrid { display: none; }
+        body[data-mode="ev"] .comp-ev { display: inline; }
+        body[data-mode="petrol"] .comp-petrol { display: inline; }
+        body[data-mode="hybrid"] .comp-hybrid { display: inline; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden text-gray-800" data-mode="petrol">
+
+    <!-- 標題列 -->
+    <header class="bg-slate-800 text-white p-4 shadow-md z-30 relative shrink-0">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                <h1 class="text-xl font-bold tracking-wider" id="app-title">車輛物理模擬實驗室</h1>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="toggleModal('compare-modal')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition flex items-center gap-2 border border-slate-600">
+                    <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <span id="btn-compare">車型比較</span>
+                </button>
+                <button onclick="toggleModal('principle-modal')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition flex items-center gap-2 border border-slate-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    <span id="btn-principle">物理原理</span>
+                </button>
+                <button onclick="toggleLanguage()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition font-medium">
+                    中 / EN
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 左側選單 -->
+        <aside class="w-24 bg-slate-900 border-r border-slate-700 flex flex-col py-4 shrink-0 z-20 shadow-lg">
+            <div class="nav-item active" id="tab-petrol" onclick="switchMode('petrol')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                <span id="text-tab-petrol">電油車<br>Petrol</span>
+            </div>
+            <div class="nav-item" id="tab-ev" onclick="switchMode('ev')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span id="text-tab-ev">電動車<br>EV</span>
+            </div>
+            <div class="nav-item" id="tab-hybrid" onclick="switchMode('hybrid')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                <span id="text-tab-hybrid">混能車<br>Hybrid</span>
+            </div>
+        </aside>
+
+        <!-- 模擬區與控制區 -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative z-0">
+            
+            <!-- 視覺模擬區 -->
+            <div class="flex-1 bg-slate-900 relative flex justify-center items-center p-4 overflow-hidden select-none">
+                <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 30px 30px;"></div>
+
+                <svg id="car-svg" class="w-full max-w-lg h-auto drop-shadow-2xl" viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 定義箭頭樣式 -->
+                    <defs>
+                        <marker id="arrow-end-orange" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 L0,0" fill="#f97316" /></marker>
+                        <marker id="arrow-end-green" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 L0,0" fill="#22c55e" /></marker>
+                        <marker id="arrow-end-blue" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 L0,0" fill="#3b82f6" /></marker>
+                        <marker id="arrow-start-orange" markerWidth="4" markerHeight="4" refX="1" refY="2" orient="auto"><path d="M4,0 L0,2 L4,4 L4,0" fill="#f97316" /></marker>
+                        <marker id="arrow-start-green" markerWidth="4" markerHeight="4" refX="1" refY="2" orient="auto"><path d="M4,0 L0,2 L4,4 L4,0" fill="#22c55e" /></marker>
+                        <marker id="arrow-start-blue" markerWidth="4" markerHeight="4" refX="1" refY="2" orient="auto"><path d="M4,0 L0,2 L4,4 L4,0" fill="#3b82f6" /></marker>
+                    </defs>
+
+                    <!-- 地板陰影 -->
+                    <ellipse cx="200" cy="300" rx="160" ry="280" fill="black" fill-opacity="0.3"/>
+
+                    <!-- 底盤與輪胎 -->
+                    <rect x="80" y="50" width="240" height="500" rx="40" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+                    <g class="wheel-group"><rect id="wheel-fl" x="40" y="100" width="40" height="80" rx="10" fill="#334155"/></g>
+                    <g class="wheel-group"><rect id="wheel-fr" x="320" y="100" width="40" height="80" rx="10" fill="#334155"/></g>
+                    <g class="wheel-group"><rect id="wheel-rl" x="40" y="420" width="40" height="80" rx="10" fill="#334155"/></g>
+                    <g class="wheel-group"><rect id="wheel-rr" x="320" y="420" width="40" height="80" rx="10" fill="#334155"/></g>
+                    <line x1="80" y1="140" x2="320" y2="140" stroke="#94a3b8" stroke-width="8"/>
+                    <line x1="80" y1="460" x2="320" y2="460" stroke="#94a3b8" stroke-width="8"/>
+
+                    <!-- === EV 組件 (電動車) === -->
+                    <g class="comp-ev">
+                        <rect x="120" y="240" width="160" height="140" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                        <path d="M150 260h20v100h-20z M190 260h20v100h-20z M230 260h20v100h-20z" fill="#334155"/>
+                        <text id="svg-liion" x="200" y="315" fill="white" font-size="24" text-anchor="middle" font-weight="bold">Li-ion</text>
+                        <rect id="ev-battery-indicator" x="125" y="360" width="150" height="6" fill="#22c55e" rx="3"/>
+                        
+                        <rect x="160" y="400" width="80" height="40" rx="5" fill="#475569" stroke="#cbd5e1" stroke-width="2"/>
+                        <text id="svg-inverter" x="200" y="425" fill="white" font-size="12" text-anchor="middle">Inverter</text>
+                        
+                        <circle cx="200" cy="460" r="30" fill="#0f172a" stroke="#cbd5e1" stroke-width="2"/>
+                        <text id="svg-motor" x="200" y="465" fill="white" font-size="10" text-anchor="middle">Motor</text>
+
+                        <path id="path-ev-bat-inv" d="M200 380 L200 400" stroke="#334155" stroke-width="4"/>
+                        <path id="flow-ev-bat-inv" d="M200 380 L200 400" stroke="transparent" stroke-width="4"/>
+                        <path id="path-ev-inv-mot" d="M200 440 L200 460" stroke="#334155" stroke-width="4"/>
+                        <path id="flow-ev-inv-mot" d="M200 440 L200 460" stroke="transparent" stroke-width="4"/>
+                    </g>
+
+                    <!-- === Petrol 組件 (電油車) === -->
+                    <g class="comp-petrol">
+                        <rect x="140" y="100" width="120" height="80" rx="5" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+                        <circle cx="170" cy="140" r="15" fill="#b91c1c" />
+                        <circle cx="230" cy="140" r="15" fill="#b91c1c" />
+                        <text id="svg-engine" x="200" y="145" fill="white" font-size="16" text-anchor="middle" font-weight="bold">ENGINE</text>
+
+                        <path d="M200 180 L200 460" stroke="#475569" stroke-width="8" stroke-dasharray="10" />
+                        <rect x="180" y="440" width="40" height="40" rx="5" fill="#475569" /> 
+
+                        <rect x="140" y="490" width="120" height="40" rx="10" fill="#ca8a04" stroke="#eab308" stroke-width="2"/>
+                        <text id="svg-fueltank" x="200" y="515" fill="white" font-size="12" text-anchor="middle">FUEL TANK</text>
+                        <rect id="petrol-fuel-indicator" x="150" y="520" width="100" height="4" fill="#fde047" rx="2"/>
+
+                        <path d="M140 140 Q 100 140 100 200 L 100 550" stroke="#94a3b8" stroke-width="6" fill="none" opacity="0.5"/>
+                        <path id="exhaust-flow" d="M100 550 L 100 580" stroke="white" stroke-width="0" stroke-linecap="round" />
+
+                        <path id="flow-fuel-engine" d="M200 490 L200 180" stroke="transparent" stroke-width="3" stroke-dasharray="5"/>
+                    </g>
+
+                    <!-- === Hybrid 組件 (混能車) === -->
+                    <g class="comp-hybrid">
+                        <rect x="150" y="90" width="100" height="60" rx="5" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+                        <text id="svg-engine-hyb" x="200" y="125" fill="white" font-size="12" text-anchor="middle" font-weight="bold">ENGINE</text>
+
+                        <rect x="150" y="160" width="100" height="40" rx="5" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+                        <text id="svg-emotor" x="200" y="185" fill="white" font-size="12" text-anchor="middle">E-MOTOR</text>
+
+                        <rect x="130" y="370" width="140" height="60" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                        <text id="svg-hvbatt" x="200" y="405" fill="white" font-size="14" text-anchor="middle" font-weight="bold">HV Batt</text>
+                        <rect id="hybrid-battery-indicator" x="140" y="415" width="120" height="4" fill="#22c55e" rx="2"/>
+
+                        <rect x="130" y="480" width="140" height="60" rx="8" fill="#ca8a04" stroke="#eab308" stroke-width="2"/>
+                        <text id="svg-fueltank-hyb" x="200" y="515" fill="white" font-size="14" text-anchor="middle" font-weight="bold">FUEL TANK</text>
+                        <rect id="hybrid-fuel-indicator" x="140" y="525" width="120" height="6" fill="#fde047" rx="3"/>
+
+                        <path id="path-hyb-elec" d="M130 400 C 80 400 80 180 150 180" stroke="#334155" stroke-width="3" fill="none"/>
+                        <path id="flow-hyb-elec" d="M130 400 C 80 400 80 180 150 180" stroke="transparent" stroke-width="3" fill="none"/>
+                        
+                        <path id="flow-hyb-fuel" d="M270 510 C 340 510 340 120 250 120" stroke="transparent" stroke-width="3" fill="none" stroke-dasharray="5"/>
+
+                        <path id="driveshaft-hyb" d="M200 200 L 200 460" stroke="#64748b" stroke-width="6" stroke-dasharray="4"/>
+                    </g>
+
+                    <!-- 駕駛與踏板 (通用) -->
+                    <g id="driver-area">
+                        <path d="M220 180 h 80 v 60 h -80 z" fill="#cbd5e1" opacity="0.5" rx="5"/>
+                        <text id="svg-driver" x="260" y="220" fill="#64748b" font-size="14" text-anchor="middle" opacity="0.8">Driver</text>
+                        <g id="grp-brake" class="interactive-pedal">
+                            <rect x="235" y="150" width="25" height="40" rx="4" fill="#ef4444" stroke="#991b1b" stroke-width="2"/>
+                            <text id="lbl-pedal-brake" x="247.5" y="145" fill="#ef4444" font-size="12" text-anchor="middle" font-weight="bold">Brake</text>
+                        </g>
+                        <g id="grp-acc" class="interactive-pedal">
+                            <rect x="270" y="140" width="20" height="50" rx="4" fill="#22c55e" stroke="#166534" stroke-width="2"/>
+                            <text id="lbl-pedal-acc" x="280" y="135" fill="#22c55e" font-size="12" text-anchor="middle" font-weight="bold">Acc</text>
+                        </g>
+                    </g>
+
+                    <!-- 剎車碟盤光暈 -->
+                    <circle cx="200" cy="460" r="35" stroke="#ef4444" stroke-width="0" fill="none" id="brake-glow" style="filter: blur(4px); transition: stroke-width 0.2s"/>
+                </svg>
+
+                <div id="status-label" class="absolute top-4 left-4 bg-black/60 backdrop-blur text-white px-3 py-1 rounded-full text-sm font-mono hidden z-10">靜止</div>
+            </div>
+
+            <!-- 控制面板 -->
+            <div class="w-full md:w-96 bg-white border-l border-gray-200 flex flex-col h-auto md:h-full overflow-y-auto relative z-10 shadow-xl">
+                <div class="p-5 bg-slate-50 border-b border-gray-200">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <div class="text-xs text-gray-500 uppercase tracking-wide mb-1" id="lbl-speed">速度</div>
+                            <div class="text-4xl font-mono font-bold text-slate-800"><span id="speed-val">0</span> <span class="text-lg text-gray-400">km/h</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500 uppercase tracking-wide mb-1" id="lbl-power">輸出狀態</div>
+                            <div class="text-xl font-mono font-bold" id="power-display">0 <span class="text-sm text-gray-400">kW</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 能源顯示區 -->
+                    <div class="space-y-3">
+                        <div class="comp-ev comp-hybrid">
+                            <div class="flex justify-between text-sm mb-1"><span id="lbl-battery" class="text-gray-600 font-medium">電池電量</span><span id="battery-pct" class="font-bold text-slate-800">80.0%</span></div>
+                            <div class="h-3 bg-gray-200 rounded-full overflow-hidden border border-gray-300 relative">
+                                <div id="battery-bar" class="h-full bg-green-500 w-[80%] transition-all"></div>
+                                <div id="charge-anim" class="absolute inset-0 bg-white/30 hidden w-full h-full" style="animation: progress-bar-stripes 1s linear infinite; background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent); background-size: 1rem 1rem;"></div>
+                            </div>
+                        </div>
+                        <div class="comp-petrol comp-hybrid">
+                            <div class="flex justify-between text-sm mb-1"><span id="lbl-fuel" class="text-gray-600 font-medium">燃油量 (Fuel)</span><span id="fuel-pct" class="font-bold text-slate-800">100.0%</span></div>
+                            <div class="h-3 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                                <div id="fuel-bar" class="h-full bg-yellow-500 w-full transition-all"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-sm">
+                            <div class="text-xs text-gray-400" id="lbl-trip">消耗 / 回收</div>
+                            <div class="text-sm font-bold"><span class="text-orange-600" id="trip-used">0.0</span> / <span class="text-blue-600" id="trip-regen">0.0</span></div>
+                        </div>
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-sm">
+                            <div class="text-xs text-gray-400" id="lbl-distance">行駛里程</div>
+                            <div class="font-bold text-slate-700 text-sm"><span id="trip-distance">0.00</span> km</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 踏板控制 -->
+                <div class="p-6 flex-1 flex flex-col gap-5">
+                    <div class="relative">
+                        <div class="flex justify-between mb-1"><label class="font-bold text-slate-700" id="lbl-accelerator">電門 / 油門</label><span id="acc-val" class="font-mono text-sm text-gray-500">0%</span></div>
+                        <div class="h-12 bg-gray-100 rounded-lg relative pedal-track border border-gray-200 overflow-hidden group hover:border-green-300 transition-colors">
+                            <div id="acc-fill" class="absolute left-0 top-0 bottom-0 bg-green-100 transition-all duration-75 w-0 pointer-events-none"></div>
+                            <input type="range" id="accelerator" min="0" max="100" value="0" step="0.1" class="absolute w-full h-full z-20 opacity-0 cursor-pointer block">
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                <div class="w-1 h-6 bg-gray-300 rounded-full group-hover:bg-green-400 transition" id="acc-thumb" style="transform: translateX(-50%); position: absolute; left: 0;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <div class="flex justify-between mb-1"><label class="font-bold text-slate-700" id="lbl-brake">制動 (剎車)</label><span id="brake-val" class="font-mono text-sm text-gray-500">0%</span></div>
+                        <div class="h-12 bg-gray-100 rounded-lg relative pedal-track border border-gray-200 overflow-hidden group hover:border-red-300 transition-colors">
+                            <div id="brake-fill" class="absolute left-0 top-0 bottom-0 bg-red-100 transition-all duration-75 w-0 pointer-events-none"></div>
+                            <input type="range" id="brake" min="0" max="100" value="0" step="0.1" class="absolute w-full h-full z-20 opacity-0 cursor-pointer block">
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                <div class="w-1 h-6 bg-gray-300 rounded-full group-hover:bg-red-400 transition" id="brake-thumb" style="transform: translateX(-50%); position: absolute; left: 0;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作區 -->
+                    <div class="mt-auto pt-4 border-t border-gray-100 space-y-3">
+                        <div class="comp-ev">
+                            <label class="text-xs text-gray-500 block mb-1" id="lbl-charge-type">充電器類型</label>
+                            <select id="charge-type" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"><option value="3">家用 (3 kW)</option><option value="11" selected>中速 (11 kW)</option><option value="50">快速 (50 kW)</option></select>
+                        </div>
+                        
+                        <button id="btn-action" class="w-full py-3.5 rounded-xl font-bold shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white">
+                            <span id="btn-action-text">連接充電器</span>
+                        </button>
+                        
+                        <button onclick="resetSimulation()" class="w-full py-2 rounded-lg text-sm font-bold border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span id="btn-reset">重置模擬</span>
+                        </button>
+                        <p class="text-center text-xs text-gray-400" id="hint-action">需停車操作</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal 原理說明 -->
+    <div id="principle-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 pb-2 border-b">
+                <h2 class="text-2xl font-bold text-slate-800" id="modal-title">物理原理說明</h2>
+                <button onclick="toggleModal('principle-modal')" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div id="modal-content" class="text-slate-600 space-y-4 leading-relaxed"></div>
+            <div class="mt-6 text-center">
+                <button onclick="toggleModal('principle-modal')" class="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition" id="modal-close">明白</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 比較 -->
+    <div id="compare-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 pb-2 border-b">
+                <h2 class="text-2xl font-bold text-slate-800" id="compare-title">車型優缺點比較</h2>
+                <button onclick="toggleModal('compare-modal')" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div id="compare-content" class="text-slate-600 leading-relaxed overflow-x-auto"></div>
+            <div class="mt-6 text-center">
+                <button onclick="toggleModal('compare-modal')" class="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition" id="compare-close">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 多語言設定 ---
+        const translations = {
+            'zh-TW': {
+                appTitle: '車輛物理模擬實驗室',
+                btnPrinciple: '物理原理',
+                btnReset: '重置模擬',
+                btnCompare: '車型比較',
+                lblSpeed: '速度',
+                lblPower: '輸出狀態',
+                lblBattery: '電池電量',
+                lblFuel: '燃油量 (Fuel)',
+                lblTrip: '消耗 / 回收',
+                lblDistance: '行駛里程',
+                lblAccelerator: '電門 / 油門',
+                lblBrake: '制動 (剎車)',
+                lblChargeType: '充電器類型',
+                tabEv: '電動車',
+                tabPetrol: '電油車',
+                tabHybrid: '混能車',
+                actionCharge: '連接充電器',
+                actionRefuel: '開始加油',
+                stopCharge: '停止充電',
+                stopRefuel: '停止加油',
+                hintActionCharge: '需停車才可充電',
+                hintActionRefuel: '需停車才可加油',
+                statusIdle: '靜止',
+                statusAcc: '加速中',
+                statusCoast: '滑行/減速',
+                statusCharge: '充電中',
+                statusRefuel: '加油中',
+                statusEngGen: '引擎發電中',
+                statusHybAcc: '混合動力加速',
+                statusEngDrive: '引擎驅動',
+                statusEvDrive: '純電行駛',
+                modalTitle: '物理原理說明',
+                modalClose: '明白',
+                compareTitle: '車型優缺點比較',
+                compareClose: '關閉',
+                svgLiIon: '鋰電池',
+                svgInverter: '逆變器',
+                svgMotor: '電動機',
+                svgEngine: '引擎',
+                svgFuelTank: '油箱',
+                svgEMotor: '電動機',
+                svgHVBatt: '混能電池',
+                svgDriver: '駕駛',
+                svgBrake: '制動',
+                svgAcc: '油門/電門',
+                compareTable: `
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 border-b-2 border-gray-300">
+                                <th class="p-3">車型</th>
+                                <th class="p-3">優點</th>
+                                <th class="p-3">缺點</th>
+                            </tr>
+                        </thead>
+                        <tbody class="align-top">
+                            <tr class="border-b border-gray-200">
+                                <td class="p-3 font-bold text-red-600">電油車 (Petrol)</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>續航力長</li><li>加油速度快 (數分鐘)</li><li>技術成熟，車價較低</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>排放廢氣 (CO2, NOx)</li><li>能源效率低 (熱損耗大)</li><li>無法回收煞車能量</li><li>噪音較大</li></ul></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="p-3 font-bold text-blue-600">電動車 (EV)</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>零廢氣排放</li><li>能源效率極高</li><li>安靜、加速平順</li><li>保養成本低</li><li>可回收煞車能量</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>充電時間長</li><li>續航焦慮</li><li>電池成本高</li><li>依賴充電設施</li></ul></td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold text-green-600">混能車 (Hybrid)</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>無續航焦慮 (可用油)</li><li>比純油車省油 (低速用電)</li><li>可回收煞車能量</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>結構複雜 (兩套系統)</li><li>車重較重</li><li>純電續航極短</li><li>維修成本可能較高</li></ul></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `
+            },
+            'en': {
+                appTitle: 'Vehicle Physics Lab',
+                btnPrinciple: 'Principles',
+                btnReset: 'Reset Sim',
+                btnCompare: 'Comparison',
+                lblSpeed: 'Speed',
+                lblPower: 'Power Output',
+                lblBattery: 'Battery Level',
+                lblFuel: 'Fuel Level',
+                lblTrip: 'Used / Regen',
+                lblDistance: 'Trip Distance',
+                lblAccelerator: 'Accelerator',
+                lblBrake: 'Brake',
+                lblChargeType: 'Charger Type',
+                tabEv: 'EV',
+                tabPetrol: 'Petrol',
+                tabHybrid: 'Hybrid',
+                actionCharge: 'Connect Charger',
+                actionRefuel: 'Start Refuel',
+                stopCharge: 'Stop Charging',
+                stopRefuel: 'Stop Refueling',
+                hintActionCharge: 'Must stop to charge',
+                hintActionRefuel: 'Must stop to refuel',
+                statusIdle: 'Idle',
+                statusAcc: 'Accelerating',
+                statusCoast: 'Coasting/Braking',
+                statusCharge: 'Charging',
+                statusRefuel: 'Refueling',
+                statusEngGen: 'Engine Generating',
+                statusHybAcc: 'Hybrid Boost',
+                statusEngDrive: 'Engine Drive',
+                statusEvDrive: 'EV Drive',
+                modalTitle: 'Physics Principles',
+                modalClose: 'Got it',
+                compareTitle: 'Vehicle Type Comparison',
+                compareClose: 'Close',
+                svgLiIon: 'Li-ion',
+                svgInverter: 'Inverter',
+                svgMotor: 'Motor',
+                svgEngine: 'ENGINE',
+                svgFuelTank: 'FUEL TANK',
+                svgEMotor: 'E-MOTOR',
+                svgHVBatt: 'HV Batt',
+                svgDriver: 'Driver',
+                svgBrake: 'Brake',
+                svgAcc: 'Acc',
+                compareTable: `
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 border-b-2 border-gray-300">
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Pros</th>
+                                <th class="p-3">Cons</th>
+                            </tr>
+                        </thead>
+                        <tbody class="align-top">
+                            <tr class="border-b border-gray-200">
+                                <td class="p-3 font-bold text-red-600">Petrol</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>Long Range</li><li>Fast Refueling</li><li>Mature Tech, Lower Cost</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>Emissions (CO2)</li><li>Low Efficiency (Heat loss)</li><li>No Energy Recovery</li><li>Noise</li></ul></td>
+                            </tr>
+                            <tr class="border-b border-gray-200">
+                                <td class="p-3 font-bold text-blue-600">Electric (EV)</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>Zero Emissions</li><li>High Efficiency</li><li>Quiet, Smooth</li><li>Low Maintenance</li><li>Regenerative Braking</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>Long Charge Time</li><li>Range Anxiety</li><li>High Battery Cost</li><li>Charging Infrastructure</li></ul></td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold text-green-600">Hybrid</td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>No Range Anxiety</li><li>Better MPG than Petrol</li><li>Regenerative Braking</li></ul></td>
+                                <td class="p-3"><ul class="list-disc pl-4"><li>Complex System</li><li>Heavy Weight</li><li>Short EV Range</li><li>Higher Maintenance</li></ul></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `
+            }
+        };
+
+        let currentLang = 'zh-TW';
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh-TW' ? 'en' : 'zh-TW';
+            // Button text stays static as requested
+            updateText();
+        }
+
+        function updateText() {
+            const t = translations[currentLang];
+            document.getElementById('app-title').textContent = t.appTitle;
+            document.getElementById('btn-principle').textContent = t.btnPrinciple;
+            document.getElementById('btn-reset').textContent = t.btnReset;
+            document.getElementById('btn-compare').textContent = t.btnCompare;
+            document.getElementById('lbl-speed').textContent = t.lblSpeed;
+            document.getElementById('lbl-power').textContent = t.lblPower;
+            document.getElementById('lbl-battery').textContent = t.lblBattery;
+            document.getElementById('lbl-fuel').textContent = t.lblFuel;
+            document.getElementById('lbl-trip').textContent = t.lblTrip;
+            document.getElementById('lbl-distance').textContent = t.lblDistance;
+            document.getElementById('lbl-accelerator').textContent = t.lblAccelerator;
+            document.getElementById('lbl-brake').textContent = t.lblBrake;
+            document.getElementById('lbl-pedal-brake').textContent = t.svgBrake;
+            document.getElementById('lbl-pedal-acc').textContent = t.svgAcc;
+            
+            // Tabs
+            document.getElementById('text-tab-ev').innerHTML = t.tabEv + '<br>EV';
+            document.getElementById('text-tab-petrol').innerHTML = t.tabPetrol + '<br>Petrol';
+            document.getElementById('text-tab-hybrid').innerHTML = t.tabHybrid + '<br>Hybrid';
+
+            // Modal
+            document.getElementById('modal-title').textContent = t.modalTitle;
+            document.getElementById('modal-close').textContent = t.modalClose;
+            document.getElementById('compare-title').textContent = t.compareTitle;
+            document.getElementById('compare-close').textContent = t.compareClose;
+            document.getElementById('compare-content').innerHTML = t.compareTable;
+
+            // SVG Text Updates
+            const setText = (id, text) => { let el = document.getElementById(id); if(el) el.textContent = text; };
+            setText('svg-liion', t.svgLiIon);
+            setText('svg-inverter', t.svgInverter);
+            setText('svg-motor', t.svgMotor);
+            setText('svg-engine', t.svgEngine);
+            setText('svg-fueltank', t.svgFuelTank);
+            setText('svg-emotor', t.svgEMotor);
+            setText('svg-hvbatt', t.svgHVBatt);
+            setText('svg-fueltank-hyb', t.svgFuelTank);
+            setText('svg-driver', t.svgDriver);
+
+            // Trigger dynamic text updates
+            updateUIText();
+        }
+
+        function toggleModal(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('hidden')) {
+                if(id === 'principle-modal') updateModalContent();
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        function updateModalContent() {
+            const content = document.getElementById('modal-content');
+            let html = '';
+            if (currentMode === 'ev') {
+                html = currentLang === 'zh-TW' ? `
+                    <h3 class="font-bold text-blue-600 text-lg mb-2">電動車 (EV)</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. 逆變器 (Inverter)</strong>
+                        <p class="text-sm">電池儲存的是直流電 (DC)，但高效能馬達通常使用交流電 (AC)。逆變器負責將 DC 轉換為頻率可變的 AC，藉此精準控制馬達的轉速與扭力。</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. 電動機 (Motor)</strong>
+                        <p class="text-sm">電流通過定子線圈產生旋轉磁場，推動轉子轉動，將電能高效率轉化為動能 (效率可達 90% 以上)。</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">3. 能量回收 (Regenerative Braking)</strong>
+                        <p class="text-sm">減速時，馬達變身為「發電機」。車輪帶動馬達旋轉，切割磁感線產生電流，回充至電池，實現能量回收。</p>
+                    </div>
+                    ` : 
+                    `<h3 class="font-bold text-blue-600 text-lg mb-2">Electric Vehicle (EV)</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. Inverter</strong>
+                        <p class="text-sm">Batteries store Direct Current (DC), but motors often use Alternating Current (AC). The inverter converts DC to variable-frequency AC to control motor speed and torque.</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. Electric Motor</strong>
+                        <p class="text-sm">Current flows through stator coils creating a rotating magnetic field that spins the rotor, converting electrical energy to kinetic energy efficiently (>90%).</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">3. Regenerative Braking</strong>
+                        <p class="text-sm">When slowing down, the motor acts as a generator. The wheels spin the motor, creating electricity that recharges the battery.</p>
+                    </div>`;
+            } else if (currentMode === 'petrol') {
+                html = currentLang === 'zh-TW' ? `
+                    <h3 class="font-bold text-red-600 text-lg mb-2">燃油車 (Petrol)</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. 四衝程循環 (4-Stroke Cycle)</strong>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li><strong>進氣 (Intake):</strong> 吸入油氣混合物。</li>
+                            <li><strong>壓縮 (Compression):</strong> 活塞上行壓縮油氣。</li>
+                            <li><strong>動力 (Power):</strong> 火星塞點火爆炸，推動活塞。</li>
+                            <li><strong>排氣 (Exhaust):</strong> 排出廢氣。</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. 能量轉換效率</strong>
+                        <p class="text-sm">化學能 -> 熱能 -> 機械能。大部分能量以熱能形式透過散熱系統和廢氣流失，實際效率僅約 30-40%。</p>
+                    </div>` :
+                    `<h3 class="font-bold text-red-600 text-lg mb-2">Petrol Car</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. 4-Stroke Cycle</strong>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li><strong>Intake:</strong> Fuel-air mixture enters cylinder.</li>
+                            <li><strong>Compression:</strong> Piston compresses mixture.</li>
+                            <li><strong>Power:</strong> Spark plug ignites mixture, pushing piston down.</li>
+                            <li><strong>Exhaust:</strong> Waste gases expelled.</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. Efficiency</strong>
+                        <p class="text-sm">Chemical -> Thermal -> Mechanical energy. Most energy is lost as heat via exhaust and radiator. Efficiency is only about 30-40%.</p>
+                    </div>`;
+            } else {
+                html = currentLang === 'zh-TW' ? `
+                    <h3 class="font-bold text-green-600 text-lg mb-2">混合動力 (Hybrid)</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. 動力分配策略</strong>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li><strong>低速 (EV Mode):</strong> 引擎關閉，純電驅動。安靜且零油耗，避開引擎低效率區間。</li>
+                            <li><strong>急加速 (Parallel):</strong> 引擎與馬達同時出力，提供最大扭力。</li>
+                            <li><strong>中高速/充電 (Series):</strong> 引擎運轉，一部分動力驅動車輪，一部分帶動發電機為電池充電。</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. 協同效應</strong>
+                        <p class="text-sm">利用行星齒輪組 (Planetary Gear) 或離合器，巧妙整合引擎與馬達的動力輸出，讓引擎始終維持在最高效率轉速運轉。</p>
+                    </div>` :
+                    `<h3 class="font-bold text-green-600 text-lg mb-2">Hybrid</h3>
+                    
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">1. Power Split Strategy</strong>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li><strong>Low Speed (EV Mode):</strong> Engine off, electric drive only. Quiet and zero fuel use.</li>
+                            <li><strong>High Load (Parallel):</strong> Engine and motor work together for max power.</li>
+                            <li><strong>Cruising/Charge (Series):</strong> Engine drives wheels and generator to charge battery.</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong class="block text-gray-800">2. Synergy</strong>
+                        <p class="text-sm">Uses planetary gears or clutches to seamlessly blend power, keeping the engine in its most efficient RPM range.</p>
+                    </div>`;
+            }
+            content.innerHTML = html;
+        }
+
+        // --- 核心變數 ---
+        let currentMode = 'petrol'; // Default to Petrol as requested by order
+        let hybState = { engineOn: false, motorOn: false, charging: false };
+
+        let state = {
+            speed: 0,
+            battery: 80.0,
+            fuel: 100.0,
+            accelerator: 0,
+            brake: 0,
+            isCharging: false,
+            tripUsed: 0,
+            tripRegen: 0,
+            tripDistance: 0,
+            wheelRotation: 0,
+            chargePowerKW: 11
+        };
+
+        const CONSTANTS = {
+            EV: { ACCEL: 0.5, REGEN: 0.5, BATT_CAP: 50 },
+            PETROL: { ACCEL: 0.4, TANK: 40 }, 
+            HYBRID: { ACCEL_E: 0.3, ACCEL_ENG: 0.3, BATT_CAP: 5, TANK: 30 } 
+        };
+
+        // --- 介面切換 ---
+        function switchMode(mode) {
+            currentMode = mode;
+            document.body.setAttribute('data-mode', mode);
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${mode}`).classList.add('active');
+
+            resetSimulation(true);
+            updateUIText();
+        }
+
+        // --- 物理引擎 ---
+        function physicsLoop() {
+            let deltaSpeed = 0;
+            let friction = 0.02 + (state.speed * 0.001);
+
+            hybState = { engineOn: false, motorOn: false, charging: false };
+
+            if (currentMode === 'ev') {
+                if (state.battery > 0) deltaSpeed += (state.accelerator / 100) * CONSTANTS.EV.ACCEL;
+                if (state.accelerator > 0) consumeEnergy('battery', (state.accelerator/100) * 150);
+            } 
+            else if (currentMode === 'petrol') {
+                if (state.fuel > 0) deltaSpeed += (state.accelerator / 100) * CONSTANTS.PETROL.ACCEL;
+                if (state.accelerator > 0) {
+                     consumeEnergy('fuel', (state.accelerator/100) * 0.0004 * (1 + state.speed/200)); 
+                }
+            }
+            else if (currentMode === 'hybrid') {
+                const LOW_BATTERY_THRESHOLD = 20.0;
+                const HIGH_SPEED_THRESHOLD = 50;
+                const HIGH_LOAD_THRESHOLD = 60;
+
+                let isLowBattery = state.battery < LOW_BATTERY_THRESHOLD;
+                let isHighSpeedOrLoad = state.speed > HIGH_SPEED_THRESHOLD || state.accelerator > HIGH_LOAD_THRESHOLD;
+                let hasFuel = state.fuel > 0;
+
+                if (!isLowBattery && !isHighSpeedOrLoad && state.battery > 0) {
+                    hybState.motorOn = true;
+                }
+                else if (isLowBattery && hasFuel) {
+                    hybState.engineOn = true;
+                    hybState.charging = true; 
+                    hybState.motorOn = true;
+                }
+                else if (isHighSpeedOrLoad && hasFuel) {
+                    hybState.engineOn = true;
+                    if (state.battery > 5) hybState.motorOn = true;
+                }
+                else if (!hasFuel && state.battery > 0) {
+                    hybState.motorOn = true;
+                }
+
+                if (state.accelerator > 0) {
+                    if (hybState.engineOn) {
+                        deltaSpeed += (state.accelerator / 100) * CONSTANTS.HYBRID.ACCEL_ENG;
+                        let fuelConsume = (state.accelerator/100) * 0.0003 * (1 + state.speed/200);
+                        if (hybState.charging) fuelConsume *= 1.2; 
+                        consumeEnergy('fuel', fuelConsume);
+
+                        if (hybState.charging) {
+                            state.battery += 0.03; 
+                        }
+                    }
+
+                    if (hybState.motorOn) {
+                        let assistFactor = hybState.engineOn ? 0.5 : 1.0; 
+                        deltaSpeed += (state.accelerator / 100) * CONSTANTS.HYBRID.ACCEL_E * assistFactor;
+                        
+                        if (!hybState.charging) {
+                            consumeEnergy('battery', (state.accelerator/100) * 50 * assistFactor);
+                        }
+                    }
+                }
+            }
+
+            deltaSpeed -= (state.brake / 100) * 0.8;
+            if (state.speed > 0) deltaSpeed -= friction;
+            
+            if (currentMode !== 'petrol' && state.speed > 1) {
+                let regen = 0;
+                if (state.brake > 0) regen = state.brake / 100;
+                else if (state.accelerator === 0) regen = 0.2; 
+
+                if (regen > 0) {
+                    deltaSpeed -= regen * 0.1; 
+                    let powerRec = regen * 30; 
+                    state.tripRegen += powerRec / 3600 / 60;
+                    state.battery += (powerRec / 3600 / 60 / CONSTANTS[currentMode === 'ev'?'EV':'HYBRID'].BATT_CAP) * 100;
+                }
+            }
+
+            state.speed += deltaSpeed;
+            if (state.speed < 0) state.speed = 0;
+            if (state.speed > 180) state.speed = 180;
+            if (state.speed > 0) state.tripDistance += state.speed / 216000;
+
+            if (state.isCharging) {
+                if (currentMode === 'ev') {
+                    let add = state.chargePowerKW / 3600 / 60;
+                    state.battery += (add / CONSTANTS.EV.BATT_CAP) * 100;
+                } else {
+                    state.fuel += 0.5;
+                }
+            }
+
+            state.battery = Math.min(100, Math.max(0, state.battery));
+            state.fuel = Math.min(100, Math.max(0, state.fuel));
+
+            updateVisuals();
+            requestAnimationFrame(physicsLoop);
+        }
+
+        function consumeEnergy(type, amountFactor) {
+            if (type === 'battery') {
+                let kwh = amountFactor / 3600 / 60; 
+                state.tripUsed += kwh;
+                let cap = currentMode === 'ev' ? CONSTANTS.EV.BATT_CAP : CONSTANTS.HYBRID.BATT_CAP;
+                state.battery -= (kwh / cap) * 100;
+            } else {
+                state.fuel -= amountFactor; 
+                state.tripUsed += amountFactor * 0.4; 
+            }
+        }
+
+        // --- 視覺更新 ---
+        function updateVisuals() {
+            const t = translations[currentLang];
+            document.getElementById('speed-val').textContent = Math.round(state.speed);
+            
+            document.getElementById('battery-pct').textContent = state.battery.toFixed(1) + '%';
+            document.getElementById('battery-bar').style.width = state.battery + '%';
+            if (state.battery < 20) document.getElementById('battery-bar').classList.replace('bg-green-500', 'bg-red-500');
+            else document.getElementById('battery-bar').classList.replace('bg-red-500', 'bg-green-500');
+
+            document.getElementById('fuel-pct').textContent = state.fuel.toFixed(1) + '%';
+            document.getElementById('fuel-bar').style.width = state.fuel + '%';
+            
+            document.getElementById('trip-used').textContent = state.tripUsed.toFixed(2);
+            document.getElementById('trip-regen').textContent = state.tripRegen.toFixed(2);
+            document.getElementById('trip-distance').textContent = state.tripDistance.toFixed(2);
+
+            updateFlowLines();
+
+            let label = document.getElementById('status-label');
+            if (state.speed > 0) {
+                label.classList.remove('hidden');
+                
+                if (currentMode === 'hybrid') {
+                    if (hybState.charging) label.textContent = t.statusEngGen;
+                    else if (hybState.engineOn && hybState.motorOn) label.textContent = t.statusHybAcc;
+                    else if (hybState.engineOn) label.textContent = t.statusEngDrive;
+                    else if (hybState.motorOn) label.textContent = t.statusEvDrive;
+                    else label.textContent = t.statusCoast;
+                } else {
+                    label.textContent = state.accelerator > 0 ? t.statusAcc : t.statusCoast;
+                }
+
+            } else if (state.isCharging) {
+                label.classList.remove('hidden');
+                label.textContent = currentMode === 'ev' ? t.statusCharge : t.statusRefuel;
+            } else {
+                label.classList.add('hidden');
+            }
+
+            let wheelColor = state.speed > 1 ? `hsl(215, 25%, ${40 + Math.sin(Date.now()*0.01)*20}%)` : '#334155';
+            document.querySelectorAll('.wheel-group rect').forEach(el => el.style.fill = wheelColor);
+            
+            let glow = document.getElementById('brake-glow');
+            if (state.brake > 0 && state.speed > 0) { glow.style.strokeWidth = 8; glow.style.opacity = 0.8; }
+            else { glow.style.strokeWidth = 0; glow.style.opacity = 0; }
+        }
+
+        function updateFlowLines() {
+            ['flow-ev-bat-inv', 'flow-ev-inv-mot', 'flow-fuel-engine', 'flow-hyb-elec', 'flow-hyb-fuel'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) { 
+                    el.setAttribute('stroke', 'transparent'); 
+                    el.style.animation = 'none'; 
+                    el.removeAttribute('marker-end');
+                    el.removeAttribute('marker-start');
+                }
+            });
+
+            if (currentMode === 'ev') {
+                if (state.isCharging) {
+                    setFlow('flow-ev-bat-inv', '#3b82f6', true, 'backward');
+                } else if (state.accelerator > 0) {
+                    setFlow('flow-ev-bat-inv', '#f97316', false, 'forward');
+                    setFlow('flow-ev-inv-mot', '#f97316', false, 'forward');
+                } else if (state.speed > 0) {
+                    setFlow('flow-ev-bat-inv', '#22c55e', true, 'backward');
+                    setFlow('flow-ev-inv-mot', '#22c55e', true, 'backward');
+                }
+            } else if (currentMode === 'petrol') {
+                if (state.accelerator > 0 && state.fuel > 0) {
+                    setFlow('flow-fuel-engine', '#f97316', false, 'forward');
+                }
+                let exhaust = document.getElementById('exhaust-flow');
+                if (state.accelerator > 0 && state.fuel > 0) {
+                    exhaust.setAttribute('stroke-width', (state.accelerator/10));
+                    exhaust.setAttribute('stroke', '#94a3b8');
+                } else {
+                    exhaust.setAttribute('stroke-width', 0);
+                }
+            } else if (currentMode === 'hybrid') {
+                if (hybState.engineOn) {
+                    setFlow('flow-hyb-fuel', '#f97316', false, 'forward');
+                }
+                if (hybState.charging) {
+                    setFlow('flow-hyb-elec', '#3b82f6', true, 'backward');
+                } else if (hybState.motorOn && state.accelerator > 0) {
+                    setFlow('flow-hyb-elec', '#f97316', false, 'forward');
+                } else if (state.speed > 0 && state.accelerator === 0) {
+                    setFlow('flow-hyb-elec', '#22c55e', true, 'backward');
+                }
+            }
+        }
+
+        function setFlow(id, color, reverse, direction) {
+            let el = document.getElementById(id);
+            if(!el) return;
+            el.setAttribute('stroke', color);
+            el.style.animation = reverse ? 'flow-reverse 1s linear infinite' : 'flow 1s linear infinite';
+            
+            let colorName = '';
+            if(color === '#f97316') colorName = 'orange';
+            else if(color === '#22c55e') colorName = 'green';
+            else if(color === '#3b82f6') colorName = 'blue';
+
+            if (direction === 'forward') {
+                el.setAttribute('marker-end', `url(#arrow-end-${colorName})`);
+            } else if (direction === 'backward') {
+                el.setAttribute('marker-start', `url(#arrow-start-${colorName})`);
+            }
+        }
+
+        // --- 互動控制 ---
+        const btnAction = document.getElementById('btn-action');
+        const btnText = document.getElementById('btn-action-text');
+        
+        btnAction.addEventListener('click', () => {
+            if (state.speed > 0) return;
+            state.isCharging = !state.isCharging;
+            updateUIText();
+        });
+
+        function updateUIText() {
+            const t = translations[currentLang];
+            let isEv = currentMode === 'ev';
+            let actionText = "";
+            let hintText = "";
+
+            if (state.isCharging) {
+                actionText = isEv ? t.stopCharge : t.stopRefuel;
+                btnAction.classList.replace('bg-blue-600', 'bg-red-500');
+                btnAction.classList.replace('hover:bg-blue-500', 'hover:bg-red-400');
+                if(isEv) document.getElementById('charge-anim').classList.remove('hidden');
+            } else {
+                actionText = isEv ? t.actionCharge : t.actionRefuel;
+                btnAction.classList.replace('bg-red-500', 'bg-blue-600');
+                btnAction.classList.replace('hover:bg-red-400', 'hover:bg-blue-500');
+                document.getElementById('charge-anim').classList.add('hidden');
+            }
+            if (currentMode === 'hybrid') { 
+                 if(state.isCharging) actionText = t.stopRefuel;
+                 else actionText = t.actionRefuel;
+            }
+
+            btnText.textContent = actionText;
+            document.getElementById('hint-action').textContent = isEv ? t.hintActionCharge : t.hintActionRefuel;
+        }
+
+        function resetSimulation(keepMode = false) {
+            let mode = keepMode ? currentMode : 'petrol';
+            state = {
+                speed: 0, battery: 80.0, fuel: 100.0,
+                accelerator: 0, brake: 0, isCharging: false,
+                tripUsed: 0, tripRegen: 0, tripDistance: 0,
+                chargePowerKW: 11
+            };
+            document.getElementById('accelerator').value = 0;
+            document.getElementById('brake').value = 0;
+            updateInputVisuals();
+            updateUIText();
+            if(!keepMode) switchMode(mode);
+        }
+
+        // 輸入事件綁定
+        ['accelerator', 'brake'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                state[id] = parseFloat(e.target.value);
+                if(state[id] > 0) { state.isCharging = false; updateUIText(); }
+                updateInputVisuals();
+            });
+        });
+
+        function updateInputVisuals() {
+            document.getElementById('acc-val').textContent = Math.round(state.accelerator) + '%';
+            document.getElementById('acc-fill').style.width = state.accelerator + '%';
+            document.getElementById('acc-thumb').style.left = state.accelerator + '%';
+            document.getElementById('brake-val').textContent = Math.round(state.brake) + '%';
+            document.getElementById('brake-fill').style.width = state.brake + '%';
+            document.getElementById('brake-thumb').style.left = state.brake + '%';
+        }
+
+        // 踏板互動邏輯
+        let accTimer = null;
+        let brakeTimer = null;
+        
+        const setupPedal = (elId, type) => {
+            const el = document.getElementById(elId);
+            const inputId = type === 'acc' ? 'accelerator' : 'brake';
+            
+            const startRamp = (e) => {
+                e.preventDefault(); 
+                if (type === 'acc' && accTimer) clearInterval(accTimer);
+                if (type === 'brake' && brakeTimer) clearInterval(brakeTimer);
+
+                const timerId = setInterval(() => {
+                    if (state[inputId] < 100) {
+                        state[inputId] += 0.2; 
+                        if (state[inputId] > 100) state[inputId] = 100;
+                        document.getElementById(inputId).value = state[inputId];
+                        updateInputVisuals();
+                        if(state[inputId] > 0) { state.isCharging = false; updateUIText(); }
+                    }
+                }, 20);
+
+                if (type === 'acc') accTimer = timerId;
+                else brakeTimer = timerId;
+                el.classList.add('pedal-active');
+            };
+
+            const stopRamp = (e) => {
+                e.preventDefault();
+                if (type === 'acc' && accTimer) { clearInterval(accTimer); accTimer = null; }
+                if (type === 'brake' && brakeTimer) { clearInterval(brakeTimer); brakeTimer = null; }
+
+                state[inputId] = 0;
+                document.getElementById(inputId).value = 0;
+                updateInputVisuals();
+                el.classList.remove('pedal-active');
+            };
+
+            el.addEventListener('mousedown', startRamp);
+            el.addEventListener('touchstart', startRamp);
+            el.addEventListener('mouseup', stopRamp);
+            el.addEventListener('mouseleave', stopRamp);
+            el.addEventListener('touchend', stopRamp);
+        };
+
+        setupPedal('grp-acc', 'acc');
+        setupPedal('grp-brake', 'brake');
+
+        // Init
+        updateText();
+        requestAnimationFrame(physicsLoop);
+    </script>
+</body>
+</html>
