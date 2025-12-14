@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理想氣體粒子模型 | Ideal Gas Particle Model</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering equations -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        /* Custom slider styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6; /* blue-500 */
+            cursor: pointer;
+            margin-top: -6px; 
+            box-shadow: 0 0 0 2px white;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #475569; /* slate-600 */
+            border-radius: 2px;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0f172a; /* slate-900 */
+            border-radius: 0.5rem;
+        }
+
+        /* Modal transition */
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-800 text-white h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <nav class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+            </div>
+            <h1 class="text-xl font-bold tracking-wide"><span id="app-title">氣體粒子模型</span> <span class="text-blue-400 font-mono">PV=nRT</span></h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-md text-sm transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="btn-info">氣體定律</span>
+            </button>
+            <button onclick="toggleLanguage()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-semibold transition shadow-md border border-blue-400">
+                中 / EN
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Sidebar (Controls) -->
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-slate-800 border-r border-slate-700 p-6 flex flex-col gap-6 overflow-y-auto z-10 shadow-xl">
+            
+            <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600">
+                <h2 class="text-lg font-semibold text-blue-300 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    <span id="control-panel-title">變數控制</span>
+                </h2>
+
+                <!-- Sliders -->
+                
+                <!-- Volume (m^3) -->
+                <div class="mb-6 group">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300" id="label-V">體積 (V)</label>
+                        <span class="text-sm font-mono text-emerald-400" id="val-V">0.022 m³</span>
+                    </div>
+                    <!-- Range: 0.005 to 0.050 m^3 (approx 5L to 50L) -->
+                    <input type="range" id="slider-V" min="0.005" max="0.050" step="0.001" value="0.0224" class="w-full">
+                    <div class="mt-1 text-xs text-slate-500 flex justify-between">
+                        <span>0.005</span>
+                        <span>0.050</span>
+                    </div>
+                </div>
+
+                <!-- Moles -->
+                <div class="mb-6 group">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300" id="label-n">摩爾數 (n)</label>
+                        <span class="text-sm font-mono text-purple-400" id="val-n">1.0 mol</span>
+                    </div>
+                    <input type="range" id="slider-n" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full">
+                    <div class="mt-1 text-xs text-slate-500 flex justify-between">
+                        <span>0.1</span>
+                        <span>5.0</span>
+                    </div>
+                </div>
+
+                <!-- Temperature -->
+                <div class="mb-6 group">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-slate-300" id="label-T">溫度 (T)</label>
+                        <span class="text-sm font-mono text-red-400" id="val-T">273 K</span>
+                    </div>
+                    <input type="range" id="slider-T" min="50" max="600" step="1" value="273" class="w-full">
+                    <div class="mt-1 text-xs text-slate-500 flex justify-between">
+                        <span>50K</span>
+                        <span>600K</span>
+                    </div>
+                </div>
+
+                <!-- Pressure (Pa) -->
+                <div class="mb-2 group pt-4 border-t border-slate-600">
+                    <div class="flex justify-between mb-2 items-center">
+                        <label class="text-sm font-bold text-yellow-400" id="label-P">壓強 (P)</label>
+                        <span class="text-base font-mono text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded" id="val-P">101325 Pa</span>
+                    </div>
+                    <!-- Range: 10,000 Pa (0.1 atm) to 1,000,000 Pa (approx 10 atm) -->
+                    <input type="range" id="slider-P" min="10000" max="1000000" step="1000" value="101325" class="w-full accent-yellow-500">
+                    <div class="mt-1 text-xs text-slate-500 flex justify-between mb-2">
+                        <span>10 kPa</span>
+                        <span>1 MPa</span>
+                    </div>
+                    <p class="text-xs text-slate-400 italic" id="hint-P">* 調整 P 會改變 V (假設等溫)</p>
+                </div>
+
+            </div>
+
+            <!-- Dashboard / Readout -->
+            <div class="bg-black/30 p-4 rounded-xl border border-slate-700">
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                        <div class="text-xs text-slate-400 mb-1">RMS 速度 ($v_{rms}$)</div>
+                        <div class="text-lg font-mono text-white" id="display-velocity">-- m/s</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400 mb-1">碰撞頻率</div>
+                        <div class="text-lg font-mono text-white" id="display-collisions">High</div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Right Side (Visualization) -->
+        <section class="flex-1 bg-black relative">
+            <div id="canvas-container" class="canvas-container w-full h-full"></div>
+            
+            <!-- Overlay Info on Canvas -->
+            <div class="absolute bottom-4 right-4 text-right pointer-events-none select-none">
+                <div class="text-slate-500 text-sm">Particle View</div>
+                <div class="text-slate-700 text-xs">Three.js Render</div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Physics Info -->
+    <div id="info-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-2xl max-w-2xl w-full shadow-2xl transform transition-all scale-95" id="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                    <h2 class="text-2xl font-bold text-blue-400" id="modal-title">理想氣體定律</h2>
+                    <button onclick="toggleModal()" class="text-slate-400 hover:text-white transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="space-y-6 text-slate-200 overflow-y-auto max-h-[60vh] pr-2 scrollbar-thin scrollbar-thumb-slate-600">
+                    
+                    <div class="bg-slate-900/50 p-4 rounded-lg text-center">
+                        <p class="text-xl font-mono mb-2 text-yellow-300">$$ PV = nRT $$</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div class="bg-slate-700/30 p-3 rounded border border-slate-600">
+                            <strong class="text-yellow-400">P (Pressure)</strong>
+                            <p id="desc-P">壓強：氣體分子撞擊容器壁所產生的力。</p>
+                            <p class="text-xs text-slate-400 mt-1">Unit: Pascal (Pa)</p>
+                        </div>
+                        <div class="bg-slate-700/30 p-3 rounded border border-slate-600">
+                            <strong class="text-emerald-400">V (Volume)</strong>
+                            <p id="desc-V">體積：氣體分子所佔據的空間。</p>
+                            <p class="text-xs text-slate-400 mt-1">Unit: Cubic Meter (m³)</p>
+                        </div>
+                        <div class="bg-slate-700/30 p-3 rounded border border-slate-600">
+                            <strong class="text-purple-400">n (Moles)</strong>
+                            <p id="desc-n">摩爾數：物質的量。</p>
+                            <p class="text-xs text-slate-400 mt-1">Unit: mol</p>
+                        </div>
+                        <div class="bg-slate-700/30 p-3 rounded border border-slate-600">
+                            <strong class="text-red-400">T (Temperature)</strong>
+                            <p id="desc-T">絕對溫度：與分子平均動能成正比。</p>
+                            <p class="text-xs text-slate-400 mt-1">Unit: Kelvin (K)</p>
+                        </div>
+                    </div>
+
+                    <!-- New Gas Law Relationships Section -->
+                    <div class="mt-4 border-t border-slate-700 pt-4">
+                        <h3 class="font-bold text-blue-300 mb-3" id="subtitle-laws">個別定律關係</h3>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="bg-slate-700/30 p-2 rounded flex justify-between items-center px-4">
+                                <span class="text-sm font-semibold text-slate-200" id="title-boyle">波義耳定律 (恆溫)</span>
+                                <span class="text-sm font-mono text-yellow-300">$$ P_1V_1 = P_2V_2 $$</span>
+                            </div>
+                            <div class="bg-slate-700/30 p-2 rounded flex justify-between items-center px-4">
+                                <span class="text-sm font-semibold text-slate-200" id="title-charles">查理定律 (恆壓)</span>
+                                <span class="text-sm font-mono text-yellow-300">$$ \frac{V_1}{T_1} = \frac{V_2}{T_2} $$</span>
+                            </div>
+                            <div class="bg-slate-700/30 p-2 rounded flex justify-between items-center px-4">
+                                <span class="text-sm font-semibold text-slate-200" id="title-gay">蓋-呂薩克定律 (恆容)</span>
+                                <span class="text-sm font-mono text-yellow-300">$$ \frac{P_1}{T_1} = \frac{P_2}{T_2} $$</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-blue-300 mb-2" id="subtitle-constant">氣體常數 R (SI)</h3>
+                        <p class="text-sm text-slate-300">$$ R \approx 8.314 \text{ J} \cdot \text{mol}^{-1} \cdot \text{K}^{-1} $$</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-right">
+                    <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition" id="btn-close">關閉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- 1. State Management & Physics Constants ---
+        const R_SI = 8.314; // J / (mol K)
+        
+        const state = {
+            lang: 'zh',
+            V: 0.0224, // m^3 (formerly 22.4 L)
+            n: 1.0,  // Moles
+            T: 273,  // Kelvin
+            P: 101325,  // Pa (calculated initially)
+            isUpdating: false // flag to prevent loop
+        };
+
+        // --- 2. Language Dictionary ---
+        const dict = {
+            zh: {
+                title: '氣體粒子模型',
+                btnInfo: '氣體定律',
+                controlTitle: '變數控制',
+                labelV: '體積 (V)',
+                labelN: '摩爾數 (n)',
+                labelT: '溫度 (T)',
+                labelP: '壓強 (P)',
+                hintP: '* 調整 P 會改變 V (假設等溫)',
+                modalTitle: '理想氣體定律',
+                descP: '壓強：氣體分子撞擊容器壁所產生的力。',
+                descV: '體積：氣體分子所佔據的空間。',
+                descN: '摩爾數：物質的量。',
+                descT: '絕對溫度：與分子平均動能成正比。',
+                subtitleConstant: '氣體常數 R',
+                btnClose: '關閉',
+                colFreq: '碰撞頻率',
+                subtitleLaws: '個別定律關係',
+                titleBoyle: '波義耳定律 (恆溫)',
+                titleCharles: '查理定律 (恆壓)',
+                titleGay: '蓋-呂薩克定律 (恆容)',
+            },
+            en: {
+                title: 'Gas Particle Model',
+                btnInfo: 'Gas Law',
+                controlTitle: 'Controls',
+                labelV: 'Volume (V)',
+                labelN: 'Moles (n)',
+                labelT: 'Temperature (T)',
+                labelP: 'Pressure (P)',
+                hintP: '* Adjusting P changes V (Isothermal)',
+                modalTitle: 'Ideal Gas Law',
+                descP: 'Pressure: Force exerted by gas collisions.',
+                descV: 'Volume: Space occupied by the gas.',
+                descN: 'Moles: Amount of substance.',
+                descT: 'Temperature: Proportional to avg kinetic energy.',
+                subtitleConstant: 'Gas Constant R',
+                btnClose: 'Close',
+                colFreq: 'Collisions',
+                subtitleLaws: 'Individual Gas Laws',
+                titleBoyle: "Boyle's Law (Const T)",
+                titleCharles: "Charles's Law (Const P)",
+                titleGay: "Gay-Lussac's Law (Const V)",
+            }
+        };
+
+        // --- 3. Three.js Setup ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.02);
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(0, 0, 25);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x3b82f6, 1, 50);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // --- 4. Simulation Objects ---
+
+        // Box (Visualizing Volume)
+        // We will scale this box based on Volume
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const edges = new THREE.EdgesGeometry(boxGeometry);
+        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
+        const boxLines = new THREE.LineSegments(edges, boxMaterial);
+        scene.add(boxLines);
+
+        // Particles
+        // We use InstancedMesh for performance with many particles
+        const MAX_PARTICLES = 500; // visual cap
+        // Reduced radius from 0.15 to 0.06 to mimic point-like particles
+        const particleGeo = new THREE.SphereGeometry(0.06, 8, 8);
+        const particleMat = new THREE.MeshPhongMaterial({ color: 0x60a5fa, shininess: 100 });
+        const particlesMesh = new THREE.InstancedMesh(particleGeo, particleMat, MAX_PARTICLES);
+        scene.add(particlesMesh);
+
+        const dummy = new THREE.Object3D();
+        
+        // Particle Data Structure
+        const particleData = [];
+        for (let i = 0; i < MAX_PARTICLES; i++) {
+            particleData.push({
+                x: (Math.random() - 0.5) * 10,
+                y: (Math.random() - 0.5) * 10,
+                z: (Math.random() - 0.5) * 10,
+                vx: (Math.random() - 0.5),
+                vy: (Math.random() - 0.5),
+                vz: (Math.random() - 0.5)
+            });
+        }
+
+        // --- 5. Logic & Updates ---
+
+        function updatePhysics() {
+            // Map physical Volume (m^3) to Box Scale (Visual Units)
+            // 0.0224 m^3 corresponds to the previous visual size of ~22.4 L
+            // Cube root of 0.0224 is approx 0.28.
+            // To get a similar visual scale (approx 7 units wide), factor is around 25.
+            const scaleSize = Math.cbrt(state.V) * 25.0; 
+            boxLines.scale.set(scaleSize, scaleSize, scaleSize);
+
+            // Map Temperature to Speed
+            // Speed is proportional to sqrt(T)
+            const speedFactor = Math.sqrt(state.T) * 0.02;
+
+            // Map Moles to Active Particle Count
+            // 1 mol = 50 particles (arbitrary visual scaling)
+            const activeCount = Math.min(Math.floor(state.n * 50), MAX_PARTICLES);
+            particlesMesh.count = activeCount;
+
+            const halfSize = scaleSize / 2;
+
+            // Update individual particles
+            for (let i = 0; i < activeCount; i++) {
+                const p = particleData[i];
+
+                // Move
+                p.x += p.vx * speedFactor;
+                p.y += p.vy * speedFactor;
+                p.z += p.vz * speedFactor;
+
+                // Bounce (Simple Box collision)
+                // We add a tiny offset to prevent sticking to walls
+                if (p.x > halfSize) { p.x = halfSize; p.vx *= -1; }
+                if (p.x < -halfSize) { p.x = -halfSize; p.vx *= -1; }
+                if (p.y > halfSize) { p.y = halfSize; p.vy *= -1; }
+                if (p.y < -halfSize) { p.y = -halfSize; p.vy *= -1; }
+                if (p.z > halfSize) { p.z = halfSize; p.vz *= -1; }
+                if (p.z < -halfSize) { p.z = -halfSize; p.vz *= -1; }
+
+                dummy.position.set(p.x, p.y, p.z);
+                dummy.updateMatrix();
+                particlesMesh.setMatrixAt(i, dummy.matrix);
+            }
+            
+            particlesMesh.instanceMatrix.needsUpdate = true;
+
+            // Update RMS display (Visual approximation)
+            // v_rms = sqrt(3RT/M). For display, just proportional to sqrt(T)
+            // Using M = 0.028 kg/mol (Nitrogen)
+            const realVrms = Math.round(Math.sqrt(3 * 8.314 * state.T / 0.028)); 
+            document.getElementById('display-velocity').innerText = `${realVrms} m/s`;
+            
+            // Update Collision approximation for display
+            // Collision freq propto (N/V) * sqrt(T)
+            // Adjust divisor for m^3 units (V is now small, e.g., 0.0224)
+            const collisionMetric = (state.n / (state.V * 1000)) * Math.sqrt(state.T);
+            let colText = "Low";
+            if (collisionMetric > 0.1) colText = "Medium";
+            if (collisionMetric > 0.3) colText = "High";
+            if (collisionMetric > 0.5) colText = "Extreme";
+            document.getElementById('display-collisions').innerText = state.lang === 'zh' ? 
+                (colText === 'Low' ? '低' : colText === 'Medium' ? '中' : '高') : colText;
+        }
+
+        // --- 6. UI Interaction & Physics Engine ---
+
+        const domV = document.getElementById('slider-V');
+        const domN = document.getElementById('slider-n');
+        const domT = document.getElementById('slider-T');
+        const domP = document.getElementById('slider-P');
+        
+        const valV = document.getElementById('val-V');
+        const valN = document.getElementById('val-n');
+        const valT = document.getElementById('val-T');
+        const valP = document.getElementById('val-P');
+
+        function updateEquation(source) {
+            if (state.isUpdating) return;
+            state.isUpdating = true;
+
+            // Inputs
+            let V = parseFloat(domV.value);
+            let n = parseFloat(domN.value);
+            let T = parseFloat(domT.value);
+            let P = parseFloat(domP.value);
+
+            if (source === 'P') {
+                // User moved Pressure Slider
+                // Physics choice: Change Volume (Boyle's Law Logic: P1V1 = P2V2)
+                // V = nRT / P
+                V = (n * R_SI * T) / P;
+                
+                // Clamp V to slider limits
+                if (V < 0.005) V = 0.005;
+                if (V > 0.050) V = 0.050;
+                
+                // Recalculate P based on clamped V to be consistent
+                P = (n * R_SI * T) / V;
+
+                // Update V Slider visual
+                domV.value = V;
+                state.V = V;
+                state.P = P;
+            } else {
+                // User moved V, n, or T
+                // P is the dependent variable
+                // P = nRT / V
+                P = (n * R_SI * T) / V;
+                
+                // Update P Slider visual (allow it to go out of bounds visually or clamp?)
+                // Let's clamp the visual slider but show true value in text
+                state.V = V;
+                state.n = n;
+                state.T = T;
+                state.P = P;
+                
+                // If P exceeds slider max, we just max out the slider but show real text
+                domP.value = Math.min(Math.max(P, 10000), 1000000);
+            }
+
+            // Update UI Text
+            valV.innerText = `${state.V.toFixed(4)} m³`;
+            valN.innerText = `${state.n.toFixed(1)} mol`;
+            valT.innerText = `${state.T.toFixed(0)} K`;
+            valP.innerText = `${state.P.toFixed(0)} Pa`;
+
+            state.isUpdating = false;
+        }
+
+        // Listeners
+        domV.addEventListener('input', () => updateEquation('V'));
+        domN.addEventListener('input', () => updateEquation('n'));
+        domT.addEventListener('input', () => updateEquation('T'));
+        domP.addEventListener('input', () => updateEquation('P'));
+
+        // --- 7. Functions for Modal and Lang ---
+
+        const modal = document.getElementById('info-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        window.toggleModal = function() {
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                // Trigger reflow to enable transition
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-95');
+                }, 10);
+            } else {
+                modal.classList.add('opacity-0');
+                modalContent.classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 250);
+            }
+        }
+
+        window.toggleLanguage = function() {
+            state.lang = state.lang === 'zh' ? 'en' : 'zh';
+            const t = dict[state.lang];
+
+            // Update Text
+            document.getElementById('app-title').innerText = t.title;
+            document.getElementById('btn-info').innerText = t.btnInfo;
+            document.getElementById('control-panel-title').innerText = t.controlTitle;
+            document.getElementById('label-V').innerText = t.labelV;
+            document.getElementById('label-n').innerText = t.labelN;
+            document.getElementById('label-T').innerText = t.labelT;
+            document.getElementById('label-P').innerText = t.labelP;
+            document.getElementById('hint-P').innerText = t.hintP;
+            document.getElementById('modal-title').innerText = t.modalTitle;
+            document.getElementById('desc-P').innerText = t.descP;
+            document.getElementById('desc-V').innerText = t.descV;
+            document.getElementById('desc-n').innerText = t.descN;
+            document.getElementById('desc-T').innerText = t.descT;
+            document.getElementById('subtitle-constant').innerText = t.subtitleConstant;
+            document.getElementById('btn-close').innerText = t.btnClose;
+            
+            // New Gas Law Translations
+            document.getElementById('subtitle-laws').innerText = t.subtitleLaws;
+            document.getElementById('title-boyle').innerText = t.titleBoyle;
+            document.getElementById('title-charles').innerText = t.titleCharles;
+            document.getElementById('title-gay').innerText = t.titleGay;
+        }
+
+        // --- 8. Animation Loop ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+
+        // Initialize
+        animate();
+        updateEquation('init'); // Initial calc
+
+    </script>
+</body>
+</html>
