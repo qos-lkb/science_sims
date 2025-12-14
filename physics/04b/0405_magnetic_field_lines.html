@@ -59,6 +59,11 @@
             backdrop-filter: blur(2px);
         }
         .hidden-modal { display: none !important; }
+        
+        /* Custom Radio */
+        input[type="radio"] {
+            accent-color: #0ea5e9;
+        }
     </style>
 </head>
 <body>
@@ -78,22 +83,22 @@
 
         <!-- Right: Actions -->
         <div class="flex items-center gap-4 text-slate-200">
-            <!-- View Toggle -->
-            <button onclick="app.toggleView()" class="flex items-center gap-2 hover:text-white hover:bg-slate-700 px-3 py-1.5 rounded transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            <!-- View Toggle (Outlined) -->
+            <button onclick="app.toggleView()" class="flex items-center gap-2 border border-slate-600 bg-slate-800 hover:bg-slate-700 hover:border-sky-500 hover:text-white px-3 py-1.5 rounded transition shadow-sm text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                 <span data-i18n="viewToggle">視角: 3D</span>
             </button>
 
-            <div class="w-px h-6 bg-slate-600 mx-1"></div>
-
-            <!-- Principle -->
-            <button onclick="app.toggleModal('principle-modal')" class="flex items-center gap-2 hover:text-sky-400 transition px-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+            <!-- Principle (Outlined) -->
+            <button onclick="app.toggleModal('principle-modal')" class="flex items-center gap-2 border border-slate-600 bg-slate-800 hover:bg-slate-700 hover:border-indigo-500 hover:text-white px-3 py-1.5 rounded transition shadow-sm text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                 <span data-i18n="principle">原理</span>
             </button>
             
+            <div class="w-px h-6 bg-slate-600 mx-1"></div>
+
             <!-- Language -->
-            <button onclick="app.toggleLanguage()" class="hover:text-emerald-400 transition font-mono text-sm border border-slate-600 px-3 py-1 rounded bg-slate-800 ml-2">
+            <button onclick="app.toggleLanguage()" class="hover:text-emerald-400 transition font-mono text-sm border border-slate-600 px-3 py-1.5 rounded bg-slate-800">
                 中 / EN
             </button>
         </div>
@@ -151,13 +156,25 @@
                 </button>
             </div>
 
-            <div class="mb-2">
-                <label class="flex items-center gap-2 text-sm text-slate-300 mb-2 cursor-pointer">
-                    <input type="checkbox" id="toggle-field" checked onchange="app.toggleFieldLines()" class="w-4 h-4 rounded text-sky-500 focus:ring-sky-600 bg-slate-700 border-slate-600">
-                    <span data-i18n="showField">顯示磁力線</span>
-                </label>
-                <div class="text-xs text-slate-400" data-i18n="hint">提示：拖曳物件以觀察場線變化。點擊物件可調整參數。</div>
+            <div class="border-t border-slate-700 pt-3">
+                <h3 class="text-xs font-bold text-slate-400 mb-2" data-i18n="displayMode">顯示模式</h3>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white">
+                        <input type="radio" name="viz-mode" value="lines" checked onchange="app.setVizMode('lines')">
+                        <span data-i18n="modeLines">顯示磁力線</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white">
+                        <input type="radio" name="viz-mode" value="compass" onchange="app.setVizMode('compass')">
+                        <span data-i18n="modeCompass">顯示小磁鐵 (平面)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white">
+                        <input type="radio" name="viz-mode" value="filings" onchange="app.setVizMode('filings')">
+                        <span data-i18n="modeFilings">顯示鐵粉末 (平面)</span>
+                    </label>
+                </div>
             </div>
+            
+            <div class="text-xs text-slate-500 mt-3 pt-2 border-t border-slate-700" data-i18n="hint">提示：拖曳物件以觀察場線變化。點擊物件可調整參數。</div>
         </div>
 
         <!-- Property Inspector (Dynamic) -->
@@ -208,9 +225,12 @@
                 addWire: "+ 新增直導線",
                 addCoil: "+ 新增線圈",
                 clearAll: "清除全部",
-                showField: "顯示磁力線",
+                displayMode: "顯示模式",
+                modeLines: "顯示磁力線",
+                modeCompass: "顯示小磁鐵 (平面)",
+                modeFilings: "顯示鐵粉末 (平面)",
                 hint: "提示：拖曳物件以觀察場線變化。點擊物件可調整參數。",
-                computing: "正在計算場線...",
+                computing: "正在計算...",
                 principle: "原理",
                 viewToggle: "視角: 3D",
                 viewToggleTop: "視角: 俯視",
@@ -239,9 +259,12 @@
                 addWire: "+ Add Wire",
                 addCoil: "+ Add Coil",
                 clearAll: "Clear All",
-                showField: "Show Field Lines",
+                displayMode: "Viz Mode",
+                modeLines: "Field Lines",
+                modeCompass: "Small Magnets (Plane)",
+                modeFilings: "Iron Filings (Plane)",
                 hint: "Tip: Drag objects to see field changes. Click to edit.",
-                computing: "Calculating Fields...",
+                computing: "Calculating...",
                 principle: "Theory",
                 viewToggle: "View: 3D",
                 viewToggleTop: "View: Top",
@@ -356,20 +379,17 @@
             }
 
             getSeeds() {
-                // 沿著導線長度與半徑產生種子
-                // 修正：使用螺旋分佈，避免箭頭全部集中在背後
                 const seeds = [];
                 let angle = 0;
-                const angleStep = Math.PI / 2; // 每層旋轉 90 度
+                const angleStep = Math.PI / 2; 
                 
                 for (let y = -4; y <= 4; y += 1.5) {
                     for (let r = 1; r <= 3; r += 1) {
-                        // Rotate seed position around Y axis
                         const x = r * Math.cos(angle);
                         const z = r * Math.sin(angle);
                         seeds.push(this.mesh.localToWorld(new THREE.Vector3(x, y, z)));
                     }
-                    angle += angleStep; // Spiral down
+                    angle += angleStep; 
                 }
                 return seeds;
             }
@@ -407,12 +427,9 @@
             }
 
             getSeeds() {
-                // 修正：不僅在 X 軸，而是繞 Y 軸分佈種子，形成立體場線
                 const seeds = [];
-                // 4 planes of seeds
                 for(let angle=0; angle < Math.PI; angle += Math.PI/4) {
                     for (let x = -1.5; x <= 1.5; x += 0.5) {
-                        // Rotate point (x,0,0) around Y by angle
                         const px = x * Math.cos(angle);
                         const pz = x * Math.sin(angle);
                         seeds.push(this.mesh.localToWorld(new THREE.Vector3(px, 0, pz)));
@@ -429,16 +446,21 @@
                 this.renderer = null;
                 this.controls = null;
                 this.physicsObjects = [];
+                
+                // Visualization Groups
                 this.fieldLinesGroup = null;
                 this.arrowsGroup = null; 
+                this.compassGroup = null;
+                this.filingsGroup = null;
+
                 this.selectedObject = null;
                 this.raycaster = new THREE.Raycaster();
                 this.mouse = new THREE.Vector2();
                 
                 this.needsUpdate = false;
-                this.showField = true;
+                this.vizMode = 'lines'; // 'lines', 'compass', 'filings'
                 this.lang = 'zh'; 
-                this.isTopView = false; // View state
+                this.isTopView = false; 
 
                 this.init();
             }
@@ -471,11 +493,18 @@
                 this.controls.enableDamping = true;
                 this.controls.dampingFactor = 0.05;
 
+                // Groups
                 this.fieldLinesGroup = new THREE.Group();
                 this.scene.add(this.fieldLinesGroup);
-
+                
                 this.arrowsGroup = new THREE.Group();
                 this.scene.add(this.arrowsGroup);
+
+                this.compassGroup = new THREE.Group();
+                this.scene.add(this.compassGroup);
+
+                this.filingsGroup = new THREE.Group();
+                this.scene.add(this.filingsGroup);
 
                 window.addEventListener('resize', () => this.onResize());
                 this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
@@ -491,18 +520,15 @@
                 const dict = DICT[this.lang];
 
                 if (this.isTopView) {
-                    // Switch to Top View
                     this.camera.position.set(0, 30, 0);
                     this.camera.lookAt(0, 0, 0);
                     if(btnSpan) btnSpan.innerText = dict.viewToggleTop;
                 } else {
-                    // Switch back to 3D Perspective
                     this.camera.position.set(10, 10, 15);
                     this.camera.lookAt(0, 0, 0);
                     if(btnSpan) btnSpan.innerText = dict.viewToggle;
                 }
                 
-                // Reset controls target
                 this.controls.target.set(0,0,0);
                 this.controls.update();
             }
@@ -512,7 +538,6 @@
                 this.updateUIText();
                 if (this.selectedObject) this.updateInspector(this.selectedObject);
                 
-                // Update toggle button text manually since it has dynamic state
                 const btnSpan = document.querySelector('[data-i18n="viewToggle"]');
                 const dict = DICT[this.lang];
                 if(btnSpan) {
@@ -524,8 +549,17 @@
                 const texts = DICT[this.lang];
                 document.querySelectorAll('[data-i18n]').forEach(el => {
                     const key = el.getAttribute('data-i18n');
-                    if (texts[key]) el.innerHTML = texts[key];
+                    if (texts[key]) {
+                        // Replace **text** with <b>text</b>
+                        let formattedText = texts[key].replace(/\*\*(.*?)\*\*/g, '<b class="text-sky-300">$1</b>');
+                        el.innerHTML = formattedText;
+                    }
                 });
+                
+                // Refresh MathJax for the whole document or specific areas
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    MathJax.typesetPromise().catch((err) => {});
+                }
             }
 
             toggleModal(id) {
@@ -632,11 +666,11 @@
 
                 // Add Labels (N & S)
                 const nLabel = this.createLabel('N');
-                nLabel.position.y = 2.2; // Float slightly above N pole (local Y+)
+                nLabel.position.y = 2.2; 
                 group.add(nLabel);
 
                 const sLabel = this.createLabel('S');
-                sLabel.position.y = -2.2; // Float slightly below S pole (local Y-)
+                sLabel.position.y = -2.2; 
                 group.add(sLabel);
 
                 const physObj = new BarMagnet(group);
@@ -692,13 +726,13 @@
                 return B_total;
             }
 
-            updateFieldLines(force = false) {
-                if (!this.showField) {
-                    this.fieldLinesGroup.clear();
-                    this.arrowsGroup.clear();
-                    return;
-                }
+            setVizMode(mode) {
+                this.vizMode = mode;
+                this.updateFieldLines(true);
+            }
 
+            // Central update function for all visualizations
+            updateFieldLines(force = false) {
                 const now = Date.now();
                 if (!force && now - this.lastUpdate < 100) return; 
                 this.lastUpdate = now;
@@ -707,83 +741,163 @@
                 if (force) loading.style.opacity = 1;
 
                 setTimeout(() => {
+                    // Clear all groups first
                     this.fieldLinesGroup.clear();
-                    this.arrowsGroup.clear(); 
-                    
-                    const lineMaterial = new THREE.LineBasicMaterial({ 
-                        color: 0x38bdf8, 
-                        opacity: 0.4, 
-                        transparent: true 
-                    });
+                    this.arrowsGroup.clear();
+                    this.compassGroup.clear();
+                    this.filingsGroup.clear();
 
-                    const coneGeo = new THREE.ConeGeometry(0.1, 0.3, 8); // Arrows resized to half
-                    const coneMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
-
-                    const seeds = [];
-                    this.physicsObjects.forEach(obj => {
-                        if (obj.getSeeds) {
-                            seeds.push(...obj.getSeeds());
-                        }
-                    });
-
-                    // 增加步數以確保線條能繞回 S 極
-                    const stepSize = 0.2;
-                    const maxSteps = 1000; // Increased max steps for long loops
-
-                    let seedIdx = 0;
-                    this.physicsObjects.forEach(obj => {
-                        const objSeeds = obj.getSeeds ? obj.getSeeds() : [];
-
-                        objSeeds.forEach(startPoint => {
-                            const points = [];
-                            let currentPoint = startPoint.clone();
-                            points.push(currentPoint.clone());
-
-                            // Forward Trace Only
-                            // Add Loop detection: if we return near start, stop.
-                            for(let i=0; i<maxSteps; i++) {
-                                const B = this.calculateNetB(currentPoint);
-                                if (B.lengthSq() < 0.0001) break; 
-                                B.normalize().multiplyScalar(stepSize);
-                                currentPoint.add(B);
-                                points.push(currentPoint.clone());
-                                
-                                // Check for closed loop (Wire/Coil)
-                                if (i > 20 && currentPoint.distanceTo(startPoint) < stepSize * 1.5) {
-                                    break; // Closed loop detected
-                                }
-                                
-                                if(currentPoint.length() > 40) break; // Reduced bounds check to keep arrows visible
-                            }
-
-                            if(points.length > 5) { 
-                                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                                const line = new THREE.Line(geometry, lineMaterial);
-                                this.fieldLinesGroup.add(line);
-
-                                // 修正：每隔一段距離放置一個箭頭
-                                // 這樣能保證在長線段（如磁鐵之間的連線）中段也有箭頭
-                                const arrowSpacing = 30; // 每30個點放一個箭頭
-                                for (let i = 15; i < points.length - 1; i += arrowSpacing) {
-                                    const p1 = points[i];
-                                    const p2 = points[i + 1];
-                                    
-                                    const arrowMesh = new THREE.Mesh(coneGeo, coneMat);
-                                    arrowMesh.position.copy(p1);
-                                    arrowMesh.lookAt(p2);
-                                    arrowMesh.rotateX(Math.PI / 2); 
-                                    this.arrowsGroup.add(arrowMesh);
-                                }
-                            }
-                        });
-                    });
+                    if (this.vizMode === 'lines') {
+                        this.drawFieldLines();
+                    } else if (this.vizMode === 'compass') {
+                        this.drawCompass();
+                    } else if (this.vizMode === 'filings') {
+                        this.drawFilings();
+                    }
 
                     if (force) loading.style.opacity = 0;
                 }, 10);
             }
 
+            // Mode 1: Field Lines (Existing Logic)
+            drawFieldLines() {
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8, opacity: 0.4, transparent: true });
+                const coneGeo = new THREE.ConeGeometry(0.1, 0.3, 8);
+                const coneMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+
+                const seeds = [];
+                this.physicsObjects.forEach(obj => {
+                    if (obj.getSeeds) seeds.push(...obj.getSeeds());
+                });
+
+                const stepSize = 0.2;
+                const maxSteps = 1000; 
+
+                seeds.forEach(startPoint => {
+                    const points = [];
+                    let currentPoint = startPoint.clone();
+                    points.push(currentPoint.clone());
+
+                    for(let i=0; i<maxSteps; i++) {
+                        const B = this.calculateNetB(currentPoint);
+                        if (B.lengthSq() < 0.0001) break; 
+                        B.normalize().multiplyScalar(stepSize);
+                        currentPoint.add(B);
+                        points.push(currentPoint.clone());
+                        if (i > 20 && currentPoint.distanceTo(startPoint) < stepSize * 1.5) break; 
+                        if(currentPoint.length() > 40) break; 
+                    }
+
+                    if(points.length > 5) { 
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const line = new THREE.Line(geometry, lineMaterial);
+                        this.fieldLinesGroup.add(line);
+
+                        const arrowSpacing = 30; 
+                        for (let i = 15; i < points.length - 1; i += arrowSpacing) {
+                            const p1 = points[i];
+                            const p2 = points[i + 1];
+                            const arrowMesh = new THREE.Mesh(coneGeo, coneMat);
+                            arrowMesh.position.copy(p1);
+                            arrowMesh.lookAt(p2);
+                            arrowMesh.rotateX(Math.PI / 2); 
+                            this.arrowsGroup.add(arrowMesh);
+                        }
+                    }
+                });
+            }
+
+            // Mode 2: Small Compass Magnets (Planar)
+            drawCompass() {
+                // Create a small compass needle geometry
+                const needleGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8);
+                const matN = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+                const matS = new THREE.MeshBasicMaterial({ color: 0x4444ff });
+                
+                // Grid bounds
+                const bounds = 10;
+                const step = 1.5; 
+
+                // Fixed height at Y=0.5 (just above grid)
+                const y = 0.5;
+
+                for(let x = -bounds; x <= bounds; x += step) {
+                    for(let z = -bounds; z <= bounds; z += step) {
+                        const pos = new THREE.Vector3(x, y, z);
+                        
+                        // Don't draw if inside an object (approx)
+                        let inside = false;
+                        this.physicsObjects.forEach(obj => {
+                            if (pos.distanceTo(obj.mesh.position) < 1) inside = true;
+                        });
+                        if(inside) continue;
+
+                        const B = this.calculateNetB(pos);
+                        if (B.lengthSq() < 0.001) continue;
+
+                        const group = new THREE.Group();
+                        group.position.copy(pos);
+                        
+                        const meshN = new THREE.Mesh(needleGeo, matN);
+                        meshN.position.y = 0.15;
+                        meshN.scale.y = 0.5;
+                        
+                        const meshS = new THREE.Mesh(needleGeo, matS);
+                        meshS.position.y = -0.15;
+                        meshS.scale.y = 0.5;
+
+                        group.add(meshN);
+                        group.add(meshS);
+
+                        const target = pos.clone().add(B);
+                        group.lookAt(target);
+                        group.rotateX(Math.PI / 2);
+
+                        this.compassGroup.add(group);
+                    }
+                }
+            }
+
+            // Mode 3: Iron Filings (Planar)
+            drawFilings() {
+                const count = 4000; // Increased count for dense 2D plane
+                const range = 12;
+                const lines = [];
+                
+                for(let i=0; i<count; i++) {
+                    const pos = new THREE.Vector3(
+                        (Math.random()-0.5)*2*range,
+                        0.1, // Fixed height close to ground
+                        (Math.random()-0.5)*2*range
+                    );
+
+                    let inside = false;
+                    this.physicsObjects.forEach(obj => {
+                        if (pos.distanceTo(obj.mesh.position) < 1) inside = true;
+                    });
+                    if(inside) continue;
+
+                    const B = this.calculateNetB(pos);
+                    if (B.lengthSq() < 0.005) continue;
+
+                    B.normalize().multiplyScalar(0.2); 
+                    
+                    const p1 = pos.clone().sub(B);
+                    const p2 = pos.clone().add(B);
+                    
+                    lines.push(p1.x, p1.y, p1.z);
+                    lines.push(p2.x, p2.y, p2.z);
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+                const material = new THREE.LineBasicMaterial({ color: 0x94a3b8, opacity: 0.6, transparent: true });
+                const lineSegments = new THREE.LineSegments(geometry, material);
+                
+                this.filingsGroup.add(lineSegments);
+            }
+
             onPointerDown(event) {
-                // If interacting with top bar, ignore
                 if (event.target.closest('.absolute.top-0')) return;
 
                 const rect = this.renderer.domElement.getBoundingClientRect();
@@ -932,7 +1046,8 @@
             }
 
             toggleFieldLines() {
-                this.showField = document.getElementById('toggle-field').checked;
+                // Deprecated in favor of setVizMode but kept for potential legacy calls
+                this.showField = !this.showField;
                 this.updateFieldLines(true);
             }
 
