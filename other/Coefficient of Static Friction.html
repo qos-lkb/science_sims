@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friction Simulation + Quiz Mode</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --bg-color: #f4f7f6;
+            --panel-bg: #ffffff;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 10px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Controls Panel */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding-right: 20px;
+            border-right: 2px solid #eee;
+        }
+
+        .control-group {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .control-group h3 { margin: 0 0 10px 0; font-size: 1rem; color: #555; border-bottom: 1px solid #eee; padding-bottom:5px;}
+
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold;}
+        
+        input[type=range] { width: 100%; }
+        input[type=number] { width: 60px; padding: 5px; border-radius:4px; border:1px solid #ccc;}
+        
+        .value-display { float: right; color: var(--primary-color); }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button.reset { background-color: #95a5a6; }
+        button.reset:hover { background-color: #7f8c8d; }
+        
+        /* Quiz Specific Styles */
+        .quiz-active { border: 2px solid var(--accent-color); background: #fff5f5; }
+        .quiz-inputs { display: none; margin-top: 10px; }
+        .quiz-inputs.visible { display: block; }
+        .quiz-feedback { font-size: 0.9rem; margin-top: 10px; font-weight: bold; min-height: 1.2em;}
+        .quiz-btn { background-color: var(--accent-color); }
+        .quiz-btn:hover { background-color: #c0392b; }
+
+        .presets { display: flex; gap: 5px; flex-wrap: wrap; }
+        .preset-btn { flex: 1; font-size: 0.8rem; background: #95a5a6; }
+
+        /* Simulation Area */
+        .simulation-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        canvas {
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        .readout-panel {
+            display: flex;
+            justify-content: space-around;
+            background: #ecf0f1;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            text-align: center;
+            padding: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .status-static { background-color: #ffeaa7; color: #d35400; border: 2px solid #fdcb6e; }
+        .status-kinetic { background-color: #81ecec; color: #00b894; border: 2px solid #00cec9; }
+
+        .guidance-box {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 10px;
+            font-style: italic;
+            font-size: 0.95rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Physics Lab: Friction & Coefficients</h1>
+
+    <div class="container">
+        <div class="controls">
+            
+            <div class="control-group" id="quiz-group">
+                <h3>Challenge Mode</h3>
+                <button class="quiz-btn" onclick="toggleQuizMode()">Enter Quiz Mode</button>
+                <div id="quiz-ui" class="quiz-inputs">
+                    <p style="font-size:0.85rem; color:#666;">Mystery materials loaded! Use the sliders to find the forces, then calculate the coefficients.</p>
+                    <div style="margin-top:10px;">
+                        <label>Guess &mu;<sub>s</sub>: <input type="number" id="guess-mus" step="0.01"></label>
+                        <label>Guess &mu;<sub>k</sub>: <input type="number" id="guess-muk" step="0.01"></label>
+                    </div>
+                    <button onclick="checkAnswer()" style="margin-top:10px; background-color:var(--success-color);">Check Answer</button>
+                    <div id="quiz-feedback" class="quiz-feedback"></div>
+                    <button onclick="randomizeQuiz()" style="margin-top:10px; font-size:0.8rem; background:#7f8c8d;">New Random Values</button>
+                </div>
+            </div>
+
+            <div class="control-group" id="prop-controls">
+                <h3>System Properties</h3>
+                
+                <label>Mass (m): <span id="val-mass" class="value-display">5.0 kg</span></label>
+                <input type="range" id="slider-mass" min="1" max="20" step="0.5" value="5">
+                
+                <div id="coeff-sliders">
+                    <label>Static Coeff (&mu;<sub>s</sub>): <span id="val-mus" class="value-display">0.50</span></label>
+                    <input type="range" id="slider-mus" min="0.05" max="1.5" step="0.05" value="0.5">
+                    
+                    <label>Kinetic Coeff (&mu;<sub>k</sub>): <span id="val-muk" class="value-display">0.30</span></label>
+                    <input type="range" id="slider-muk" min="0.05" max="1.5" step="0.05" value="0.3">
+                </div>
+                
+                <div id="coeff-hidden" style="display:none; text-align:center; padding:10px; color:#e74c3c; font-weight:bold;">
+                    ??? HIDDEN ???
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Force Control</h3>
+                <label>Applied Force (F<sub>app</sub>): <span id="val-force" class="value-display">0 N</span></label>
+                <input type="range" id="slider-force" min="0" max="300" step="1" value="0">
+                <p style="font-size:0.8rem; color:#666; margin-top:5px;">(Tip: Use Right Arrow key for precision)</p>
+            </div>
+
+            <button class="reset" onclick="resetSimulation()">Reset Positions</button>
+        </div>
+
+        <div class="simulation-area">
+            
+            <div id="status-box" class="status-indicator status-static">
+                STATE: STATIONARY
+            </div>
+
+            <div class="guidance-box" id="guidance-text">
+                Increase the applied force. Watch the Net Force and Graphs.
+            </div>
+
+            <canvas id="simCanvas" width="800" height="300"></canvas>
+            
+            <canvas id="graphCanvas" width="800" height="200"></canvas>
+
+            <div class="readout-panel">
+                <div>F<sub>app</sub>: <span id="read-app">0.0</span> N</div>
+                <div>F<sub>frict</sub>: <span id="read-frict">0.0</span> N</div>
+                <div>F<sub>net</sub>: <span id="read-net">0.0</span> N</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * PHYSICS CONSTANTS & STATE
+ */
+const g = 9.81; 
+const dt = 1/60; 
+
+let state = {
+    m: 5.0,         
+    mu_s: 0.5,      
+    mu_k: 0.3,      
+    f_app: 0.0,     
+    v: 0.0,         
+    x: 100,         
+    isSliding: false,
+    history: [],    
+    time: 0,
+    quizMode: false
+};
+
+// Canvas Setup
+const simCanvas = document.getElementById('simCanvas');
+const simCtx = simCanvas.getContext('2d');
+const graphCanvas = document.getElementById('graphCanvas');
+const graphCtx = graphCanvas.getContext('2d');
+
+// DOM Elements
+const els = {
+    mass: document.getElementById('slider-mass'),
+    mus: document.getElementById('slider-mus'),
+    muk: document.getElementById('slider-muk'),
+    force: document.getElementById('slider-force'),
+    valMass: document.getElementById('val-mass'),
+    valMus: document.getElementById('val-mus'),
+    valMuk: document.getElementById('val-muk'),
+    valForce: document.getElementById('val-force'),
+    status: document.getElementById('status-box'),
+    guidance: document.getElementById('guidance-text'),
+    readApp: document.getElementById('read-app'),
+    readFrict: document.getElementById('read-frict'),
+    readNet: document.getElementById('read-net'),
+    quizGroup: document.getElementById('quiz-group'),
+    quizUI: document.getElementById('quiz-ui'),
+    coeffSliders: document.getElementById('coeff-sliders'),
+    coeffHidden: document.getElementById('coeff-hidden'),
+    feedback: document.getElementById('quiz-feedback')
+};
+
+function init() {
+    updateDisplays();
+    requestAnimationFrame(gameLoop);
+}
+
+// Slider Listeners
+els.mass.addEventListener('input', (e) => { state.m = parseFloat(e.target.value); updateDisplays(); });
+els.mus.addEventListener('input', (e) => { 
+    if(!state.quizMode) {
+        state.mu_s = parseFloat(e.target.value); 
+        if(state.mu_k > state.mu_s) { state.mu_k = state.mu_s; els.muk.value = state.mu_k; }
+        updateDisplays(); 
+    }
+});
+els.muk.addEventListener('input', (e) => { 
+    if(!state.quizMode) {
+        state.mu_k = parseFloat(e.target.value);
+        if(state.mu_k > state.mu_s) { state.mu_s = state.mu_k; els.mus.value = state.mu_s; } 
+        updateDisplays(); 
+    }
+});
+els.force.addEventListener('input', (e) => { 
+    state.f_app = parseFloat(e.target.value); 
+    updateDisplays(); 
+});
+
+// Keyboard Control
+document.addEventListener('keydown', (e) => {
+    if (e.key === "ArrowRight") {
+        let newVal = Math.min(300, state.f_app + 1);
+        state.f_app = newVal;
+        els.force.value = newVal;
+        updateDisplays();
+    } else if (e.key === "ArrowLeft") {
+        let newVal = Math.max(0, state.f_app - 1);
+        state.f_app = newVal;
+        els.force.value = newVal;
+        updateDisplays();
+    }
+});
+
+/**
+ * QUIZ LOGIC
+ */
+function toggleQuizMode() {
+    state.quizMode = !state.quizMode;
+    
+    if (state.quizMode) {
+        // Activate Quiz
+        els.quizGroup.classList.add('quiz-active');
+        els.quizUI.classList.add('visible');
+        els.coeffSliders.style.display = 'none';
+        els.coeffHidden.style.display = 'block';
+        els.guidance.innerText = "QUIZ MODE: Sliders hidden. Apply force to find when it slips!";
+        randomizeQuiz();
+    } else {
+        // Deactivate Quiz
+        els.quizGroup.classList.remove('quiz-active');
+        els.quizUI.classList.remove('visible');
+        els.coeffSliders.style.display = 'block';
+        els.coeffHidden.style.display = 'none';
+        els.guidance.innerText = "Standard Mode. Adjust sliders freely.";
+        // Reset to slider values
+        state.mu_s = parseFloat(els.mus.value);
+        state.mu_k = parseFloat(els.muk.value);
+    }
+    resetSimulation();
+}
+
+function randomizeQuiz() {
+    // Generate random mu_s between 0.2 and 1.0
+    state.mu_s = Math.round((Math.random() * 0.8 + 0.2) * 100) / 100;
+    // Generate random mu_k between 0.1 and mu_s
+    state.mu_k = Math.round((Math.random() * (state.mu_s - 0.1) + 0.1) * 100) / 100;
+    
+    // Reset inputs
+    document.getElementById('guess-mus').value = '';
+    document.getElementById('guess-muk').value = '';
+    els.feedback.innerText = "";
+    els.feedback.style.color = "black";
+    
+    resetSimulation();
+}
+
+function checkAnswer() {
+    const guessS = parseFloat(document.getElementById('guess-mus').value);
+    const guessK = parseFloat(document.getElementById('guess-muk').value);
+    
+    if (isNaN(guessS) || isNaN(guessK)) {
+        els.feedback.innerText = "Please enter both values.";
+        els.feedback.style.color = "red";
+        return;
+    }
+
+    const margin = 0.05; // generous margin
+    const correctS = Math.abs(guessS - state.mu_s) <= margin;
+    const correctK = Math.abs(guessK - state.mu_k) <= margin;
+
+    if (correctS && correctK) {
+        els.feedback.innerText = `CORRECT! Actual: μs=${state.mu_s}, μk=${state.mu_k}`;
+        els.feedback.style.color = "#2ecc71";
+    } else {
+        els.feedback.innerText = `Incorrect. Try again.`;
+        els.feedback.style.color = "#e74c3c";
+    }
+}
+
+function resetSimulation() {
+    state.v = 0;
+    state.x = 100;
+    state.isSliding = false;
+    state.history = [];
+    state.time = 0;
+    state.f_app = 0;
+    els.force.value = 0;
+    updateDisplays();
+}
+
+function updateDisplays() {
+    els.valMass.textContent = state.m.toFixed(1) + " kg";
+    if(!state.quizMode) {
+        els.valMus.textContent = state.mu_s.toFixed(2);
+        els.valMuk.textContent = state.mu_k.toFixed(2);
+    }
+    els.valForce.textContent = state.f_app.toFixed(0) + " N";
+}
+
+/**
+ * PHYSICS ENGINE
+ */
+function updatePhysics() {
+    const f_norm = state.m * g;
+    const f_static_max = state.mu_s * f_norm;
+    const f_kinetic = state.mu_k * f_norm;
+
+    let f_friction = 0;
+    let f_net = 0;
+
+    if (!state.isSliding) {
+        // STATIC
+        if (state.f_app <= f_static_max) {
+            f_friction = state.f_app;
+            state.v = 0;
+            els.status.className = "status-indicator status-static";
+            els.status.innerText = "STATIONARY";
+        } else {
+            // BREAKTHROUGH
+            state.isSliding = true;
+        }
+    }
+
+    if (state.isSliding) {
+        // KINETIC
+        f_friction = f_kinetic;
+        f_net = state.f_app - f_friction;
+        const accel = f_net / state.m;
+        
+        state.v += accel * dt;
+        
+        if (state.v <= 0 && f_net <= 0) {
+            state.v = 0;
+            state.isSliding = false;
+        } else if (state.v < 0) state.v = 0;
+
+        state.x += state.v * dt * 100; 
+        if (state.x > simCanvas.width) state.x = -100; 
+
+        els.status.className = "status-indicator status-kinetic";
+        els.status.innerText = "SLIDING";
+    }
+
+    els.readApp.innerText = state.f_app.toFixed(1);
+    els.readFrict.innerText = f_friction.toFixed(1);
+    els.readNet.innerText = f_net.toFixed(1);
+
+    // Graph Data
+    state.time += dt;
+    if (state.history.length > 300) state.history.shift();
+    state.history.push({
+        t: state.time,
+        app: state.f_app,
+        fric: f_friction
+    });
+}
+
+/**
+ * RENDERING
+ */
+function drawSimulation() {
+    simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+    
+    const groundY = 200;
+    const blockSize = 30 + (state.m * 3);
+    const blockX = state.x;
+    const blockY = groundY - blockSize;
+
+    // Ground
+    simCtx.fillStyle = "#bdc3c7";
+    simCtx.fillRect(0, groundY, simCanvas.width, 100);
+    simCtx.strokeStyle = "#95a5a6";
+    for(let i=0; i<simCanvas.width; i+=40) {
+        simCtx.beginPath();
+        simCtx.moveTo((i - (state.x % 40)), groundY);
+        simCtx.lineTo((i - (state.x % 40)) - 20, groundY + 20);
+        simCtx.stroke();
+    }
+
+    // Block
+    simCtx.fillStyle = "#3498db";
+    simCtx.fillRect(blockX, blockY, blockSize, blockSize);
+    simCtx.strokeStyle = "#2980b9";
+    simCtx.lineWidth = 2;
+    simCtx.strokeRect(blockX, blockY, blockSize, blockSize);
+    simCtx.fillStyle = "white";
+    simCtx.textAlign = "center";
+    simCtx.font = "14px Arial";
+    simCtx.fillText(state.m + "kg", blockX + blockSize/2, blockY + blockSize/2 + 5);
+
+    // Force Vectors
+    const arrowY = blockY + blockSize/2;
+    const arrowScale = 1.0; 
+
+    if (state.f_app > 0) {
+        drawArrow(simCtx, blockX + blockSize, arrowY, state.f_app * arrowScale, "#2ecc71", "F_app");
+    }
+
+    let currentFrict = 0;
+    const f_norm = state.m * g;
+    if(state.isSliding) currentFrict = state.mu_k * f_norm;
+    else currentFrict = Math.min(state.f_app, state.mu_s * f_norm);
+
+    if (currentFrict > 0) {
+        drawArrow(simCtx, blockX, arrowY, -currentFrict * arrowScale, "#e74c3c", "F_frict");
+    }
+}
+
+function drawArrow(ctx, x, y, length, color, label) {
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + length, y);
+    ctx.stroke();
+
+    const headLen = 10;
+    const sign = length >= 0 ? 1 : -1;
+    const endX = x + length;
+
+    ctx.beginPath();
+    ctx.moveTo(endX, y);
+    ctx.lineTo(endX - headLen * sign, y - 6);
+    ctx.lineTo(endX - headLen * sign, y + 6);
+    ctx.fill();
+
+    ctx.fillStyle = "#333";
+    ctx.font = "bold 12px Arial";
+    ctx.fillText(label, x + length/2, y - 10);
+}
+
+function drawGraph() {
+    graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+    const pad = 30;
+    const h = graphCanvas.height - pad;
+    const w = graphCanvas.width;
+    
+    // Axes
+    graphCtx.strokeStyle = "#333";
+    graphCtx.lineWidth = 1;
+    graphCtx.beginPath();
+    graphCtx.moveTo(pad, 10);
+    graphCtx.lineTo(pad, h);
+    graphCtx.lineTo(w, h);
+    graphCtx.stroke();
+    
+    graphCtx.fillStyle = "#333";
+    graphCtx.font = "10px sans-serif";
+    graphCtx.fillText("Time ->", w - 40, h + 15);
+
+    if (state.history.length < 2) return;
+
+    const maxForce = 350;
+    const yScale = (h - 10) / maxForce;
+    
+    // Draw App (Green)
+    graphCtx.beginPath();
+    graphCtx.strokeStyle = "#2ecc71";
+    graphCtx.lineWidth = 2;
+    for (let i = 0; i < state.history.length; i++) {
+        const x = pad + (i / state.history.length) * (w - pad);
+        const y = h - (state.history[i].app * yScale);
+        if (i===0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+    }
+    graphCtx.stroke();
+
+    // Draw Frict (Red)
+    graphCtx.beginPath();
+    graphCtx.strokeStyle = "#e74c3c";
+    graphCtx.lineWidth = 2;
+    for (let i = 0; i < state.history.length; i++) {
+        const x = pad + (i / state.history.length) * (w - pad);
+        const y = h - (state.history[i].fric * yScale);
+        if (i===0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+    }
+    graphCtx.stroke();
+    
+    // Legend
+    graphCtx.fillStyle = "#2ecc71";
+    graphCtx.fillText("Applied", w - 80, 20);
+    graphCtx.fillStyle = "#e74c3c";
+    graphCtx.fillText("Friction", w - 80, 35);
+}
+
+function gameLoop() {
+    updatePhysics();
+    drawSimulation();
+    drawGraph();
+    requestAnimationFrame(gameLoop);
+}
+
+init();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 立體磁場模擬實驗室</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/DragControls.js"></script>
+
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            startup: {
+                ready: () => {
+                    console.log('MathJax is loaded');
+                    MathJax.startup.defaultReady();
+                }
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Noto Sans TC', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center;
+            z-index: 50; color: white; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+
+        /* Modal Styles */
+        .modal-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .hidden-modal { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading-overlay">
+        <div class="text-xl font-bold animate-pulse" data-i18n="computing">正在計算場線...</div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <div class="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-700 flex items-center justify-between px-6 z-40 shadow-lg">
+        <!-- Left: Title -->
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🧲</span>
+            <h1 class="text-xl font-bold text-sky-400 tracking-wide" data-i18n="appTitle">磁場實驗室</h1>
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="flex items-center gap-4 text-slate-200">
+            <!-- View Toggle -->
+            <button onclick="app.toggleView()" class="flex items-center gap-2 hover:text-white hover:bg-slate-700 px-3 py-1.5 rounded transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <span data-i18n="viewToggle">視角: 3D</span>
+            </button>
+
+            <div class="w-px h-6 bg-slate-600 mx-1"></div>
+
+            <!-- Principle -->
+            <button onclick="app.toggleModal('principle-modal')" class="flex items-center gap-2 hover:text-sky-400 transition px-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                <span data-i18n="principle">原理</span>
+            </button>
+            
+            <!-- Language -->
+            <button onclick="app.toggleLanguage()" class="hover:text-emerald-400 transition font-mono text-sm border border-slate-600 px-3 py-1 rounded bg-slate-800 ml-2">
+                中 / EN
+            </button>
+        </div>
+    </div>
+
+    <!-- Principle Modal -->
+    <div id="principle-modal" class="modal-bg hidden-modal" onclick="if(event.target === this) app.toggleModal('principle-modal')">
+        <div class="glass-panel p-6 rounded-2xl max-w-2xl w-full mx-4 relative text-slate-100 max-h-[80vh] overflow-y-auto">
+            <button onclick="app.toggleModal('principle-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 class="text-2xl font-bold mb-4 text-sky-400" data-i18n="principleTitle">磁場疊加原理</h2>
+            <div class="space-y-4 text-slate-300 leading-relaxed">
+                <p data-i18n="principleP1">
+                    本模擬器展示了磁場的**向量疊加特性**。空間中任意一點的總磁場向量 $\vec{B}_{total}$ 等於所有磁源（磁鐵、導線、線圈）在該點產生的磁場向量總和：
+                </p>
+                <div class="bg-slate-800 p-3 rounded text-center my-2">
+                    $$ \vec{B}_{total} = \sum_{i} \vec{B}_i $$
+                </div>
+                <p data-i18n="principleP2">
+                    **磁力線 (Field Lines)**：我們從物體周圍選取多個「種子點」，並沿著合成磁場向量的方向進行數值積分（追蹤），繪製出流線。
+                </p>
+                <p data-i18n="principleP3">
+                    **方向性**：場線上的箭頭指示磁場方向，由 N 極指向 S 極。
+                </p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-sm text-slate-400">
+                    <li data-i18n="item1">棒狀磁鐵：近似為兩個單極子模型。</li>
+                    <li data-i18n="item2">長直導線：遵循安培定律 (Ampère's Law)。</li>
+                    <li data-i18n="item3">圓形線圈：遵循必歐-沙伐定律 (Biot–Savart law)。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay (Left) -->
+    <!-- Positioned lower to clear the top bar -->
+    <div class="absolute top-20 left-4 z-10 w-80 flex flex-col gap-4">
+        
+        <!-- Controls Panel -->
+        <div class="glass-panel rounded-xl p-5 text-slate-100">
+            <h2 class="text-sm font-bold mb-3 text-slate-400 uppercase tracking-wider" data-i18n="tools">工具箱</h2>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <button onclick="app.addMagnet()" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded transition text-sm font-medium" data-i18n="addMagnet">
+                    + 新增磁鐵
+                </button>
+                <button onclick="app.addWire()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded transition text-sm font-medium" data-i18n="addWire">
+                    + 新增直導線
+                </button>
+                <button onclick="app.addCoil()" class="bg-amber-600 hover:bg-amber-500 text-white p-2 rounded transition text-sm font-medium" data-i18n="addCoil">
+                    + 新增線圈
+                </button>
+                <button onclick="app.clearScene()" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded transition text-sm font-medium" data-i18n="clearAll">
+                    清除全部
+                </button>
+            </div>
+
+            <div class="mb-2">
+                <label class="flex items-center gap-2 text-sm text-slate-300 mb-2 cursor-pointer">
+                    <input type="checkbox" id="toggle-field" checked onchange="app.toggleFieldLines()" class="w-4 h-4 rounded text-sky-500 focus:ring-sky-600 bg-slate-700 border-slate-600">
+                    <span data-i18n="showField">顯示磁力線</span>
+                </label>
+                <div class="text-xs text-slate-400" data-i18n="hint">提示：拖曳物件以觀察場線變化。點擊物件可調整參數。</div>
+            </div>
+        </div>
+
+        <!-- Property Inspector (Dynamic) -->
+        <div id="inspector" class="glass-panel rounded-xl p-5 text-slate-100 hidden">
+            <h2 class="text-lg font-bold mb-3 text-sky-300 flex justify-between items-center">
+                <span id="obj-type">物件屬性</span>
+                <button onclick="app.deleteSelected()" class="text-xs text-red-400 hover:text-red-300 border border-red-500/50 px-2 py-1 rounded" data-i18n="delete">刪除</button>
+            </h2>
+            
+            <div id="controls-container" class="space-y-4">
+                <!-- Dynamic controls injected here -->
+            </div>
+
+            <!-- Math Formula Section -->
+            <div class="mt-4 pt-4 border-t border-slate-600">
+                <div class="text-xs text-slate-400 mb-1" data-i18n="formulaTitle">物理公式 (近似)：</div>
+                <div id="math-display" class="text-sm overflow-x-auto p-2 bg-slate-800/50 rounded border border-slate-700">
+                    $$ B = \dots $$
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend (Right Bottom) -->
+    <div class="absolute bottom-4 right-4 glass-panel p-3 rounded-lg text-sm text-slate-300 pointer-events-none select-none z-30">
+        <div class="flex items-center gap-2 mb-1">
+            <span class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span>
+            <span class="font-bold text-red-100">N</span> <span class="opacity-75" data-i18n="nLegend">為紅色 (North)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.5)]"></span>
+            <span class="font-bold text-blue-100">S</span> <span class="opacity-75" data-i18n="sLegend">為藍色 (South)</span>
+        </div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <script>
+        /**
+         * 語言字典
+         */
+        const DICT = {
+            zh: {
+                appTitle: "磁場實驗室",
+                tools: "實驗工具",
+                addMagnet: "+ 新增磁鐵",
+                addWire: "+ 新增直導線",
+                addCoil: "+ 新增線圈",
+                clearAll: "清除全部",
+                showField: "顯示磁力線",
+                hint: "提示：拖曳物件以觀察場線變化。點擊物件可調整參數。",
+                computing: "正在計算場線...",
+                principle: "原理",
+                viewToggle: "視角: 3D",
+                viewToggleTop: "視角: 俯視",
+                principleTitle: "磁場疊加原理",
+                principleP1: "本模擬器展示了磁場的**向量疊加特性**。空間中任意一點的總磁場向量 $\\vec{B}_{total}$ 等於所有磁源在該點產生的磁場向量總和：",
+                principleP2: "**磁力線**：我們從物體周圍選取多個「種子點」，並沿著合成磁場向量的方向進行追蹤。",
+                principleP3: "**方向性**：場線上的箭頭指示磁場方向，由 N 極指向 S 極。",
+                item1: "棒狀磁鐵：近似為兩個單極子模型。",
+                item2: "長直導線：遵循安培定律。",
+                item3: "圓形線圈：遵循必歐-沙伐定律。",
+                delete: "刪除",
+                formulaTitle: "物理公式 (近似)：",
+                rotation: "旋轉角度 (Z軸)",
+                moment: "磁極強度 (Moment)",
+                current: "電流強度 (I)",
+                barMagnet: "棒狀磁鐵 (Bar Magnet)",
+                wire: "長直導線 (Straight Wire)",
+                coil: "圓形線圈 (Circular Coil)",
+                nLegend: "為紅色 (North)",
+                sLegend: "為藍色 (South)"
+            },
+            en: {
+                appTitle: "Mag Lab 3D",
+                tools: "Tools",
+                addMagnet: "+ Add Magnet",
+                addWire: "+ Add Wire",
+                addCoil: "+ Add Coil",
+                clearAll: "Clear All",
+                showField: "Show Field Lines",
+                hint: "Tip: Drag objects to see field changes. Click to edit.",
+                computing: "Calculating Fields...",
+                principle: "Theory",
+                viewToggle: "View: 3D",
+                viewToggleTop: "View: Top",
+                principleTitle: "Superposition Principle",
+                principleP1: "This simulator demonstrates **Vector Superposition**. The net magnetic field $\\vec{B}_{total}$ at any point is the vector sum of fields from all sources:",
+                principleP2: "**Field Lines**: We trace streamlines from seed points following the net magnetic field vector.",
+                principleP3: "**Direction**: Arrows on lines indicate field direction from N to S.",
+                item1: "Bar Magnet: Approximated by two monopoles.",
+                item2: "Straight Wire: Follows Ampère's Law.",
+                item3: "Circular Coil: Follows Biot–Savart Law.",
+                delete: "Delete",
+                formulaTitle: "Physics Formula (Approx):",
+                rotation: "Rotation (Z-Axis)",
+                moment: "Magnetic Moment",
+                current: "Current (I)",
+                barMagnet: "Bar Magnet",
+                wire: "Straight Wire",
+                coil: "Circular Coil",
+                nLegend: "is Red (North)",
+                sLegend: "is Blue (South)"
+            }
+        };
+
+        /**
+         * 物理常數與計算核心
+         */
+        const MU_0 = 1; 
+        
+        class PhysicsObject {
+            constructor(mesh, type) {
+                this.mesh = mesh;
+                this.type = type;
+                this.id = mesh.uuid;
+                this.mesh.userData.physicsObj = this; 
+            }
+            getB(pos) { return new THREE.Vector3(0, 0, 0); }
+            getSeeds() { return []; }
+        }
+
+        class BarMagnet extends PhysicsObject {
+            constructor(mesh) {
+                super(mesh, 'magnet');
+                this.strength = 500;
+                this.length = 4;
+            }
+
+            getB(pos) {
+                const localPos = this.mesh.worldToLocal(pos.clone());
+                const halfLen = this.length / 2;
+                const poleStrength = this.strength;
+
+                const nPole = new THREE.Vector3(0, halfLen * 0.8, 0);
+                const sPole = new THREE.Vector3(0, -halfLen * 0.8, 0);
+
+                const rN = localPos.clone().sub(nPole);
+                const rS = localPos.clone().sub(sPole);
+                const distN = rN.length();
+                const distS = rS.length();
+
+                const minD = 0.5;
+                if (distN < minD || distS < minD) return new THREE.Vector3(0,0,0);
+
+                const BN = rN.normalize().multiplyScalar(poleStrength / (distN * distN));
+                const BS = rS.normalize().multiplyScalar(-poleStrength / (distS * distS)); 
+
+                const B_local = new THREE.Vector3().addVectors(BN, BS);
+                const B_world = B_local.applyQuaternion(this.mesh.quaternion);
+                return B_world;
+            }
+
+            getSeeds() {
+                // N 極端面產生種子
+                const seeds = [];
+                const y = this.length / 2; 
+                
+                const rings = [0.1, 0.3, 0.45];
+                
+                // Center point
+                seeds.push(this.mesh.localToWorld(new THREE.Vector3(0, y + 0.1, 0)));
+
+                rings.forEach(r => {
+                    const count = Math.floor(r * 20) + 4; // adaptive count
+                    for(let i=0; i<count; i++) {
+                        const angle = (i/count) * Math.PI * 2;
+                        seeds.push(this.mesh.localToWorld(new THREE.Vector3(
+                            Math.cos(angle)*r, y + 0.1, Math.sin(angle)*r
+                        )));
+                    }
+                });
+                return seeds;
+            }
+        }
+
+        class StraightWire extends PhysicsObject {
+            constructor(mesh) {
+                super(mesh, 'wire');
+                this.current = 20; 
+            }
+
+            getB(pos) {
+                const localPos = this.mesh.worldToLocal(pos.clone());
+                const rVec = new THREE.Vector3(localPos.x, 0, localPos.z);
+                const r = rVec.length();
+                
+                if (r < 0.2) return new THREE.Vector3(0,0,0);
+
+                const magnitude = (MU_0 * this.current) / (2 * Math.PI * r);
+                const tangent = new THREE.Vector3(-localPos.z, 0, localPos.x).normalize();
+                const B_local = tangent.multiplyScalar(magnitude);
+                const B_world = B_local.applyQuaternion(this.mesh.quaternion);
+                return B_world;
+            }
+
+            getSeeds() {
+                // 沿著導線長度與半徑產生種子
+                // 修正：使用螺旋分佈，避免箭頭全部集中在背後
+                const seeds = [];
+                let angle = 0;
+                const angleStep = Math.PI / 2; // 每層旋轉 90 度
+                
+                for (let y = -4; y <= 4; y += 1.5) {
+                    for (let r = 1; r <= 3; r += 1) {
+                        // Rotate seed position around Y axis
+                        const x = r * Math.cos(angle);
+                        const z = r * Math.sin(angle);
+                        seeds.push(this.mesh.localToWorld(new THREE.Vector3(x, y, z)));
+                    }
+                    angle += angleStep; // Spiral down
+                }
+                return seeds;
+            }
+        }
+
+        class Coil extends PhysicsObject {
+            constructor(mesh) {
+                super(mesh, 'coil');
+                this.current = 30;
+                this.radius = 2;
+            }
+
+            getB(pos) {
+                const localPos = this.mesh.worldToLocal(pos.clone());
+                const B_total = new THREE.Vector3(0, 0, 0);
+                const segments = 16; 
+                const dTheta = (Math.PI * 2) / segments;
+
+                for (let i = 0; i < segments; i++) {
+                    const theta = i * dTheta;
+                    const dlDir = new THREE.Vector3(-Math.sin(theta), 0, Math.cos(theta)); 
+                    const sourcePos = new THREE.Vector3(Math.cos(theta) * this.radius, 0, Math.sin(theta) * this.radius); 
+                    
+                    const rVec = new THREE.Vector3().subVectors(localPos, sourcePos);
+                    const r = rVec.length();
+                    if (r < 0.2) continue;
+
+                    const cross = new THREE.Vector3().crossVectors(dlDir, rVec);
+                    const dB = cross.multiplyScalar(this.current / (r * r * r));
+                    B_total.add(dB);
+                }
+
+                const B_world = B_total.applyQuaternion(this.mesh.quaternion);
+                return B_world.multiplyScalar(2); 
+            }
+
+            getSeeds() {
+                // 修正：不僅在 X 軸，而是繞 Y 軸分佈種子，形成立體場線
+                const seeds = [];
+                // 4 planes of seeds
+                for(let angle=0; angle < Math.PI; angle += Math.PI/4) {
+                    for (let x = -1.5; x <= 1.5; x += 0.5) {
+                        // Rotate point (x,0,0) around Y by angle
+                        const px = x * Math.cos(angle);
+                        const pz = x * Math.sin(angle);
+                        seeds.push(this.mesh.localToWorld(new THREE.Vector3(px, 0, pz)));
+                    }
+                }
+                return seeds;
+            }
+        }
+
+        class App {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.physicsObjects = [];
+                this.fieldLinesGroup = null;
+                this.arrowsGroup = null; 
+                this.selectedObject = null;
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                this.needsUpdate = false;
+                this.showField = true;
+                this.lang = 'zh'; 
+                this.isTopView = false; // View state
+
+                this.init();
+            }
+
+            init() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+                this.scene.fog = new THREE.Fog(0x0f172a, 20, 80);
+
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(10, 10, 15);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(10, 20, 10);
+                dirLight.castShadow = true;
+                this.scene.add(dirLight);
+
+                const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
+                this.scene.add(gridHelper);
+
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+
+                this.fieldLinesGroup = new THREE.Group();
+                this.scene.add(this.fieldLinesGroup);
+
+                this.arrowsGroup = new THREE.Group();
+                this.scene.add(this.arrowsGroup);
+
+                window.addEventListener('resize', () => this.onResize());
+                this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+                
+                this.initDragControls();
+                this.addMagnet();
+                this.animate();
+            }
+
+            toggleView() {
+                this.isTopView = !this.isTopView;
+                const btnSpan = document.querySelector('[data-i18n="viewToggle"]');
+                const dict = DICT[this.lang];
+
+                if (this.isTopView) {
+                    // Switch to Top View
+                    this.camera.position.set(0, 30, 0);
+                    this.camera.lookAt(0, 0, 0);
+                    if(btnSpan) btnSpan.innerText = dict.viewToggleTop;
+                } else {
+                    // Switch back to 3D Perspective
+                    this.camera.position.set(10, 10, 15);
+                    this.camera.lookAt(0, 0, 0);
+                    if(btnSpan) btnSpan.innerText = dict.viewToggle;
+                }
+                
+                // Reset controls target
+                this.controls.target.set(0,0,0);
+                this.controls.update();
+            }
+
+            toggleLanguage() {
+                this.lang = this.lang === 'zh' ? 'en' : 'zh';
+                this.updateUIText();
+                if (this.selectedObject) this.updateInspector(this.selectedObject);
+                
+                // Update toggle button text manually since it has dynamic state
+                const btnSpan = document.querySelector('[data-i18n="viewToggle"]');
+                const dict = DICT[this.lang];
+                if(btnSpan) {
+                    btnSpan.innerText = this.isTopView ? dict.viewToggleTop : dict.viewToggle;
+                }
+            }
+
+            updateUIText() {
+                const texts = DICT[this.lang];
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (texts[key]) el.innerHTML = texts[key];
+                });
+            }
+
+            toggleModal(id) {
+                const el = document.getElementById(id);
+                el.classList.toggle('hidden-modal');
+            }
+
+            initDragControls() {
+                let isDragging = false;
+                let dragPlane = new THREE.Plane();
+                let intersection = new THREE.Vector3();
+                let offset = new THREE.Vector3();
+
+                const onMove = (event) => {
+                    if (!isDragging || !this.selectedObject) return;
+                    const rect = this.renderer.domElement.getBoundingClientRect();
+                    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    
+                    if (this.raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                        const targetPos = intersection.sub(offset);
+                        if (targetPos.y < 0) targetPos.y = 0;
+                        this.selectedObject.mesh.position.copy(targetPos);
+                        this.needsUpdate = true;
+                    }
+                };
+
+                const onUp = () => {
+                    isDragging = false;
+                    this.controls.enabled = true;
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    this.updateFieldLines(true);
+                };
+
+                this.startDrag = (event, object) => {
+                    isDragging = true;
+                    this.controls.enabled = false;
+                    dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
+                    
+                    const rect = this.renderer.domElement.getBoundingClientRect();
+                    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                    
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    if (this.raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                        offset.copy(intersection).sub(object.position);
+                    }
+                    window.addEventListener('pointermove', onMove);
+                    window.addEventListener('pointerup', onUp);
+                };
+            }
+
+            createSelectionBox(w, h, d, parent) {
+                const geometry = new THREE.BoxGeometry(w, h, d);
+                const material = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, visible: false });
+                const box = new THREE.Mesh(geometry, material);
+                parent.add(box); 
+                return box;
+            }
+
+            createLabel(text) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; 
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.font = 'bold 90px "Noto Sans TC", sans-serif';
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(text, 64, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false });
+                const sprite = new THREE.Sprite(material);
+                sprite.scale.set(1, 1, 1);
+                return sprite;
+            }
+
+            addMagnet() {
+                const group = new THREE.Group();
+                const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 32);
+                const materialTop = new THREE.MeshStandardMaterial({ color: 0xff4444, roughness: 0.4 }); // N
+                const materialBottom = new THREE.MeshStandardMaterial({ color: 0x4444ff, roughness: 0.4 }); // S
+                
+                const nMesh = new THREE.Mesh(geometry, materialTop);
+                nMesh.position.y = 1; 
+                const sMesh = new THREE.Mesh(geometry, materialBottom);
+                sMesh.position.y = -1; 
+                
+                group.add(nMesh);
+                group.add(sMesh);
+                group.position.set((Math.random()-0.5)*5, 2, (Math.random()-0.5)*5);
+                group.rotation.z = Math.PI / 2;
+
+                nMesh.castShadow = true; sMesh.castShadow = true;
+                this.scene.add(group);
+
+                const outline = this.createSelectionBox(1.1, 4.1, 1.1, group);
+                group.userData.outline = outline;
+
+                // Add Labels (N & S)
+                const nLabel = this.createLabel('N');
+                nLabel.position.y = 2.2; // Float slightly above N pole (local Y+)
+                group.add(nLabel);
+
+                const sLabel = this.createLabel('S');
+                sLabel.position.y = -2.2; // Float slightly below S pole (local Y-)
+                group.add(sLabel);
+
+                const physObj = new BarMagnet(group);
+                this.physicsObjects.push(physObj);
+                this.selectObject(physObj);
+                this.updateFieldLines(true);
+            }
+
+            addWire() {
+                const geometry = new THREE.CylinderGeometry(0.2, 0.2, 10, 16);
+                const material = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.8, roughness: 0.2 });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                mesh.position.set((Math.random()-0.5)*5, 5, (Math.random()-0.5)*5);
+                
+                const arrow = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2, 0xffff00);
+                mesh.add(arrow);
+                mesh.userData.arrow = arrow;
+                this.scene.add(mesh);
+
+                const outline = this.createSelectionBox(0.5, 10.1, 0.5, mesh);
+                mesh.userData.outline = outline;
+
+                const physObj = new StraightWire(mesh);
+                this.physicsObjects.push(physObj);
+                this.selectObject(physObj);
+                this.updateFieldLines(true);
+            }
+
+            addCoil() {
+                const geometry = new THREE.TorusGeometry(2, 0.1, 16, 50);
+                const material = new THREE.MeshStandardMaterial({ color: 0xd97706 });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                mesh.position.set((Math.random()-0.5)*5, 3, (Math.random()-0.5)*5);
+                mesh.rotation.x = Math.PI / 2; 
+
+                this.scene.add(mesh);
+                const outline = this.createSelectionBox(4.2, 0.3, 4.2, mesh);
+                mesh.userData.outline = outline;
+
+                const physObj = new Coil(mesh);
+                this.physicsObjects.push(physObj);
+                this.selectObject(physObj);
+                this.updateFieldLines(true);
+            }
+
+            calculateNetB(pos) {
+                const B_total = new THREE.Vector3(0,0,0);
+                for (let obj of this.physicsObjects) {
+                    B_total.add(obj.getB(pos));
+                }
+                return B_total;
+            }
+
+            updateFieldLines(force = false) {
+                if (!this.showField) {
+                    this.fieldLinesGroup.clear();
+                    this.arrowsGroup.clear();
+                    return;
+                }
+
+                const now = Date.now();
+                if (!force && now - this.lastUpdate < 100) return; 
+                this.lastUpdate = now;
+
+                const loading = document.getElementById('loading');
+                if (force) loading.style.opacity = 1;
+
+                setTimeout(() => {
+                    this.fieldLinesGroup.clear();
+                    this.arrowsGroup.clear(); 
+                    
+                    const lineMaterial = new THREE.LineBasicMaterial({ 
+                        color: 0x38bdf8, 
+                        opacity: 0.4, 
+                        transparent: true 
+                    });
+
+                    const coneGeo = new THREE.ConeGeometry(0.1, 0.3, 8); // Arrows resized to half
+                    const coneMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+
+                    const seeds = [];
+                    this.physicsObjects.forEach(obj => {
+                        if (obj.getSeeds) {
+                            seeds.push(...obj.getSeeds());
+                        }
+                    });
+
+                    // 增加步數以確保線條能繞回 S 極
+                    const stepSize = 0.2;
+                    const maxSteps = 1000; // Increased max steps for long loops
+
+                    let seedIdx = 0;
+                    this.physicsObjects.forEach(obj => {
+                        const objSeeds = obj.getSeeds ? obj.getSeeds() : [];
+
+                        objSeeds.forEach(startPoint => {
+                            const points = [];
+                            let currentPoint = startPoint.clone();
+                            points.push(currentPoint.clone());
+
+                            // Forward Trace Only
+                            // Add Loop detection: if we return near start, stop.
+                            for(let i=0; i<maxSteps; i++) {
+                                const B = this.calculateNetB(currentPoint);
+                                if (B.lengthSq() < 0.0001) break; 
+                                B.normalize().multiplyScalar(stepSize);
+                                currentPoint.add(B);
+                                points.push(currentPoint.clone());
+                                
+                                // Check for closed loop (Wire/Coil)
+                                if (i > 20 && currentPoint.distanceTo(startPoint) < stepSize * 1.5) {
+                                    break; // Closed loop detected
+                                }
+                                
+                                if(currentPoint.length() > 40) break; // Reduced bounds check to keep arrows visible
+                            }
+
+                            if(points.length > 5) { 
+                                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                                const line = new THREE.Line(geometry, lineMaterial);
+                                this.fieldLinesGroup.add(line);
+
+                                // 修正：每隔一段距離放置一個箭頭
+                                // 這樣能保證在長線段（如磁鐵之間的連線）中段也有箭頭
+                                const arrowSpacing = 30; // 每30個點放一個箭頭
+                                for (let i = 15; i < points.length - 1; i += arrowSpacing) {
+                                    const p1 = points[i];
+                                    const p2 = points[i + 1];
+                                    
+                                    const arrowMesh = new THREE.Mesh(coneGeo, coneMat);
+                                    arrowMesh.position.copy(p1);
+                                    arrowMesh.lookAt(p2);
+                                    arrowMesh.rotateX(Math.PI / 2); 
+                                    this.arrowsGroup.add(arrowMesh);
+                                }
+                            }
+                        });
+                    });
+
+                    if (force) loading.style.opacity = 0;
+                }, 10);
+            }
+
+            onPointerDown(event) {
+                // If interacting with top bar, ignore
+                if (event.target.closest('.absolute.top-0')) return;
+
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const meshes = this.physicsObjects.map(o => o.mesh);
+                const intersects = this.raycaster.intersectObjects(meshes, true); 
+
+                if (intersects.length > 0) {
+                    let target = intersects[0].object;
+                    while(target && !target.userData.physicsObj) {
+                         target = target.parent;
+                    }
+                    if (target && target.userData.physicsObj) {
+                        this.selectObject(target.userData.physicsObj);
+                        this.startDrag(event, target);
+                    }
+                } else {
+                    this.deselectAll();
+                }
+            }
+
+            selectObject(physObj) {
+                this.deselectAll();
+                this.selectedObject = physObj;
+                if (physObj.mesh.userData.outline) {
+                    physObj.mesh.userData.outline.visible = true;
+                }
+                this.updateInspector(physObj);
+            }
+
+            deselectAll() {
+                if (this.selectedObject && this.selectedObject.mesh.userData.outline) {
+                    this.selectedObject.mesh.userData.outline.visible = false;
+                }
+                this.selectedObject = null;
+                document.getElementById('inspector').classList.add('hidden');
+            }
+
+            deleteSelected() {
+                if (!this.selectedObject) return;
+                this.scene.remove(this.selectedObject.mesh);
+                this.physicsObjects = this.physicsObjects.filter(o => o !== this.selectedObject);
+                this.deselectAll();
+                this.updateFieldLines(true);
+            }
+
+            clearScene() {
+                this.physicsObjects.forEach(o => this.scene.remove(o.mesh));
+                this.physicsObjects = [];
+                this.deselectAll();
+                this.updateFieldLines(true);
+            }
+
+            updateInspector(obj) {
+                const inspector = document.getElementById('inspector');
+                const container = document.getElementById('controls-container');
+                const title = document.getElementById('obj-type');
+                const math = document.getElementById('math-display');
+                
+                inspector.classList.remove('hidden');
+                container.innerHTML = ''; 
+                const txt = DICT[this.lang];
+
+                let controlsHTML = '';
+                let mathTex = '';
+                
+                const rotValue = Math.round(obj.mesh.rotation.z * (180/Math.PI)); 
+
+                controlsHTML += `
+                    <div>
+                        <label class="block text-xs text-slate-400">${txt.rotation}</label>
+                        <input type="range" min="-180" max="180" value="${rotValue}" 
+                            oninput="app.updateProp('rotation', this.value)"
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                `;
+
+                if (obj.type === 'magnet') {
+                    title.innerText = txt.barMagnet;
+                    controlsHTML += `
+                        <div>
+                            <label class="block text-xs text-slate-400">${txt.moment}</label>
+                            <input type="range" min="100" max="1000" value="${obj.strength}" 
+                                oninput="app.updateProp('strength', this.value)"
+                                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    `;
+                    mathTex = `$$ \\vec{B} \\approx \\frac{\\mu_0}{4\\pi} \\frac{3(\\vec{m}\\cdot\\hat{r})\\hat{r} - \\vec{m}}{r^3} $$`; 
+                } 
+                else if (obj.type === 'wire') {
+                    title.innerText = txt.wire;
+                    controlsHTML += `
+                        <div>
+                            <label class="block text-xs text-slate-400">${txt.current}</label>
+                            <input type="range" min="-100" max="100" value="${obj.current}" 
+                                oninput="app.updateProp('current', this.value)"
+                                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-right text-xs font-mono text-emerald-400">${obj.current} A</div>
+                        </div>
+                    `;
+                    mathTex = `$$ B = \\frac{\\mu_0 I}{2\\pi r} $$`;
+                }
+                else if (obj.type === 'coil') {
+                    title.innerText = txt.coil;
+                    controlsHTML += `
+                        <div>
+                            <label class="block text-xs text-slate-400">${txt.current}</label>
+                            <input type="range" min="-100" max="100" value="${obj.current}" 
+                                oninput="app.updateProp('current', this.value)"
+                                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    `;
+                    mathTex = `$$ B_{center} = \\frac{\\mu_0 I}{2R} $$`;
+                }
+
+                container.innerHTML = controlsHTML;
+                math.innerHTML = mathTex;
+                
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    MathJax.typesetPromise([math]).catch((err) => console.log('MathJax error ignored:', err));
+                }
+            }
+
+            updateProp(prop, value) {
+                if (!this.selectedObject) return;
+                const val = parseFloat(value);
+                
+                if (prop === 'rotation') {
+                    this.selectedObject.mesh.rotation.z = val * (Math.PI / 180);
+                } else {
+                    this.selectedObject[prop] = val;
+                    if (this.selectedObject.type === 'wire' && prop === 'current') {
+                        const arrow = this.selectedObject.mesh.userData.arrow;
+                        if(arrow) {
+                            const dir = val >= 0 ? 1 : -1;
+                            arrow.setDirection(new THREE.Vector3(0, dir, 0));
+                        }
+                        const display = document.querySelector('#inspector .font-mono');
+                        if(display) display.innerText = val + " A";
+                    }
+                }
+                this.updateFieldLines(false);
+            }
+
+            toggleFieldLines() {
+                this.showField = document.getElementById('toggle-field').checked;
+                this.updateFieldLines(true);
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.updateFieldLines(true);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                if (this.needsUpdate) {
+                    this.updateFieldLines(false);
+                    this.needsUpdate = false;
+                }
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const app = new App();
+
+    </script>
+</body>
+</html>

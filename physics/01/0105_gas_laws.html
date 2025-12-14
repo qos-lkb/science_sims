@@ -8,6 +8,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <!-- MathJax for rendering equations -->
     <script>
     MathJax = {
@@ -40,6 +43,13 @@
             margin-top: -6px; 
             box-shadow: 0 0 0 2px white;
         }
+        
+        /* Disabled slider thumb */
+        input[type=range]:disabled::-webkit-slider-thumb {
+            background: #64748b; /* slate-500 */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
 
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
@@ -48,7 +58,7 @@
             background: #475569; /* slate-600 */
             border-radius: 2px;
         }
-        
+
         .canvas-container {
             position: relative;
             width: 100%;
@@ -65,12 +75,18 @@
         body {
             font-family: 'Noto Sans TC', sans-serif;
         }
+        
+        .mode-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            border-color: #60a5fa;
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-slate-800 text-white h-screen flex flex-col overflow-hidden">
 
     <!-- Navbar -->
-    <nav class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg z-10">
+    <nav class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg z-10 shrink-0">
         <div class="flex items-center gap-3">
             <div class="bg-blue-600 p-2 rounded-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,7 +112,7 @@
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         <!-- Sidebar (Controls) -->
-        <aside class="w-full md:w-1/3 lg:w-1/4 bg-slate-800 border-r border-slate-700 p-6 flex flex-col gap-6 overflow-y-auto z-10 shadow-xl">
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-slate-800 border-r border-slate-700 p-6 flex flex-col gap-4 overflow-y-auto z-10 shadow-xl scrollbar-hide">
             
             <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600">
                 <h2 class="text-lg font-semibold text-blue-300 mb-4 flex items-center gap-2">
@@ -104,15 +120,30 @@
                     <span id="control-panel-title">變數控制</span>
                 </h2>
 
+                <!-- Mode Selection Buttons -->
+                <div class="grid grid-cols-3 gap-2 mb-6">
+                    <button onclick="setMode('boyle')" id="btn-boyle" class="mode-btn bg-slate-800 border border-slate-600 text-xs py-2 px-1 rounded hover:bg-slate-600 transition text-center flex flex-col items-center justify-center">
+                        <span class="font-bold">等溫</span>
+                        <span class="text-[10px] opacity-70">Boyle</span>
+                    </button>
+                    <button onclick="setMode('charles')" id="btn-charles" class="mode-btn bg-slate-800 border border-slate-600 text-xs py-2 px-1 rounded hover:bg-slate-600 transition text-center flex flex-col items-center justify-center">
+                        <span class="font-bold">等壓</span>
+                        <span class="text-[10px] opacity-70">Charles</span>
+                    </button>
+                    <button onclick="setMode('gay')" id="btn-gay" class="mode-btn bg-slate-800 border border-slate-600 text-xs py-2 px-1 rounded hover:bg-slate-600 transition text-center flex flex-col items-center justify-center">
+                        <span class="font-bold">等積</span>
+                        <span class="text-[10px] opacity-70">Gay-Lussac</span>
+                    </button>
+                </div>
+
                 <!-- Sliders -->
                 
                 <!-- Volume (m^3) -->
-                <div class="mb-6 group">
+                <div class="mb-5 group">
                     <div class="flex justify-between mb-2">
                         <label class="text-sm font-medium text-slate-300" id="label-V">體積 (V)</label>
                         <span class="text-sm font-mono text-emerald-400" id="val-V">0.022 m³</span>
                     </div>
-                    <!-- Range: 0.005 to 0.050 m^3 (approx 5L to 50L) -->
                     <input type="range" id="slider-V" min="0.005" max="0.050" step="0.001" value="0.0224" class="w-full">
                     <div class="mt-1 text-xs text-slate-500 flex justify-between">
                         <span>0.005</span>
@@ -121,7 +152,7 @@
                 </div>
 
                 <!-- Moles -->
-                <div class="mb-6 group">
+                <div class="mb-5 group">
                     <div class="flex justify-between mb-2">
                         <label class="text-sm font-medium text-slate-300" id="label-n">摩爾數 (n)</label>
                         <span class="text-sm font-mono text-purple-400" id="val-n">1.0 mol</span>
@@ -134,7 +165,7 @@
                 </div>
 
                 <!-- Temperature -->
-                <div class="mb-6 group">
+                <div class="mb-5 group">
                     <div class="flex justify-between mb-2">
                         <label class="text-sm font-medium text-slate-300" id="label-T">溫度 (T)</label>
                         <span class="text-sm font-mono text-red-400" id="val-T">273 K</span>
@@ -152,42 +183,56 @@
                         <label class="text-sm font-bold text-yellow-400" id="label-P">壓強 (P)</label>
                         <span class="text-base font-mono text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded" id="val-P">101325 Pa</span>
                     </div>
-                    <!-- Range: 10,000 Pa (0.1 atm) to 1,000,000 Pa (approx 10 atm) -->
                     <input type="range" id="slider-P" min="10000" max="1000000" step="1000" value="101325" class="w-full accent-yellow-500">
                     <div class="mt-1 text-xs text-slate-500 flex justify-between mb-2">
                         <span>10 kPa</span>
                         <span>1 MPa</span>
                     </div>
-                    <p class="text-xs text-slate-400 italic" id="hint-P">* 調整 P 會改變 V (假設等溫)</p>
                 </div>
-
             </div>
 
-            <!-- Dashboard / Readout -->
-            <div class="bg-black/30 p-4 rounded-xl border border-slate-700">
-                <div class="grid grid-cols-2 gap-4 text-center">
+            <!-- Stats -->
+            <div class="bg-black/30 p-3 rounded-xl border border-slate-700">
+                <div class="grid grid-cols-2 gap-2 text-center">
                     <div>
-                        <div class="text-xs text-slate-400 mb-1">RMS 速度 ($v_{rms}$)</div>
-                        <div class="text-lg font-mono text-white" id="display-velocity">-- m/s</div>
+                        <div class="text-[10px] text-slate-400 mb-1">RMS 速度</div>
+                        <div class="text-sm font-mono text-white" id="display-velocity">-- m/s</div>
                     </div>
                     <div>
-                        <div class="text-xs text-slate-400 mb-1">碰撞頻率</div>
-                        <div class="text-lg font-mono text-white" id="display-collisions">High</div>
+                        <div class="text-[10px] text-slate-400 mb-1">碰撞頻率</div>
+                        <div class="text-sm font-mono text-white" id="display-collisions">High</div>
                     </div>
                 </div>
             </div>
 
         </aside>
 
-        <!-- Right Side (Visualization) -->
-        <section class="flex-1 bg-black relative">
-            <div id="canvas-container" class="canvas-container w-full h-full"></div>
+        <!-- Right Side (Visualization + Chart) -->
+        <section class="flex-1 flex flex-col min-w-0 bg-slate-900 relative overflow-hidden">
             
-            <!-- Overlay Info on Canvas -->
-            <div class="absolute bottom-4 right-4 text-right pointer-events-none select-none">
-                <div class="text-slate-500 text-sm">Particle View</div>
-                <div class="text-slate-700 text-xs">Three.js Render</div>
+            <!-- Top: 3D Visualization (Takes remaining space) -->
+            <div class="flex-1 relative min-h-0 bg-black">
+                <div id="canvas-container" class="absolute inset-0 w-full h-full"></div>
+                
+                <!-- Overlay Info -->
+                <div class="absolute bottom-4 right-4 text-right pointer-events-none select-none z-10">
+                    <div class="text-slate-500 text-sm">Particle View</div>
+                    <div class="text-slate-700 text-xs">Three.js Render</div>
+                </div>
             </div>
+
+            <!-- Bottom: Dynamic Chart (Fixed percentage height for visibility) -->
+            <div class="h-[40%] bg-slate-800 border-t border-slate-700 p-4 flex flex-col shadow-[0_-4px_10px_rgba(0,0,0,0.3)] z-20">
+                 <div class="text-sm text-center text-slate-400 mb-2 font-bold tracking-wide flex justify-between items-center px-4" >
+                    <span class="opacity-0 w-12">.</span> <!-- Spacer -->
+                    <span id="chart-title">選擇模式以顯示圖表</span>
+                    <span class="text-[10px] font-normal bg-slate-700 px-2 py-0.5 rounded text-slate-300 w-12 text-center">Live</span>
+                 </div>
+                 <div class="flex-1 relative w-full min-h-0 bg-slate-900/50 rounded-lg border border-slate-700 p-2">
+                    <canvas id="liveChart"></canvas>
+                 </div>
+            </div>
+
         </section>
 
     </main>
@@ -250,11 +295,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div>
-                        <h3 class="font-bold text-blue-300 mb-2" id="subtitle-constant">氣體常數 R (SI)</h3>
-                        <p class="text-sm text-slate-300">$$ R \approx 8.314 \text{ J} \cdot \text{mol}^{-1} \cdot \text{K}^{-1} $$</p>
-                    </div>
                 </div>
 
                 <div class="mt-6 text-right">
@@ -266,19 +306,261 @@
 
     <!-- Application Logic -->
     <script>
-        // --- 1. State Management & Physics Constants ---
-        const R_SI = 8.314; // J / (mol K)
+        // --- 1. State Management ---
+        const R_SI = 8.314; 
         
         const state = {
             lang: 'zh',
-            V: 0.0224, // m^3 (formerly 22.4 L)
-            n: 1.0,  // Moles
-            T: 273,  // Kelvin
-            P: 101325,  // Pa (calculated initially)
-            isUpdating: false // flag to prevent loop
+            V: 0.0224, // m^3
+            n: 1.0,  
+            T: 273,  
+            P: 101325, 
+            mode: 'boyle', // Default mode 'boyle' (const T)
+            isUpdating: false
         };
 
-        // --- 2. Language Dictionary ---
+        // --- 2. Chart.js Setup ---
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#334155';
+        Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+
+        let myChart = null;
+
+        function initChart() {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Theoretical',
+                            data: [],
+                            borderColor: '#3b82f6', // blue-500
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Current',
+                            data: [],
+                            backgroundColor: '#ef4444', // red-500
+                            borderColor: '#fff',
+                            borderWidth: 1,
+                            pointRadius: 6,
+                            type: 'scatter'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    scales: {
+                        x: { type: 'linear', ticks: { font: { size: 10 } }, title: { display: true, font: {size: 10} } },
+                        y: { type: 'linear', ticks: { font: { size: 10 } }, title: { display: true, font: {size: 10} } }
+                    },
+                    animation: false
+                }
+            });
+        }
+
+        // --- 3. UI Logic ---
+        
+        const domV = document.getElementById('slider-V');
+        const domN = document.getElementById('slider-n');
+        const domT = document.getElementById('slider-T');
+        const domP = document.getElementById('slider-P');
+        
+        const valV = document.getElementById('val-V');
+        const valN = document.getElementById('val-n');
+        const valT = document.getElementById('val-T');
+        const valP = document.getElementById('val-P');
+
+        function setMode(mode) {
+            state.mode = mode;
+            
+            // Update UI buttons
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`btn-${mode}`);
+            if (btn) btn.classList.add('active');
+
+            // Reset Disabled states
+            domV.disabled = false;
+            domT.disabled = false;
+            domP.disabled = false;
+            domN.disabled = false;
+
+            // Apply Locks
+            if (mode === 'boyle') { // Lock T
+                domT.disabled = true;
+                domP.disabled = false; // Allow changing P to see effect on V
+            } else if (mode === 'charles') { // Lock P
+                domP.disabled = true;
+            } else if (mode === 'gay') { // Lock V
+                domV.disabled = true;
+            }
+
+            // Refresh visuals
+            updateChart();
+            updateLanguageText(); // Update chart title
+        }
+
+        function updateEquation(source) {
+            if (state.isUpdating) return;
+            state.isUpdating = true;
+
+            let V = parseFloat(domV.value);
+            let n = parseFloat(domN.value);
+            let T = parseFloat(domT.value);
+            let P = parseFloat(domP.value);
+
+            // Logic based on Mode
+            if (state.mode === 'boyle') { 
+                // Const T. 
+                // If P changed -> V = nRT/P
+                // If V or n changed -> P = nRT/V
+                if (source === 'P') {
+                    V = (n * R_SI * T) / P;
+                } else {
+                    P = (n * R_SI * T) / V;
+                }
+            } 
+            else if (state.mode === 'charles') {
+                // Const P.
+                // If T changed -> V = nRT/P
+                // If V or n changed -> T = PV/nR
+                if (source === 'V' || source === 'n') {
+                    T = (P * V) / (n * R_SI);
+                } else { // source == T
+                    V = (n * R_SI * T) / P;
+                }
+            } 
+            else if (state.mode === 'gay') {
+                // Const V.
+                // If T changed -> P = nRT/V
+                // If P or n changed -> T = PV/nR
+                if (source === 'P' || source === 'n') {
+                    T = (P * V) / (n * R_SI);
+                } else { // source == T
+                    P = (n * R_SI * T) / V;
+                }
+            }
+
+            // Bounds Checking & Clamping
+            if (V < 0.005) V = 0.005; if (V > 0.050) V = 0.050;
+            if (T < 50) T = 50; if (T > 600) T = 600;
+            if (P < 10000) P = 10000; if (P > 1000000) P = 1000000;
+
+            // Update State
+            state.V = V;
+            state.n = n;
+            state.T = T;
+            state.P = P;
+
+            // Update DOM
+            domV.value = V;
+            domN.value = n;
+            domT.value = T;
+            domP.value = P;
+
+            valV.innerText = `${state.V.toFixed(4)} m³`;
+            valN.innerText = `${state.n.toFixed(1)} mol`;
+            valT.innerText = `${state.T.toFixed(0)} K`;
+            valP.innerText = `${state.P.toFixed(0)} Pa`;
+
+            state.isUpdating = false;
+            updateChart();
+        }
+
+        function updateChart() {
+            if (!myChart) return;
+
+            const { P, V, n, T, mode } = state;
+
+            // --- CRITICAL FIX: Reset scales so Chart.js doesn't persist min/max from previous mode ---
+            // If we don't do this, switching from a small scale (V~0.05) to large scale (P~100000) causes issues.
+            delete myChart.options.scales.x.min;
+            delete myChart.options.scales.x.max;
+            delete myChart.options.scales.y.min;
+            delete myChart.options.scales.y.max;
+            
+            let dataPoints = [];
+            let currentPoint = {};
+            let xLabel = '', yLabel = '';
+            let title = '';
+
+            if (mode === 'boyle') { // P vs V (Iso-T)
+                xLabel = 'V (m³)';
+                yLabel = 'P (Pa)';
+                title = 'P-V 關係 (等溫)';
+                currentPoint = { x: V, y: P };
+                
+                // Generate Curve P = k/V
+                const k = n * R_SI * T;
+                for(let v_i = 0.005; v_i <= 0.050; v_i += 0.001) {
+                    dataPoints.push({ x: v_i, y: k / v_i });
+                }
+                
+                // Adjust scales
+                myChart.options.scales.x.min = 0;
+                myChart.options.scales.x.max = 0.050;
+                myChart.options.scales.y.min = 0;
+                // Let Y auto-scale or fix it? Auto is better for wide range P
+
+            } else if (mode === 'charles') { // V vs T (Iso-P)
+                xLabel = 'T (K)';
+                yLabel = 'V (m³)';
+                title = 'V-T 關係 (等壓)';
+                currentPoint = { x: T, y: V };
+
+                // Generate Line V = k*T
+                const k = (n * R_SI) / P;
+                // 2 points enough for line
+                dataPoints.push({ x: 0, y: 0 });
+                dataPoints.push({ x: 600, y: k * 600 });
+
+                myChart.options.scales.x.min = 0;
+                // No X max limit (auto scale)
+                myChart.options.scales.y.min = 0;
+                myChart.options.scales.y.max = 0.06;
+
+            } else if (mode === 'gay') { // P vs T (Iso-V)
+                xLabel = 'T (K)';
+                yLabel = 'P (Pa)';
+                title = 'P-T 關係 (等積)';
+                currentPoint = { x: T, y: P };
+
+                // Generate Line P = k*T
+                const k = (n * R_SI) / V;
+                dataPoints.push({ x: 0, y: 0 });
+                dataPoints.push({ x: 600, y: k * 600 });
+
+                myChart.options.scales.x.min = 0;
+                // No X max limit (auto scale)
+                // Let Y auto scale
+            }
+
+            myChart.data.datasets[0].data = dataPoints;
+            myChart.data.datasets[1].data = [currentPoint];
+            
+            myChart.options.scales.x.title.text = xLabel;
+            myChart.options.scales.y.title.text = yLabel;
+            
+            // Handle Chart Title via Dict
+            const t = dict[state.lang];
+            const typeText = mode === 'boyle' ? t.chartBoyle : (mode === 'charles' ? t.chartCharles : t.chartGay);
+            const chartTitle = document.getElementById('chart-title');
+            if (chartTitle) chartTitle.innerText = typeText;
+
+            myChart.update();
+        }
+
+        // --- 4. Language & Dictionaries ---
+        
         const dict = {
             zh: {
                 title: '氣體粒子模型',
@@ -288,7 +570,6 @@
                 labelN: '摩爾數 (n)',
                 labelT: '溫度 (T)',
                 labelP: '壓強 (P)',
-                hintP: '* 調整 P 會改變 V (假設等溫)',
                 modalTitle: '理想氣體定律',
                 descP: '壓強：氣體分子撞擊容器壁所產生的力。',
                 descV: '體積：氣體分子所佔據的空間。',
@@ -301,6 +582,12 @@
                 titleBoyle: '波義耳定律 (恆溫)',
                 titleCharles: '查理定律 (恆壓)',
                 titleGay: '蓋-呂薩克定律 (恆容)',
+                modeBoyle: '等溫',
+                modeCharles: '等壓',
+                modeGay: '等積',
+                chartBoyle: 'P-V 關係圖 (等溫)',
+                chartCharles: 'V-T 關係圖 (等壓)',
+                chartGay: 'P-T 關係圖 (等積)'
             },
             en: {
                 title: 'Gas Particle Model',
@@ -310,9 +597,8 @@
                 labelN: 'Moles (n)',
                 labelT: 'Temperature (T)',
                 labelP: 'Pressure (P)',
-                hintP: '* Adjusting P changes V (Isothermal)',
                 modalTitle: 'Ideal Gas Law',
-                descP: 'Pressure: Force exerted by gas collisions.',
+                descP: 'Pressure: Force from gas collisions.',
                 descV: 'Volume: Space occupied by the gas.',
                 descN: 'Moles: Amount of substance.',
                 descT: 'Temperature: Proportional to avg kinetic energy.',
@@ -323,214 +609,65 @@
                 titleBoyle: "Boyle's Law (Const T)",
                 titleCharles: "Charles's Law (Const P)",
                 titleGay: "Gay-Lussac's Law (Const V)",
+                modeBoyle: 'Iso-T',
+                modeCharles: 'Iso-P',
+                modeGay: 'Iso-V',
+                chartBoyle: 'P-V Graph (Isothermal)',
+                chartCharles: 'V-T Graph (Isobaric)',
+                chartGay: 'P-T Graph (Isochoric)'
             }
         };
 
-        // --- 3. Three.js Setup ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.02);
-
-        // Camera
-        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-        camera.position.set(0, 0, 25);
-
-        // Renderer
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        container.appendChild(renderer.domElement);
-
-        // Controls
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0x3b82f6, 1, 50);
-        pointLight.position.set(5, 5, 5);
-        scene.add(pointLight);
-
-        // --- 4. Simulation Objects ---
-
-        // Box (Visualizing Volume)
-        // We will scale this box based on Volume
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const edges = new THREE.EdgesGeometry(boxGeometry);
-        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
-        const boxLines = new THREE.LineSegments(edges, boxMaterial);
-        scene.add(boxLines);
-
-        // Particles
-        // We use InstancedMesh for performance with many particles
-        const MAX_PARTICLES = 500; // visual cap
-        // Reduced radius from 0.15 to 0.06 to mimic point-like particles
-        const particleGeo = new THREE.SphereGeometry(0.06, 8, 8);
-        const particleMat = new THREE.MeshPhongMaterial({ color: 0x60a5fa, shininess: 100 });
-        const particlesMesh = new THREE.InstancedMesh(particleGeo, particleMat, MAX_PARTICLES);
-        scene.add(particlesMesh);
-
-        const dummy = new THREE.Object3D();
-        
-        // Particle Data Structure
-        const particleData = [];
-        for (let i = 0; i < MAX_PARTICLES; i++) {
-            particleData.push({
-                x: (Math.random() - 0.5) * 10,
-                y: (Math.random() - 0.5) * 10,
-                z: (Math.random() - 0.5) * 10,
-                vx: (Math.random() - 0.5),
-                vy: (Math.random() - 0.5),
-                vz: (Math.random() - 0.5)
-            });
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
         }
 
-        // --- 5. Logic & Updates ---
-
-        function updatePhysics() {
-            // Map physical Volume (m^3) to Box Scale (Visual Units)
-            // 0.0224 m^3 corresponds to the previous visual size of ~22.4 L
-            // Cube root of 0.0224 is approx 0.28.
-            // To get a similar visual scale (approx 7 units wide), factor is around 25.
-            const scaleSize = Math.cbrt(state.V) * 25.0; 
-            boxLines.scale.set(scaleSize, scaleSize, scaleSize);
-
-            // Map Temperature to Speed
-            // Speed is proportional to sqrt(T)
-            const speedFactor = Math.sqrt(state.T) * 0.02;
-
-            // Map Moles to Active Particle Count
-            // 1 mol = 50 particles (arbitrary visual scaling)
-            const activeCount = Math.min(Math.floor(state.n * 50), MAX_PARTICLES);
-            particlesMesh.count = activeCount;
-
-            const halfSize = scaleSize / 2;
-
-            // Update individual particles
-            for (let i = 0; i < activeCount; i++) {
-                const p = particleData[i];
-
-                // Move
-                p.x += p.vx * speedFactor;
-                p.y += p.vy * speedFactor;
-                p.z += p.vz * speedFactor;
-
-                // Bounce (Simple Box collision)
-                // We add a tiny offset to prevent sticking to walls
-                if (p.x > halfSize) { p.x = halfSize; p.vx *= -1; }
-                if (p.x < -halfSize) { p.x = -halfSize; p.vx *= -1; }
-                if (p.y > halfSize) { p.y = halfSize; p.vy *= -1; }
-                if (p.y < -halfSize) { p.y = -halfSize; p.vy *= -1; }
-                if (p.z > halfSize) { p.z = halfSize; p.vz *= -1; }
-                if (p.z < -halfSize) { p.z = -halfSize; p.vz *= -1; }
-
-                dummy.position.set(p.x, p.y, p.z);
-                dummy.updateMatrix();
-                particlesMesh.setMatrixAt(i, dummy.matrix);
-            }
+        function updateLanguageText() {
+            const t = dict[state.lang];
+            setText('app-title', t.title);
+            setText('btn-info', t.btnInfo);
+            setText('control-panel-title', t.controlTitle);
+            setText('label-V', t.labelV);
+            setText('label-n', t.labelN);
+            setText('label-T', t.labelT);
+            setText('label-P', t.labelP);
             
-            particlesMesh.instanceMatrix.needsUpdate = true;
-
-            // Update RMS display (Visual approximation)
-            // v_rms = sqrt(3RT/M). For display, just proportional to sqrt(T)
-            // Using M = 0.028 kg/mol (Nitrogen)
-            const realVrms = Math.round(Math.sqrt(3 * 8.314 * state.T / 0.028)); 
-            document.getElementById('display-velocity').innerText = `${realVrms} m/s`;
+            const btnBoyle = document.querySelector('#btn-boyle .font-bold');
+            if (btnBoyle) btnBoyle.innerText = t.modeBoyle;
             
-            // Update Collision approximation for display
-            // Collision freq propto (N/V) * sqrt(T)
-            // Adjust divisor for m^3 units (V is now small, e.g., 0.0224)
-            const collisionMetric = (state.n / (state.V * 1000)) * Math.sqrt(state.T);
-            let colText = "Low";
-            if (collisionMetric > 0.1) colText = "Medium";
-            if (collisionMetric > 0.3) colText = "High";
-            if (collisionMetric > 0.5) colText = "Extreme";
-            document.getElementById('display-collisions').innerText = state.lang === 'zh' ? 
-                (colText === 'Low' ? '低' : colText === 'Medium' ? '中' : '高') : colText;
+            const btnCharles = document.querySelector('#btn-charles .font-bold');
+            if (btnCharles) btnCharles.innerText = t.modeCharles;
+            
+            const btnGay = document.querySelector('#btn-gay .font-bold');
+            if (btnGay) btnGay.innerText = t.modeGay;
+
+            // Modal
+            setText('modal-title', t.modalTitle);
+            setText('desc-P', t.descP);
+            setText('desc-V', t.descV);
+            setText('desc-n', t.descN);
+            setText('desc-T', t.descT);
+            setText('subtitle-constant', t.subtitleConstant);
+            setText('btn-close', t.btnClose);
+            setText('subtitle-laws', t.subtitleLaws);
+            setText('title-boyle', t.titleBoyle);
+            setText('title-charles', t.titleCharles);
+            setText('title-gay', t.titleGay);
+            
+            updateChart();
         }
 
-        // --- 6. UI Interaction & Physics Engine ---
-
-        const domV = document.getElementById('slider-V');
-        const domN = document.getElementById('slider-n');
-        const domT = document.getElementById('slider-T');
-        const domP = document.getElementById('slider-P');
+        window.toggleLanguage = function() {
+            state.lang = state.lang === 'zh' ? 'en' : 'zh';
+            updateLanguageText();
+        }
         
-        const valV = document.getElementById('val-V');
-        const valN = document.getElementById('val-n');
-        const valT = document.getElementById('val-T');
-        const valP = document.getElementById('val-P');
-
-        function updateEquation(source) {
-            if (state.isUpdating) return;
-            state.isUpdating = true;
-
-            // Inputs
-            let V = parseFloat(domV.value);
-            let n = parseFloat(domN.value);
-            let T = parseFloat(domT.value);
-            let P = parseFloat(domP.value);
-
-            if (source === 'P') {
-                // User moved Pressure Slider
-                // Physics choice: Change Volume (Boyle's Law Logic: P1V1 = P2V2)
-                // V = nRT / P
-                V = (n * R_SI * T) / P;
-                
-                // Clamp V to slider limits
-                if (V < 0.005) V = 0.005;
-                if (V > 0.050) V = 0.050;
-                
-                // Recalculate P based on clamped V to be consistent
-                P = (n * R_SI * T) / V;
-
-                // Update V Slider visual
-                domV.value = V;
-                state.V = V;
-                state.P = P;
-            } else {
-                // User moved V, n, or T
-                // P is the dependent variable
-                // P = nRT / V
-                P = (n * R_SI * T) / V;
-                
-                // Update P Slider visual (allow it to go out of bounds visually or clamp?)
-                // Let's clamp the visual slider but show true value in text
-                state.V = V;
-                state.n = n;
-                state.T = T;
-                state.P = P;
-                
-                // If P exceeds slider max, we just max out the slider but show real text
-                domP.value = Math.min(Math.max(P, 10000), 1000000);
-            }
-
-            // Update UI Text
-            valV.innerText = `${state.V.toFixed(4)} m³`;
-            valN.innerText = `${state.n.toFixed(1)} mol`;
-            valT.innerText = `${state.T.toFixed(0)} K`;
-            valP.innerText = `${state.P.toFixed(0)} Pa`;
-
-            state.isUpdating = false;
-        }
-
-        // Listeners
-        domV.addEventListener('input', () => updateEquation('V'));
-        domN.addEventListener('input', () => updateEquation('n'));
-        domT.addEventListener('input', () => updateEquation('T'));
-        domP.addEventListener('input', () => updateEquation('P'));
-
-        // --- 7. Functions for Modal and Lang ---
-
-        const modal = document.getElementById('info-modal');
-        const modalContent = document.getElementById('modal-content');
-
         window.toggleModal = function() {
+            const modal = document.getElementById('info-modal');
+            const modalContent = document.getElementById('modal-content');
             if (modal.classList.contains('hidden')) {
                 modal.classList.remove('hidden');
-                // Trigger reflow to enable transition
                 setTimeout(() => {
                     modal.classList.remove('opacity-0');
                     modalContent.classList.remove('scale-95');
@@ -544,35 +681,100 @@
             }
         }
 
-        window.toggleLanguage = function() {
-            state.lang = state.lang === 'zh' ? 'en' : 'zh';
-            const t = dict[state.lang];
+        // --- 5. Event Listeners ---
+        domV.addEventListener('input', () => updateEquation('V'));
+        domN.addEventListener('input', () => updateEquation('n'));
+        domT.addEventListener('input', () => updateEquation('T'));
+        domP.addEventListener('input', () => updateEquation('P'));
 
-            // Update Text
-            document.getElementById('app-title').innerText = t.title;
-            document.getElementById('btn-info').innerText = t.btnInfo;
-            document.getElementById('control-panel-title').innerText = t.controlTitle;
-            document.getElementById('label-V').innerText = t.labelV;
-            document.getElementById('label-n').innerText = t.labelN;
-            document.getElementById('label-T').innerText = t.labelT;
-            document.getElementById('label-P').innerText = t.labelP;
-            document.getElementById('hint-P').innerText = t.hintP;
-            document.getElementById('modal-title').innerText = t.modalTitle;
-            document.getElementById('desc-P').innerText = t.descP;
-            document.getElementById('desc-V').innerText = t.descV;
-            document.getElementById('desc-n').innerText = t.descN;
-            document.getElementById('desc-T').innerText = t.descT;
-            document.getElementById('subtitle-constant').innerText = t.subtitleConstant;
-            document.getElementById('btn-close').innerText = t.btnClose;
-            
-            // New Gas Law Translations
-            document.getElementById('subtitle-laws').innerText = t.subtitleLaws;
-            document.getElementById('title-boyle').innerText = t.titleBoyle;
-            document.getElementById('title-charles').innerText = t.titleCharles;
-            document.getElementById('title-gay').innerText = t.titleGay;
+        // --- 6. Three.js & Animation ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(0, 0, 25);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x3b82f6, 1, 50);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // Box
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const edges = new THREE.EdgesGeometry(boxGeometry);
+        const boxMaterial = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
+        const boxLines = new THREE.LineSegments(edges, boxMaterial);
+        scene.add(boxLines);
+
+        // Particles
+        const MAX_PARTICLES = 500; 
+        const particleGeo = new THREE.SphereGeometry(0.06, 8, 8);
+        const particleMat = new THREE.MeshPhongMaterial({ color: 0x60a5fa, shininess: 100 });
+        const particlesMesh = new THREE.InstancedMesh(particleGeo, particleMat, MAX_PARTICLES);
+        scene.add(particlesMesh);
+
+        const dummy = new THREE.Object3D();
+        const particleData = [];
+        for (let i = 0; i < MAX_PARTICLES; i++) {
+            particleData.push({
+                x: (Math.random() - 0.5) * 10,
+                y: (Math.random() - 0.5) * 10,
+                z: (Math.random() - 0.5) * 10,
+                vx: (Math.random() - 0.5),
+                vy: (Math.random() - 0.5),
+                vz: (Math.random() - 0.5)
+            });
         }
 
-        // --- 8. Animation Loop ---
+        function updatePhysics() {
+            const scaleSize = Math.cbrt(state.V) * 25.0; 
+            boxLines.scale.set(scaleSize, scaleSize, scaleSize);
+            const speedFactor = Math.sqrt(state.T) * 0.02;
+            const activeCount = Math.min(Math.floor(state.n * 50), MAX_PARTICLES);
+            particlesMesh.count = activeCount;
+            const halfSize = scaleSize / 2;
+
+            for (let i = 0; i < activeCount; i++) {
+                const p = particleData[i];
+                p.x += p.vx * speedFactor;
+                p.y += p.vy * speedFactor;
+                p.z += p.vz * speedFactor;
+
+                if (p.x > halfSize) { p.x = halfSize; p.vx *= -1; }
+                if (p.x < -halfSize) { p.x = -halfSize; p.vx *= -1; }
+                if (p.y > halfSize) { p.y = halfSize; p.vy *= -1; }
+                if (p.y < -halfSize) { p.y = -halfSize; p.vy *= -1; }
+                if (p.z > halfSize) { p.z = halfSize; p.vz *= -1; }
+                if (p.z < -halfSize) { p.z = -halfSize; p.vz *= -1; }
+
+                dummy.position.set(p.x, p.y, p.z);
+                dummy.updateMatrix();
+                particlesMesh.setMatrixAt(i, dummy.matrix);
+            }
+            particlesMesh.instanceMatrix.needsUpdate = true;
+
+            const realVrms = Math.round(Math.sqrt(3 * 8.314 * state.T / 0.028)); 
+            document.getElementById('display-velocity').innerText = `${realVrms} m/s`;
+            
+            const collisionMetric = (state.n / (state.V * 1000)) * Math.sqrt(state.T);
+            let colText = "Low";
+            if (collisionMetric > 0.1) colText = "Medium";
+            if (collisionMetric > 0.3) colText = "High";
+            if (collisionMetric > 0.5) colText = "Extreme";
+            document.getElementById('display-collisions').innerText = state.lang === 'zh' ? 
+                (colText === 'Low' ? '低' : (colText === 'Medium' ? '中' : '高')) : colText;
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -581,7 +783,6 @@
             renderer.render(scene, camera);
         }
 
-        // Handle Resize
         window.addEventListener('resize', () => {
             const width = container.clientWidth;
             const height = container.clientHeight;
@@ -591,8 +792,9 @@
         });
 
         // Initialize
+        initChart();
+        setMode('boyle'); // This triggers updateEquation
         animate();
-        updateEquation('init'); // Initial calc
 
     </script>
 </body>
