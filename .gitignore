@@ -1,0 +1,226 @@
+# Operating System Files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# Editor and IDE Files
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+
+# JetBrains IDEs (IntelliJ IDEA, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Atom
+.atom/
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Temporary Files
+*.tmp
+*.temp
+*.log
+*.cache
+*.bak
+*.backup
+*~
+*.orig
+*.rej
+
+# Log Files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Dependency Directories
+# (In case a build system is added in the future)
+node_modules/
+jspm_packages/
+bower_components/
+.pnp/
+.pnp.js
+
+# Build Output
+# (For future build systems)
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# Misc
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# Local Configuration
+config.local.js
+config.local.json
+.local/
+
+# Backup Files
+*.backup
+*.old
+*.save
+*_backup.*
+*_old.*
+
+# Archive Files (if accidentally created)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Documentation Build (if using a static site generator later)
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Python (if any scripts are added)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# R (if any R scripts are added)
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+
+# MATLAB (if any MATLAB scripts are added)
+*.asv
+*.m~
+
+# MacOS specific - additional
+.AppleDouble
+.LSOverride
+
+# Windows specific - additional
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux specific - additional
+.directory
+.Trash-*
+
+# Project-specific ignores
+# Add any project-specific files or directories here
+
