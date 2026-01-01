@@ -11,6 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- MathJax -->
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- html2canvas for screenshot -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         /* 子選單展開動畫 */
         .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
@@ -23,8 +25,20 @@
             transition: transform 0.3s ease-in-out;
         }
         @media (max-width: 767px) {
+            #sidebar {
+                position: fixed;
+                left: 0;
+                top: 64px;
+            }
             #sidebar.hidden-mobile { transform: translateX(-100%); }
             #sidebar.show-mobile { transform: translateX(0); }
+        }
+        @media (min-width: 768px) {
+            #sidebar {
+                position: relative;
+                height: calc(100vh - 64px);
+                top: 0;
+            }
         }
 
         /* 自定義捲軸 */
@@ -36,13 +50,209 @@
         /* 遮罩層 */
         #overlay { display: none; }
         #overlay.active { display: block; }
+        
+        /* Container 樣式 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            width: 100%;
+        }
+        @media (min-width: 640px) {
+            .container {
+                padding: 0 1.5rem;
+            }
+        }
+        @media (min-width: 1024px) {
+            .container {
+                padding: 0 2rem;
+            }
+        }
+        
+        /* Modal 樣式 */
+        #sim-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+        }
+        #sim-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #sim-modal-content {
+            position: relative;
+            width: 95%;
+            height: 90%;
+            max-width: 1200px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #sim-modal-close {
+            position: absolute;
+            top: 2vh;
+            right: 2vw;
+            width: 3rem;
+            height: 3rem;
+            background-color: rgba(0, 0, 0, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 101;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        #sim-modal-capture {
+            position: absolute;
+            top: 2vh;
+            right: calc(2vw + 4rem);
+            width: 3rem;
+            height: 3rem;
+            background-color: rgba(0, 0, 0, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 101;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        #sim-modal-capture:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-color: white;
+            transform: scale(1.1);
+        }
+        #sim-modal-capture:active {
+            transform: scale(0.95);
+        }
+        #sim-modal-capture:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #sim-modal-close:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-color: white;
+            transform: scale(1.1);
+        }
+        #sim-modal-close:active {
+            transform: scale(0.95);
+        }
+        #sim-modal-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background-color: white;
+        }
+        @media (max-width: 768px) {
+            #sim-modal-content {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+            }
+            #sim-modal-close {
+                top: 1rem;
+                right: 1rem;
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+            #sim-modal-capture {
+                top: 1rem;
+                right: calc(1rem + 3.5rem);
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+        }
+        
+        /* Footer 樣式 */
+        footer {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
+            margin-top: auto;
+            padding: 0.75rem 0;
+        }
+        footer .container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 1rem;
+            text-align: right;
+            flex-wrap: wrap;
+        }
+        .footer-copyright {
+            font-size: 0.8125rem;
+            color: #94a3b8;
+        }
+        .footer-license {
+            font-size: 0.8125rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .footer-license a {
+            color: #60a5fa;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .footer-license a:hover {
+            color: #93c5fd;
+        }
+        .cc-badge {
+            display: inline-block;
+            padding: 0.2rem 0.4rem;
+            background-color: rgba(96, 165, 250, 0.1);
+            border: 1px solid #60a5fa;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .footer-license a:hover .cc-badge {
+            background-color: rgba(96, 165, 250, 0.2);
+            border-color: #93c5fd;
+        }
+        @media (max-width: 768px) {
+            footer {
+                padding: 0.625rem 0;
+            }
+            footer .container {
+                justify-content: center;
+                text-align: center;
+                gap: 0.5rem;
+            }
+            .footer-copyright,
+            .footer-license {
+                font-size: 0.75rem;
+            }
+        }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
+<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden flex flex-col min-h-screen">
 
     <!-- 1. 標題列 -->
     <header class="bg-indigo-900 text-white shadow-md fixed w-full z-50 top-0">
-        <div class="max-w-full mx-auto px-4 sm:px-6">
+        <div class="container">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <!-- 行動裝置選單按鈕 -->
@@ -71,9 +281,11 @@
     <!-- 背景遮罩 (Mobile 選單開啟時) -->
     <div id="overlay" class="fixed inset-0 bg-black/50 z-30 md:hidden" onclick="toggleSidebar()"></div>
 
-    <div class="flex pt-16 min-h-screen">
-        <!-- 2. 左方選單列 -->
-        <aside id="sidebar" class="w-64 bg-slate-800 text-slate-300 flex-shrink-0 fixed h-[calc(100vh-64px)] z-40 overflow-y-auto hidden-mobile md:translate-x-0">
+    <div class="flex-1 pt-16">
+        <div class="container">
+            <div class="flex">
+                <!-- 2. 左方選單列 -->
+                <aside id="sidebar" class="w-64 bg-slate-800 text-slate-300 flex-shrink-0 z-40 overflow-y-auto hidden-mobile md:block">
             
             <div class="p-4 pb-2 uppercase text-[10px] font-bold text-slate-500 tracking-[2px]" id="core-label">核心單元 Compulsory</div>
             
@@ -84,12 +296,12 @@
                         <svg class="w-4 h-4 rotate-icon active" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md open">
-                                                <a href="science/structure_of_cell.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - 細胞結構" data-en="Unit 4 - Structure of Cell">單元 4 - 細胞結構</a>
-                                                <a href="science/cell_division.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - 細胞分裂" data-en="Unit 4 - Cell Division">單元 4 - 細胞分裂</a>
-                                                <a href="science/dna.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - DNA" data-en="Unit 4 - DNA">單元 4 - DNA</a>
-                                                <a href="science/microecosystem.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 7 - 微生態系統" data-en="Unit 7 - Micro-Ecosystem">單元 7 - 微生態系統</a>
-                                                <a href="science/belljar_model.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 7 - 鐘罩模型" data-en="Unit 7 - Bell Jar Model">單元 7 - 鐘罩模型</a>
-                                                <a href="science/electric_circuit.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 8 - 電路" data-en="Unit 8 - Electric Circuit">單元 8 - 電路</a>
+                                                <div onclick="openModal('science/structure_of_cell.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 4 - 細胞結構" data-en="Unit 4 - Structure of Cell">單元 4 - 細胞結構</div>
+                                                <div onclick="openModal('science/cell_division.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 4 - 細胞分裂" data-en="Unit 4 - Cell Division">單元 4 - 細胞分裂</div>
+                                                <div onclick="openModal('science/dna.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 4 - DNA" data-en="Unit 4 - DNA">單元 4 - DNA</div>
+                                                <div onclick="openModal('science/microecosystem.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 7 - 微生態系統" data-en="Unit 7 - Micro-Ecosystem">單元 7 - 微生態系統</div>
+                                                <div onclick="openModal('science/belljar_model.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 7 - 鐘罩模型" data-en="Unit 7 - Bell Jar Model">單元 7 - 鐘罩模型</div>
+                                                <div onclick="openModal('science/electric_circuit.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="單元 8 - 電路" data-en="Unit 8 - Electric Circuit">單元 8 - 電路</div>
                                             </div>
                 </div>
                                 <div class="nav-group border-t border-slate-700/50 mt-1">
@@ -98,9 +310,9 @@
                         <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md ">
-                                                <a href="biology/osmosis.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="滲透作用" data-en="Osmosis">滲透作用</a>
-                                                <a href="biology/cell_membrane_permeability.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="細胞膜通透性" data-en="Cell Membrane Permeability">細胞膜通透性</a>
-                                                <a href="biology/absorption_ileum.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="小腸營養吸收" data-en="Absorption of Nutrients in Small Intestine">小腸營養吸收</a>
+                                                <div onclick="openModal('biology/osmosis.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="滲透作用" data-en="Osmosis">滲透作用</div>
+                                                <div onclick="openModal('biology/cell_membrane_permeability.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="細胞膜通透性" data-en="Cell Membrane Permeability">細胞膜通透性</div>
+                                                <div onclick="openModal('biology/absorption_ileum.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="小腸營養吸收" data-en="Absorption of Nutrients in Small Intestine">小腸營養吸收</div>
                                             </div>
                 </div>
                                 <div class="nav-group border-t border-slate-700/50 mt-1">
@@ -109,11 +321,11 @@
                         <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md ">
-                                                <a href="chem/atomic_structure.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="原子結構" data-en="Atomic Structure">原子結構</a>
-                                                <a href="chem/ram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="相對原子質量" data-en="Relative Atomic Mass">相對原子質量</a>
-                                                <a href="chem/electrolysis.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="電解" data-en="Electrolysis">電解</a>
-                                                <a href="chem/orbital.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="原子及其軌道" data-en="Atoms and their Orbitals">原子及其軌道</a>
-                                                <a href="chem/firework_display.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="煙花展示" data-en="Firework Display">煙花展示</a>
+                                                <div onclick="openModal('chem/atomic_structure.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="原子結構" data-en="Atomic Structure">原子結構</div>
+                                                <div onclick="openModal('chem/ram.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="相對原子質量" data-en="Relative Atomic Mass">相對原子質量</div>
+                                                <div onclick="openModal('chem/electrolysis.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="電解" data-en="Electrolysis">電解</div>
+                                                <div onclick="openModal('chem/orbital.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="原子及其軌道" data-en="Atoms and their Orbitals">原子及其軌道</div>
+                                                <div onclick="openModal('chem/firework_display.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="煙花展示" data-en="Firework Display">煙花展示</div>
                                             </div>
                 </div>
                                 <div class="nav-group border-t border-slate-700/50 mt-1">
@@ -122,43 +334,43 @@
                         <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md ">
-                                                <a href="physics/01/0101_calibration_of_thermometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.01 - 溫度計的校準" data-en="1.01 - Calibration of a Thermometer">1.01 - 溫度計的校準</a>
-                                                <a href="physics/01/0101_clinical_thermometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.01 - 體溫計" data-en="1.01 - Clinical Thermometer">1.01 - 體溫計</a>
-                                                <a href="physics/01/0102_conduction.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 傳導" data-en="1.02 - Conduction">1.02 - 傳導</a>
-                                                <a href="physics/01/0102_convection.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 對流" data-en="1.02 - Convection">1.02 - 對流</a>
-                                                <a href="physics/01/0102_radiation_and_colour.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 輻射與顏色" data-en="1.02 - Radiation and Colour">1.02 - 輻射與顏色</a>
-                                                <a href="physics/01/0103_specific_heat_capacity.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 比熱容" data-en="1.03 - Specific Heat Capacity">1.03 - 比熱容</a>
-                                                <a href="physics/01/0103_specific_heat_capacity2.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 比熱容 2" data-en="1.03 - Specific Heat Capacity 2">1.03 - 比熱容 2</a>
-                                                <a href="physics/01/0103_thermal_equilibrium.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 熱平衡" data-en="1.03 - Thermal Equilibrium">1.03 - 熱平衡</a>
-                                                <a href="physics/01/0105_gas_laws.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.05 - 氣體定律" data-en="1.05 - Gas Laws">1.05 - 氣體定律</a>
-                                                <a href="physics/01/0105_distribution_gas_speed.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.05 - 氣體速度分佈" data-en="1.05 - Distribution of Gas Speed">1.05 - 氣體速度分佈</a>
-                                                <a href="physics/02/0202_freefall.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="2.02 - 自由落體" data-en="2.02 - Free Fall">2.02 - 自由落體</a>
-                                                <a href="physics/02/0210_cavendish_experiment.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="2.10 - 卡文迪許實驗" data-en="2.10 - Cavendish Experiment">2.10 - 卡文迪許實驗</a>
-                                                <a href="physics/03a/0301_how_we_see.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 我們如何看見" data-en="3.01 - How do we see">3.01 - 我們如何看見</a>
-                                                <a href="physics/03a/0301_laws_of_reflection.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 反射定律" data-en="3.01 - Laws of Reflection">3.01 - 反射定律</a>
-                                                <a href="physics/03a/0301_plane_mirror_ray_diagram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 平面鏡光線圖" data-en="3.01 - Plane Mirror Ray Diagram">3.01 - 平面鏡光線圖</a>
-                                                <a href="physics/03a/0301_plane_mirror_ray_diagram2.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 平面鏡光線圖 2" data-en="3.01 - Plane Mirror Ray Diagram 2">3.01 - 平面鏡光線圖 2</a>
-                                                <a href="physics/03a/0302_analogy_refraction.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 折射類比（車輛模型）" data-en="3.02 - Analogy of Refraction (Vehicle Model)">3.02 - 折射類比（車輛模型）</a>
-                                                <a href="physics/03a/0302_snells_law.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 斯涅爾定律" data-en="3.02 - Snell&#039;s Law">3.02 - 斯涅爾定律</a>
-                                                <a href="physics/03a/0302_dispersion.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 色散" data-en="3.02 - Dispersion">3.02 - 色散</a>
-                                                <a href="physics/03a/0303_lenses.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.03 - 透鏡光線圖（由 4A Air Li 提供）" data-en="3.03 - Lens Ray Diagram (by Air Li from 4A)">3.03 - 透鏡光線圖（由 4A Air Li 提供）</a>
-                                                <a href="physics/03b/0306_diffraction_grating.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.06 - 繞射光柵" data-en="3.06 - Diffraction Grating">3.06 - 繞射光柵</a>
-                                                <a href="physics/03b/0306_youngs_double_slit.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.06 - 楊氏雙縫實驗" data-en="3.06 - Young&#039;s Double-Slit Experiment">3.06 - 楊氏雙縫實驗</a>
-                                                <a href="physics/03b/0307_signal_generator.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.07 - 信號發生器" data-en="3.07 - Signal Generator">3.07 - 信號發生器</a>
-                                                <a href="physics/04b/0405_magnetic_field_lines.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="4.05 - 磁場線" data-en="4.05 - Magnetic Field Lines">4.05 - 磁場線</a>
-                                                <a href="physics/04b/0406_mass_spectrometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="4.06 - 質譜儀" data-en="4.06 - Mass Spectrometer">4.06 - 質譜儀</a>
-                                                <a href="physics/05/0501_geiger_muller_counter.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="5.01 - 蓋革-米勒計數器" data-en="5.01 - Geiger-Muller Counter">5.01 - 蓋革-米勒計數器</a>
-                                                <a href="physics/e01/e0104_fraunhofer_lines.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E1.04 - 夫朗和斐譜線" data-en="E1.04 - Fraunhofer Lines">E1.04 - 夫朗和斐譜線</a>
-                                                <a href="physics/e02/e0201_rutherford_experiment.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.01 - 拉塞福散射實驗" data-en="E2.01 - Rutherford Scattering Experiment">E2.01 - 拉塞福散射實驗</a>
-                                                <a href="physics/e02/e0201_photoelectric_effect.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.01 - 光電效應" data-en="E2.01 - Photoelectric Effect">E2.01 - 光電效應</a>
-                                                <a href="physics/e02/e0202_electron_transition.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.02 - 電子躍遷" data-en="E2.02 - Electron Transition">E2.02 - 電子躍遷</a>
-                                                <a href="physics/e02/e0202_emission_line_spectra.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.02 - 發射線光譜" data-en="E2.02 - Emission Line Spectra">E2.02 - 發射線光譜</a>
-                                                <a href="physics/e03/e0301_air-conditioner.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.01 - 空調" data-en="E3.01 - Air-Conditioner">E3.01 - 空調</a>
-                                                <a href="physics/e03/e0303_thermal_conductivity.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 熱導率" data-en="E3.03 - Thermal Conductivity">E3.03 - 熱導率</a>
-                                                <a href="physics/e03/e0303_ottv.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 總熱傳值" data-en="E3.03 - OTTV">E3.03 - 總熱傳值</a>
-                                                <a href="physics/e03/e0303_cars.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 汽車（電動車）" data-en="E3.03 - Cars (Electric Vehicles)">E3.03 - 汽車（電動車）</a>
-                                                <a href="physics/e03/e0304_wind_power.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.04 - 風力發電" data-en="E3.04 - Wind Power">E3.04 - 風力發電</a>
-                                                <a href="physics/e03/e0304_photovoltaic_plate.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.04 - 光伏板" data-en="E3.04 - Photovoltaic Plate">E3.04 - 光伏板</a>
+                                                <div onclick="openModal('physics/01/0101_calibration_of_thermometer.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.01 - 溫度計的校準" data-en="1.01 - Calibration of a Thermometer">1.01 - 溫度計的校準</div>
+                                                <div onclick="openModal('physics/01/0101_clinical_thermometer.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.01 - 體溫計" data-en="1.01 - Clinical Thermometer">1.01 - 體溫計</div>
+                                                <div onclick="openModal('physics/01/0102_conduction.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.02 - 傳導" data-en="1.02 - Conduction">1.02 - 傳導</div>
+                                                <div onclick="openModal('physics/01/0102_convection.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.02 - 對流" data-en="1.02 - Convection">1.02 - 對流</div>
+                                                <div onclick="openModal('physics/01/0102_radiation_and_colour.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.02 - 輻射與顏色" data-en="1.02 - Radiation and Colour">1.02 - 輻射與顏色</div>
+                                                <div onclick="openModal('physics/01/0103_specific_heat_capacity.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.03 - 比熱容" data-en="1.03 - Specific Heat Capacity">1.03 - 比熱容</div>
+                                                <div onclick="openModal('physics/01/0103_specific_heat_capacity2.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.03 - 比熱容 2" data-en="1.03 - Specific Heat Capacity 2">1.03 - 比熱容 2</div>
+                                                <div onclick="openModal('physics/01/0103_thermal_equilibrium.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.03 - 熱平衡" data-en="1.03 - Thermal Equilibrium">1.03 - 熱平衡</div>
+                                                <div onclick="openModal('physics/01/0105_gas_laws.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.05 - 氣體定律" data-en="1.05 - Gas Laws">1.05 - 氣體定律</div>
+                                                <div onclick="openModal('physics/01/0105_distribution_gas_speed.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="1.05 - 氣體速度分佈" data-en="1.05 - Distribution of Gas Speed">1.05 - 氣體速度分佈</div>
+                                                <div onclick="openModal('physics/02/0202_freefall.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="2.02 - 自由落體" data-en="2.02 - Free Fall">2.02 - 自由落體</div>
+                                                <div onclick="openModal('physics/02/0210_cavendish_experiment.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="2.10 - 卡文迪許實驗" data-en="2.10 - Cavendish Experiment">2.10 - 卡文迪許實驗</div>
+                                                <div onclick="openModal('physics/03a/0301_how_we_see.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.01 - 我們如何看見" data-en="3.01 - How do we see">3.01 - 我們如何看見</div>
+                                                <div onclick="openModal('physics/03a/0301_laws_of_reflection.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.01 - 反射定律" data-en="3.01 - Laws of Reflection">3.01 - 反射定律</div>
+                                                <div onclick="openModal('physics/03a/0301_plane_mirror_ray_diagram.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.01 - 平面鏡光線圖" data-en="3.01 - Plane Mirror Ray Diagram">3.01 - 平面鏡光線圖</div>
+                                                <div onclick="openModal('physics/03a/0301_plane_mirror_ray_diagram2.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.01 - 平面鏡光線圖 2" data-en="3.01 - Plane Mirror Ray Diagram 2">3.01 - 平面鏡光線圖 2</div>
+                                                <div onclick="openModal('physics/03a/0302_analogy_refraction.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.02 - 折射類比（車輛模型）" data-en="3.02 - Analogy of Refraction (Vehicle Model)">3.02 - 折射類比（車輛模型）</div>
+                                                <div onclick="openModal('physics/03a/0302_snells_law.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.02 - 斯涅爾定律" data-en="3.02 - Snell&#039;s Law">3.02 - 斯涅爾定律</div>
+                                                <div onclick="openModal('physics/03a/0302_dispersion.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.02 - 色散" data-en="3.02 - Dispersion">3.02 - 色散</div>
+                                                <div onclick="openModal('physics/03a/0303_lenses.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.03 - 透鏡光線圖（由 4A Air Li 提供）" data-en="3.03 - Lens Ray Diagram (by Air Li from 4A)">3.03 - 透鏡光線圖（由 4A Air Li 提供）</div>
+                                                <div onclick="openModal('physics/03b/0306_diffraction_grating.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.06 - 繞射光柵" data-en="3.06 - Diffraction Grating">3.06 - 繞射光柵</div>
+                                                <div onclick="openModal('physics/03b/0306_youngs_double_slit.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.06 - 楊氏雙縫實驗" data-en="3.06 - Young&#039;s Double-Slit Experiment">3.06 - 楊氏雙縫實驗</div>
+                                                <div onclick="openModal('physics/03b/0307_signal_generator.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="3.07 - 訊號產生器" data-en="3.07 - Signal Generator">3.07 - 訊號產生器</div>
+                                                <div onclick="openModal('physics/04b/0405_magnetic_field_lines.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="4.05 - 磁場線" data-en="4.05 - Magnetic Field Lines">4.05 - 磁場線</div>
+                                                <div onclick="openModal('physics/04b/0406_mass_spectrometer.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="4.06 - 質譜儀" data-en="4.06 - Mass Spectrometer">4.06 - 質譜儀</div>
+                                                <div onclick="openModal('physics/05/0501_geiger_muller_counter.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="5.01 - 蓋革-米勒計數器" data-en="5.01 - Geiger-Muller Counter">5.01 - 蓋革-米勒計數器</div>
+                                                <div onclick="openModal('physics/e01/e0104_fraunhofer_lines.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E1.04 - 夫朗和斐譜線" data-en="E1.04 - Fraunhofer Lines">E1.04 - 夫朗和斐譜線</div>
+                                                <div onclick="openModal('physics/e02/e0201_rutherford_experiment.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E2.01 - 拉塞福散射實驗" data-en="E2.01 - Rutherford Scattering Experiment">E2.01 - 拉塞福散射實驗</div>
+                                                <div onclick="openModal('physics/e02/e0201_photoelectric_effect.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E2.01 - 光電效應" data-en="E2.01 - Photoelectric Effect">E2.01 - 光電效應</div>
+                                                <div onclick="openModal('physics/e02/e0202_electron_transition.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E2.02 - 電子躍遷" data-en="E2.02 - Electron Transition">E2.02 - 電子躍遷</div>
+                                                <div onclick="openModal('physics/e02/e0202_emission_line_spectra.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E2.02 - 發射線光譜" data-en="E2.02 - Emission Line Spectra">E2.02 - 發射線光譜</div>
+                                                <div onclick="openModal('physics/e03/e0301_air-conditioner.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.01 - 空調" data-en="E3.01 - Air-Conditioner">E3.01 - 空調</div>
+                                                <div onclick="openModal('physics/e03/e0303_thermal_conductivity.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.03 - 熱導率" data-en="E3.03 - Thermal Conductivity">E3.03 - 熱導率</div>
+                                                <div onclick="openModal('physics/e03/e0303_ottv.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.03 - 總熱傳值" data-en="E3.03 - OTTV">E3.03 - 總熱傳值</div>
+                                                <div onclick="openModal('physics/e03/e0303_cars.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.03 - 汽車（電動車）" data-en="E3.03 - Cars (Electric Vehicles)">E3.03 - 汽車（電動車）</div>
+                                                <div onclick="openModal('physics/e03/e0304_wind_power.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.04 - 風力發電" data-en="E3.04 - Wind Power">E3.04 - 風力發電</div>
+                                                <div onclick="openModal('physics/e03/e0304_photovoltaic_plate.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="E3.04 - 光伏板" data-en="E3.04 - Photovoltaic Plate">E3.04 - 光伏板</div>
                                             </div>
                 </div>
                                 <div class="nav-group border-t border-slate-700/50 mt-1">
@@ -167,31 +379,31 @@
                         <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md ">
-                                                <a href="astronomy/hr_diagram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="赫羅圖" data-en="Hertzsprung-Russell Diagram">赫羅圖</a>
-                                                <a href="astronomy/analemma.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="日行跡" data-en="Analemma">日行跡</a>
-                                                <a href="astronomy/solar_system_model.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="太陽系模型" data-en="Solar System Model">太陽系模型</a>
+                                                <div onclick="openModal('astronomy/hr_diagram.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="赫羅圖" data-en="Hertzsprung-Russell Diagram">赫羅圖</div>
+                                                <div onclick="openModal('astronomy/analemma.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="日行跡" data-en="Analemma">日行跡</div>
+                                                <div onclick="openModal('astronomy/solar_system_model.html')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="太陽系模型" data-en="Solar System Model">太陽系模型</div>
                                             </div>
                 </div>
                             </nav>
-        </aside>
+                </aside>
 
-        <!-- 3. 主顯示區域 -->
-        <main class="flex-1 ml-0 md:ml-64 p-4 md:p-8 transition-all duration-300">
-            
-            <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
-                <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
-                    <span id="breadcrumb-parent" data-zh="綜合科學" data-en="Integrated Science">綜合科學</span>
-                    <span class="mx-2">/</span>
-                    <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
-                </nav>
-                <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="綜合科學模擬實驗" data-en="Integrated Science Simulations">綜合科學模擬實驗</h1>
-            </div>
+                <!-- 3. 主顯示區域 -->
+                <main class="flex-1 transition-all duration-300 py-4 md:py-8 px-4 md:px-6 lg:px-8">
+                <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
+                    <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
+                        <span id="breadcrumb-parent" data-zh="綜合科學" data-en="Integrated Science">綜合科學</span>
+                        <span class="mx-2">/</span>
+                        <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
+                    </nav>
+                    <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="綜合科學模擬實驗" data-en="Integrated Science Simulations">綜合科學模擬實驗</h1>
+                </div>
 
-            <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                <a href="science/structure_of_cell.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                <div onclick="openModal('science/structure_of_cell.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/structure_of_cell_20260101134839.png" alt="單元 4 - 細胞結構" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - 細胞結構" data-en="Unit 4 - Structure of Cell">單元 4 - 細胞結構</h3>
@@ -200,11 +412,12 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                                <a href="science/cell_division.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                </div>
+                                        <div onclick="openModal('science/cell_division.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/cell_division_20260101134859.png" alt="單元 4 - 細胞分裂" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - 細胞分裂" data-en="Unit 4 - Cell Division">單元 4 - 細胞分裂</h3>
@@ -213,11 +426,12 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                                <a href="science/dna.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                </div>
+                                        <div onclick="openModal('science/dna.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/dna_20260101134902.png" alt="單元 4 - DNA" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - DNA" data-en="Unit 4 - DNA">單元 4 - DNA</h3>
@@ -226,11 +440,12 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                                <a href="science/microecosystem.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                </div>
+                                        <div onclick="openModal('science/microecosystem.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/microecosystem_20260101134907.png" alt="單元 7 - 微生態系統" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 7 - 微生態系統" data-en="Unit 7 - Micro-Ecosystem">單元 7 - 微生態系統</h3>
@@ -239,11 +454,12 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                                <a href="science/belljar_model.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                </div>
+                                        <div onclick="openModal('science/belljar_model.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/belljar_model_20260101134912.png" alt="單元 7 - 鐘罩模型" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 7 - 鐘罩模型" data-en="Unit 7 - Bell Jar Model">單元 7 - 鐘罩模型</h3>
@@ -252,11 +468,12 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                                <a href="science/electric_circuit.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
-                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                </div>
+                                        <div onclick="openModal('science/electric_circuit.html')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                                                    <img src="science/screenshots/electric_circuit_20260101134919.png" alt="單元 8 - 電路" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                                                <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
                                                 <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 8 - 電路" data-en="Unit 8 - Electric Circuit">單元 8 - 電路</h3>
@@ -265,16 +482,49 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
+                </div>
+                                            </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-copyright" id="footer-copyright" data-zh="版權 © Mr. Bryan Leung" data-en="Copyright © Mr. Bryan Leung">版權 © Mr. Bryan Leung</div>
+            <div class="footer-license" id="footer-license">
+                <span data-zh="開源及 Creative Commons，可以自由使用。" data-en="Open source and Creative Commons, free to use.">開源及 Creative Commons，可以自由使用。</span>
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" class="cc-link" title="Creative Commons Attribution 4.0 International License">
+                    <span class="cc-badge">CC BY 4.0</span>
                 </a>
-                            </div>
-        </main>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal for Simulation -->
+    <div id="sim-modal" onclick="closeModalOnBackdrop(event)">
+        <button id="sim-modal-close" onclick="closeModal(); event.stopPropagation();" aria-label="關閉">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <button id="sim-modal-capture" onclick="captureModal(); event.stopPropagation();" aria-label="截圖" title="截圖並下載為 PNG">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+        </button>
+        <div id="sim-modal-content" onclick="event.stopPropagation()">
+            <iframe id="sim-modal-iframe" src=""></iframe>
+        </div>
     </div>
 
     <script>
         let currentLang = 'zh';
-        const categoryData = {"Integrated Science":[{"category":"Integrated Science","title":"Unit 4 - Structure of Cell","url":"science\/structure_of_cell.html"},{"category":"Integrated Science","title":"Unit 4 - Cell Division","url":"science\/cell_division.html"},{"category":"Integrated Science","title":"Unit 4 - DNA","url":"science\/dna.html"},{"category":"Integrated Science","title":"Unit 7 - Micro-Ecosystem","url":"science\/microecosystem.html"},{"category":"Integrated Science","title":"Unit 7 - Bell Jar Model","url":"science\/belljar_model.html"},{"category":"Integrated Science","title":"Unit 8 - Electric Circuit","url":"science\/electric_circuit.html"}],"Biology":[{"category":"Biology","title":"Osmosis","url":"biology\/osmosis.html"},{"category":"Biology","title":"Cell Membrane Permeability","url":"biology\/cell_membrane_permeability.html"},{"category":"Biology","title":"Absorption of Nutrients in Small Intestine","url":"biology\/absorption_ileum.html"}],"Chemistry":[{"category":"Chemistry","title":"Atomic Structure","url":"chem\/atomic_structure.html"},{"category":"Chemistry","title":"Relative Atomic Mass","url":"chem\/ram.html"},{"category":"Chemistry","title":"Electrolysis","url":"chem\/electrolysis.html"},{"category":"Chemistry","title":"Atoms and their Orbitals","url":"chem\/orbital.html"},{"category":"Chemistry","title":"Firework Display","url":"chem\/firework_display.html"}],"Physics":[{"category":"Physics","title":"1.01 - Calibration of a Thermometer","url":"physics\/01\/0101_calibration_of_thermometer.html"},{"category":"Physics","title":"1.01 - Clinical Thermometer","url":"physics\/01\/0101_clinical_thermometer.html"},{"category":"Physics","title":"1.02 - Conduction","url":"physics\/01\/0102_conduction.html"},{"category":"Physics","title":"1.02 - Convection","url":"physics\/01\/0102_convection.html"},{"category":"Physics","title":"1.02 - Radiation and Colour","url":"physics\/01\/0102_radiation_and_colour.html"},{"category":"Physics","title":"1.03 - Specific Heat Capacity","url":"physics\/01\/0103_specific_heat_capacity.html"},{"category":"Physics","title":"1.03 - Specific Heat Capacity 2","url":"physics\/01\/0103_specific_heat_capacity2.html"},{"category":"Physics","title":"1.03 - Thermal Equilibrium","url":"physics\/01\/0103_thermal_equilibrium.html"},{"category":"Physics","title":"1.05 - Gas Laws","url":"physics\/01\/0105_gas_laws.html"},{"category":"Physics","title":"1.05 - Distribution of Gas Speed","url":"physics\/01\/0105_distribution_gas_speed.html"},{"category":"Physics","title":"2.02 - Free Fall","url":"physics\/02\/0202_freefall.html"},{"category":"Physics","title":"2.10 - Cavendish Experiment","url":"physics\/02\/0210_cavendish_experiment.html"},{"category":"Physics","title":"3.01 - How do we see","url":"physics\/03a\/0301_how_we_see.html"},{"category":"Physics","title":"3.01 - Laws of Reflection","url":"physics\/03a\/0301_laws_of_reflection.html"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram","url":"physics\/03a\/0301_plane_mirror_ray_diagram.html"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram 2","url":"physics\/03a\/0301_plane_mirror_ray_diagram2.html"},{"category":"Physics","title":"3.02 - Analogy of Refraction (Vehicle Model)","url":"physics\/03a\/0302_analogy_refraction.html"},{"category":"Physics","title":"3.02 - Snell\u0027s Law","url":"physics\/03a\/0302_snells_law.html"},{"category":"Physics","title":"3.02 - Dispersion","url":"physics\/03a\/0302_dispersion.html"},{"category":"Physics","title":"3.03 - Lens Ray Diagram (by Air Li from 4A)","url":"physics\/03a\/0303_lenses.html"},{"category":"Physics","title":"3.06 - Diffraction Grating","url":"physics\/03b\/0306_diffraction_grating.html"},{"category":"Physics","title":"3.06 - Young\u0027s Double-Slit Experiment","url":"physics\/03b\/0306_youngs_double_slit.html"},{"category":"Physics","title":"3.07 - Signal Generator","url":"physics\/03b\/0307_signal_generator.html"},{"category":"Physics","title":"4.05 - Magnetic Field Lines","url":"physics\/04b\/0405_magnetic_field_lines.html"},{"category":"Physics","title":"4.06 - Mass Spectrometer","url":"physics\/04b\/0406_mass_spectrometer.html"},{"category":"Physics","title":"5.01 - Geiger-Muller Counter","url":"physics\/05\/0501_geiger_muller_counter.html"},{"category":"Physics","title":"E1.04 - Fraunhofer Lines","url":"physics\/e01\/e0104_fraunhofer_lines.html"},{"category":"Physics","title":"E2.01 - Rutherford Scattering Experiment","url":"physics\/e02\/e0201_rutherford_experiment.html"},{"category":"Physics","title":"E2.01 - Photoelectric Effect","url":"physics\/e02\/e0201_photoelectric_effect.html"},{"category":"Physics","title":"E2.02 - Electron Transition","url":"physics\/e02\/e0202_electron_transition.html"},{"category":"Physics","title":"E2.02 - Emission Line Spectra","url":"physics\/e02\/e0202_emission_line_spectra.html"},{"category":"Physics","title":"E3.01 - Air-Conditioner","url":"physics\/e03\/e0301_air-conditioner.html"},{"category":"Physics","title":"E3.03 - Thermal Conductivity","url":"physics\/e03\/e0303_thermal_conductivity.html"},{"category":"Physics","title":"E3.03 - OTTV","url":"physics\/e03\/e0303_ottv.html"},{"category":"Physics","title":"E3.03 - Cars (Electric Vehicles)","url":"physics\/e03\/e0303_cars.html"},{"category":"Physics","title":"E3.04 - Wind Power","url":"physics\/e03\/e0304_wind_power.html"},{"category":"Physics","title":"E3.04 - Photovoltaic Plate","url":"physics\/e03\/e0304_photovoltaic_plate.html"}],"Astronomy":[{"category":"Astronomy","title":"Hertzsprung-Russell Diagram","url":"astronomy\/hr_diagram.html"},{"category":"Astronomy","title":"Analemma","url":"astronomy\/analemma.html"},{"category":"Astronomy","title":"Solar System Model","url":"astronomy\/solar_system_model.html"}]};
+        const categoryData = {"Integrated Science":[{"category":"Integrated Science","title":"Unit 4 - Structure of Cell","url":"science\/structure_of_cell.html","screenshot":"science\/screenshots\/structure_of_cell_20260101134839.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 4 - \u7d30\u80de\u7d50\u69cb","title_en":"Unit 4 - Structure of Cell"},{"category":"Integrated Science","title":"Unit 4 - Cell Division","url":"science\/cell_division.html","screenshot":"science\/screenshots\/cell_division_20260101134859.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 4 - \u7d30\u80de\u5206\u88c2","title_en":"Unit 4 - Cell Division"},{"category":"Integrated Science","title":"Unit 4 - DNA","url":"science\/dna.html","screenshot":"science\/screenshots\/dna_20260101134902.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 4 - DNA","title_en":"Unit 4 - DNA"},{"category":"Integrated Science","title":"Unit 7 - Micro-Ecosystem","url":"science\/microecosystem.html","screenshot":"science\/screenshots\/microecosystem_20260101134907.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 7 - \u5fae\u751f\u614b\u7cfb\u7d71","title_en":"Unit 7 - Micro-Ecosystem"},{"category":"Integrated Science","title":"Unit 7 - Bell Jar Model","url":"science\/belljar_model.html","screenshot":"science\/screenshots\/belljar_model_20260101134912.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 7 - \u9418\u7f69\u6a21\u578b","title_en":"Unit 7 - Bell Jar Model"},{"category":"Integrated Science","title":"Unit 8 - Electric Circuit","url":"science\/electric_circuit.html","screenshot":"science\/screenshots\/electric_circuit_20260101134919.png","category_zh":"\u7d9c\u5408\u79d1\u5b78","category_en":"Integrated Science","title_zh":"\u55ae\u5143 8 - \u96fb\u8def","title_en":"Unit 8 - Electric Circuit"}],"Biology":[{"category":"Biology","title":"Osmosis","url":"biology\/osmosis.html","screenshot":"biology\/screenshots\/osmosis_20260101140420.png","category_zh":"\u751f\u7269\u5b78","category_en":"Biology","title_zh":"\u6ef2\u900f\u4f5c\u7528","title_en":"Osmosis"},{"category":"Biology","title":"Cell Membrane Permeability","url":"biology\/cell_membrane_permeability.html","screenshot":"biology\/screenshots\/cell_membrane_permeability_20260101140430.png","category_zh":"\u751f\u7269\u5b78","category_en":"Biology","title_zh":"\u7d30\u80de\u819c\u901a\u900f\u6027","title_en":"Cell Membrane Permeability"},{"category":"Biology","title":"Absorption of Nutrients in Small Intestine","url":"biology\/absorption_ileum.html","screenshot":"biology\/screenshots\/absorption_ileum_20260101140435.png","category_zh":"\u751f\u7269\u5b78","category_en":"Biology","title_zh":"\u5c0f\u8178\u71df\u990a\u5438\u6536","title_en":"Absorption of Nutrients in Small Intestine"}],"Chemistry":[{"category":"Chemistry","title":"Atomic Structure","url":"chem\/atomic_structure.html","screenshot":"chem\/screenshots\/atomic_structure_20260101140447.png","category_zh":"\u5316\u5b78","category_en":"Chemistry","title_zh":"\u539f\u5b50\u7d50\u69cb","title_en":"Atomic Structure"},{"category":"Chemistry","title":"Relative Atomic Mass","url":"chem\/ram.html","screenshot":"chem\/screenshots\/ram_20260101140452.png","category_zh":"\u5316\u5b78","category_en":"Chemistry","title_zh":"\u76f8\u5c0d\u539f\u5b50\u8cea\u91cf","title_en":"Relative Atomic Mass"},{"category":"Chemistry","title":"Electrolysis","url":"chem\/electrolysis.html","screenshot":"chem\/screenshots\/electrolysis_20260101140456.png","category_zh":"\u5316\u5b78","category_en":"Chemistry","title_zh":"\u96fb\u89e3","title_en":"Electrolysis"},{"category":"Chemistry","title":"Atoms and their Orbitals","url":"chem\/orbital.html","screenshot":"chem\/screenshots\/orbital_20260101140502.png","category_zh":"\u5316\u5b78","category_en":"Chemistry","title_zh":"\u539f\u5b50\u53ca\u5176\u8ecc\u9053","title_en":"Atoms and their Orbitals"},{"category":"Chemistry","title":"Firework Display","url":"chem\/firework_display.html","screenshot":"chem\/screenshots\/firework_display_20260101140508.png","category_zh":"\u5316\u5b78","category_en":"Chemistry","title_zh":"\u7159\u82b1\u5c55\u793a","title_en":"Firework Display"}],"Physics":[{"category":"Physics","title":"1.01 - Calibration of a Thermometer","url":"physics\/01\/0101_calibration_of_thermometer.html","screenshot":"physics\/screenshots\/0101_calibration_of_thermometer_20260101141217.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.01 - \u6eab\u5ea6\u8a08\u7684\u6821\u6e96","title_en":"1.01 - Calibration of a Thermometer"},{"category":"Physics","title":"1.01 - Clinical Thermometer","url":"physics\/01\/0101_clinical_thermometer.html","screenshot":"physics\/screenshots\/0101_clinical_thermometer_20260101143147.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.01 - \u9ad4\u6eab\u8a08","title_en":"1.01 - Clinical Thermometer"},{"category":"Physics","title":"1.02 - Conduction","url":"physics\/01\/0102_conduction.html","screenshot":"physics\/screenshots\/0102_conduction_20260101141225.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.02 - \u50b3\u5c0e","title_en":"1.02 - Conduction"},{"category":"Physics","title":"1.02 - Convection","url":"physics\/01\/0102_convection.html","screenshot":"physics\/screenshots\/0102_convection_20260101141228.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.02 - \u5c0d\u6d41","title_en":"1.02 - Convection"},{"category":"Physics","title":"1.02 - Radiation and Colour","url":"physics\/01\/0102_radiation_and_colour.html","screenshot":"physics\/screenshots\/0102_radiation_and_colour_20260101141232.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.02 - \u8f3b\u5c04\u8207\u984f\u8272","title_en":"1.02 - Radiation and Colour"},{"category":"Physics","title":"1.03 - Specific Heat Capacity","url":"physics\/01\/0103_specific_heat_capacity.html","screenshot":"physics\/screenshots\/0103_specific_heat_capacity_20260101141244.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.03 - \u6bd4\u71b1\u5bb9","title_en":"1.03 - Specific Heat Capacity"},{"category":"Physics","title":"1.03 - Specific Heat Capacity 2","url":"physics\/01\/0103_specific_heat_capacity2.html","screenshot":"physics\/screenshots\/0103_specific_heat_capacity2_20260101141258.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.03 - \u6bd4\u71b1\u5bb9 2","title_en":"1.03 - Specific Heat Capacity 2"},{"category":"Physics","title":"1.03 - Thermal Equilibrium","url":"physics\/01\/0103_thermal_equilibrium.html","screenshot":"physics\/screenshots\/0103_thermal_equilibrium_20260101141306.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.03 - \u71b1\u5e73\u8861","title_en":"1.03 - Thermal Equilibrium"},{"category":"Physics","title":"1.05 - Gas Laws","url":"physics\/01\/0105_gas_laws.html","screenshot":"physics\/screenshots\/0105_gas_laws_20260101141329.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.05 - \u6c23\u9ad4\u5b9a\u5f8b","title_en":"1.05 - Gas Laws"},{"category":"Physics","title":"1.05 - Distribution of Gas Speed","url":"physics\/01\/0105_distribution_gas_speed.html","screenshot":"physics\/screenshots\/0105_distribution_gas_speed_20260101141422.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"1.05 - \u6c23\u9ad4\u901f\u5ea6\u5206\u4f48","title_en":"1.05 - Distribution of Gas Speed"},{"category":"Physics","title":"2.02 - Free Fall","url":"physics\/02\/0202_freefall.html","screenshot":"physics\/screenshots\/0202_freefall_20260101141430.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"2.02 - \u81ea\u7531\u843d\u9ad4","title_en":"2.02 - Free Fall"},{"category":"Physics","title":"2.10 - Cavendish Experiment","url":"physics\/02\/0210_cavendish_experiment.html","screenshot":"physics\/screenshots\/0210_cavendish_experiment_20260101141437.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"2.10 - \u5361\u6587\u8fea\u8a31\u5be6\u9a57","title_en":"2.10 - Cavendish Experiment"},{"category":"Physics","title":"3.01 - How do we see","url":"physics\/03a\/0301_how_we_see.html","screenshot":"physics\/screenshots\/0301_how_we_see_20260101141451.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.01 - \u6211\u5011\u5982\u4f55\u770b\u898b","title_en":"3.01 - How do we see"},{"category":"Physics","title":"3.01 - Laws of Reflection","url":"physics\/03a\/0301_laws_of_reflection.html","screenshot":"physics\/screenshots\/0301_laws_of_reflection_20260101141457.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.01 - \u53cd\u5c04\u5b9a\u5f8b","title_en":"3.01 - Laws of Reflection"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram","url":"physics\/03a\/0301_plane_mirror_ray_diagram.html","screenshot":"physics\/screenshots\/0301_plane_mirror_ray_diagram_20260101141500.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716","title_en":"3.01 - Plane Mirror Ray Diagram"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram 2","url":"physics\/03a\/0301_plane_mirror_ray_diagram2.html","screenshot":"physics\/screenshots\/0301_plane_mirror_ray_diagram2_20260101141504.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716 2","title_en":"3.01 - Plane Mirror Ray Diagram 2"},{"category":"Physics","title":"3.02 - Analogy of Refraction (Vehicle Model)","url":"physics\/03a\/0302_analogy_refraction.html","screenshot":"physics\/screenshots\/0302_analogy_refraction_20260101141508.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.02 - \u6298\u5c04\u985e\u6bd4\uff08\u8eca\u8f1b\u6a21\u578b\uff09","title_en":"3.02 - Analogy of Refraction (Vehicle Model)"},{"category":"Physics","title":"3.02 - Snell\u0027s Law","url":"physics\/03a\/0302_snells_law.html","screenshot":"physics\/screenshots\/0302_snells_law_20260101141511.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.02 - \u65af\u6d85\u723e\u5b9a\u5f8b","title_en":"3.02 - Snell\u0027s Law"},{"category":"Physics","title":"3.02 - Dispersion","url":"physics\/03a\/0302_dispersion.html","screenshot":"physics\/screenshots\/0302_dispersion_20260101141525.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.02 - \u8272\u6563","title_en":"3.02 - Dispersion"},{"category":"Physics","title":"3.03 - Lens Ray Diagram (by Air Li from 4A)","url":"physics\/03a\/0303_lenses.html","screenshot":"physics\/screenshots\/0303_lenses_20260101141529.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.03 - \u900f\u93e1\u5149\u7dda\u5716\uff08\u7531 4A Air Li \u63d0\u4f9b\uff09","title_en":"3.03 - Lens Ray Diagram (by Air Li from 4A)"},{"category":"Physics","title":"3.06 - Diffraction Grating","url":"physics\/03b\/0306_diffraction_grating.html","screenshot":"physics\/screenshots\/0306_diffraction_grating_20260101141532.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.06 - \u7e5e\u5c04\u5149\u67f5","title_en":"3.06 - Diffraction Grating"},{"category":"Physics","title":"3.06 - Young\u0027s Double-Slit Experiment","url":"physics\/03b\/0306_youngs_double_slit.html","screenshot":"physics\/screenshots\/0306_youngs_double_slit_20260101141537.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.06 - \u694a\u6c0f\u96d9\u7e2b\u5be6\u9a57","title_en":"3.06 - Young\u0027s Double-Slit Experiment"},{"category":"Physics","title":"3.07 - Signal Generator","url":"physics\/03b\/0307_signal_generator.html","screenshot":"physics\/screenshots\/0307_signal_generator_20260101141541.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"3.07 - \u8a0a\u865f\u7522\u751f\u5668","title_en":"3.07 - Signal Generator"},{"category":"Physics","title":"4.05 - Magnetic Field Lines","url":"physics\/04b\/0405_magnetic_field_lines.html","screenshot":"physics\/screenshots\/0405_magnetic_field_lines_20260101141549.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"4.05 - \u78c1\u5834\u7dda","title_en":"4.05 - Magnetic Field Lines"},{"category":"Physics","title":"4.06 - Mass Spectrometer","url":"physics\/04b\/0406_mass_spectrometer.html","screenshot":"physics\/screenshots\/0406_mass_spectrometer_20260101143604.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"4.06 - \u8cea\u8b5c\u5100","title_en":"4.06 - Mass Spectrometer"},{"category":"Physics","title":"5.01 - Geiger-Muller Counter","url":"physics\/05\/0501_geiger_muller_counter.html","screenshot":"physics\/screenshots\/0501_geiger_muller_counter_20260101143609.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"5.01 - \u84cb\u9769-\u7c73\u52d2\u8a08\u6578\u5668","title_en":"5.01 - Geiger-Muller Counter"},{"category":"Physics","title":"E1.04 - Fraunhofer Lines","url":"physics\/e01\/e0104_fraunhofer_lines.html","screenshot":"physics\/screenshots\/e0104_fraunhofer_lines_20260101143615.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E1.04 - \u592b\u6717\u548c\u6590\u8b5c\u7dda","title_en":"E1.04 - Fraunhofer Lines"},{"category":"Physics","title":"E2.01 - Rutherford Scattering Experiment","url":"physics\/e02\/e0201_rutherford_experiment.html","screenshot":"physics\/screenshots\/e0201_rutherford_experiment_20260101143636.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E2.01 - \u62c9\u585e\u798f\u6563\u5c04\u5be6\u9a57","title_en":"E2.01 - Rutherford Scattering Experiment"},{"category":"Physics","title":"E2.01 - Photoelectric Effect","url":"physics\/e02\/e0201_photoelectric_effect.html","screenshot":"physics\/screenshots\/e0201_photoelectric_effect_20260101143640.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E2.01 - \u5149\u96fb\u6548\u61c9","title_en":"E2.01 - Photoelectric Effect"},{"category":"Physics","title":"E2.02 - Electron Transition","url":"physics\/e02\/e0202_electron_transition.html","screenshot":"physics\/screenshots\/e0202_electron_transition_20260101143644.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E2.02 - \u96fb\u5b50\u8e8d\u9077","title_en":"E2.02 - Electron Transition"},{"category":"Physics","title":"E2.02 - Emission Line Spectra","url":"physics\/e02\/e0202_emission_line_spectra.html","screenshot":"physics\/screenshots\/e0202_emission_line_spectra_20260101143647.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E2.02 - \u767c\u5c04\u7dda\u5149\u8b5c","title_en":"E2.02 - Emission Line Spectra"},{"category":"Physics","title":"E3.01 - Air-Conditioner","url":"physics\/e03\/e0301_air-conditioner.html","screenshot":"physics\/screenshots\/e0301_air-conditioner_20260101143651.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.01 - \u7a7a\u8abf","title_en":"E3.01 - Air-Conditioner"},{"category":"Physics","title":"E3.03 - Thermal Conductivity","url":"physics\/e03\/e0303_thermal_conductivity.html","screenshot":"physics\/screenshots\/e0303_thermal_conductivity_20260101143655.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.03 - \u71b1\u5c0e\u7387","title_en":"E3.03 - Thermal Conductivity"},{"category":"Physics","title":"E3.03 - OTTV","url":"physics\/e03\/e0303_ottv.html","screenshot":"physics\/screenshots\/e0303_ottv_20260101143702.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.03 - \u7e3d\u71b1\u50b3\u503c","title_en":"E3.03 - OTTV"},{"category":"Physics","title":"E3.03 - Cars (Electric Vehicles)","url":"physics\/e03\/e0303_cars.html","screenshot":"physics\/screenshots\/e0303_cars_20260101143706.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.03 - \u6c7d\u8eca\uff08\u96fb\u52d5\u8eca\uff09","title_en":"E3.03 - Cars (Electric Vehicles)"},{"category":"Physics","title":"E3.04 - Wind Power","url":"physics\/e03\/e0304_wind_power.html","screenshot":"physics\/screenshots\/e0304_wind_power_20260101143710.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.04 - \u98a8\u529b\u767c\u96fb","title_en":"E3.04 - Wind Power"},{"category":"Physics","title":"E3.04 - Photovoltaic Plate","url":"physics\/e03\/e0304_photovoltaic_plate.html","screenshot":"physics\/screenshots\/e0304_photovoltaic_plate_20260101143716.png","category_zh":"\u7269\u7406","category_en":"Physics","title_zh":"E3.04 - \u5149\u4f0f\u677f","title_en":"E3.04 - Photovoltaic Plate"}],"Astronomy":[{"category":"Astronomy","title":"Hertzsprung-Russell Diagram","url":"astronomy\/hr_diagram.html","screenshot":"astronomy\/screenshots\/hr_diagram_20260101140520.png","category_zh":"\u5929\u6587\u5b78","category_en":"Astronomy","title_zh":"\u8d6b\u7f85\u5716","title_en":"Hertzsprung-Russell Diagram"},{"category":"Astronomy","title":"Analemma","url":"astronomy\/analemma.html","screenshot":"astronomy\/screenshots\/analemma_20260101140525.png","category_zh":"\u5929\u6587\u5b78","category_en":"Astronomy","title_zh":"\u65e5\u884c\u8de1","title_en":"Analemma"},{"category":"Astronomy","title":"Solar System Model","url":"astronomy\/solar_system_model.html","screenshot":"astronomy\/screenshots\/solar_system_model_20260101140532.png","category_zh":"\u5929\u6587\u5b78","category_en":"Astronomy","title_zh":"\u592a\u967d\u7cfb\u6a21\u578b","title_en":"Solar System Model"}]};
         const categoryMap = {"Integrated Science":{"zh":"\u7d9c\u5408\u79d1\u5b78","en":"Integrated Science"},"Biology":{"zh":"\u751f\u7269\u5b78","en":"Biology"},"Chemistry":{"zh":"\u5316\u5b78","en":"Chemistry"},"Physics":{"zh":"\u7269\u7406","en":"Physics"},"Astronomy":{"zh":"\u5929\u6587\u5b78","en":"Astronomy"}};
-        const titleMap = {"Unit 4 - Structure of Cell":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u7d50\u69cb","en":"Unit 4 - Structure of Cell"},"Unit 4 - Cell Division":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u5206\u88c2","en":"Unit 4 - Cell Division"},"Unit 4 - DNA":{"zh":"\u55ae\u5143 4 - DNA","en":"Unit 4 - DNA"},"Unit 7 - Micro-Ecosystem":{"zh":"\u55ae\u5143 7 - \u5fae\u751f\u614b\u7cfb\u7d71","en":"Unit 7 - Micro-Ecosystem"},"Unit 7 - Bell Jar Model":{"zh":"\u55ae\u5143 7 - \u9418\u7f69\u6a21\u578b","en":"Unit 7 - Bell Jar Model"},"Unit 8 - Electric Circuit":{"zh":"\u55ae\u5143 8 - \u96fb\u8def","en":"Unit 8 - Electric Circuit"},"Osmosis":{"zh":"\u6ef2\u900f\u4f5c\u7528","en":"Osmosis"},"Cell Membrane Permeability":{"zh":"\u7d30\u80de\u819c\u901a\u900f\u6027","en":"Cell Membrane Permeability"},"Absorption of Nutrients in Small Intestine":{"zh":"\u5c0f\u8178\u71df\u990a\u5438\u6536","en":"Absorption of Nutrients in Small Intestine"},"Atomic Structure":{"zh":"\u539f\u5b50\u7d50\u69cb","en":"Atomic Structure"},"Relative Atomic Mass":{"zh":"\u76f8\u5c0d\u539f\u5b50\u8cea\u91cf","en":"Relative Atomic Mass"},"Electrolysis":{"zh":"\u96fb\u89e3","en":"Electrolysis"},"Atoms and their Orbitals":{"zh":"\u539f\u5b50\u53ca\u5176\u8ecc\u9053","en":"Atoms and their Orbitals"},"Firework Display":{"zh":"\u7159\u82b1\u5c55\u793a","en":"Firework Display"},"1.01 - Calibration of a Thermometer":{"zh":"1.01 - \u6eab\u5ea6\u8a08\u7684\u6821\u6e96","en":"1.01 - Calibration of a Thermometer"},"1.01 - Clinical Thermometer":{"zh":"1.01 - \u9ad4\u6eab\u8a08","en":"1.01 - Clinical Thermometer"},"1.02 - Conduction":{"zh":"1.02 - \u50b3\u5c0e","en":"1.02 - Conduction"},"1.02 - Convection":{"zh":"1.02 - \u5c0d\u6d41","en":"1.02 - Convection"},"1.02 - Radiation and Colour":{"zh":"1.02 - \u8f3b\u5c04\u8207\u984f\u8272","en":"1.02 - Radiation and Colour"},"1.03 - Specific Heat Capacity":{"zh":"1.03 - \u6bd4\u71b1\u5bb9","en":"1.03 - Specific Heat Capacity"},"1.03 - Specific Heat Capacity 2":{"zh":"1.03 - \u6bd4\u71b1\u5bb9 2","en":"1.03 - Specific Heat Capacity 2"},"1.03 - Thermal Equilibrium":{"zh":"1.03 - \u71b1\u5e73\u8861","en":"1.03 - Thermal Equilibrium"},"1.05 - Gas Laws":{"zh":"1.05 - \u6c23\u9ad4\u5b9a\u5f8b","en":"1.05 - Gas Laws"},"1.05 - Distribution of Gas Speed":{"zh":"1.05 - \u6c23\u9ad4\u901f\u5ea6\u5206\u4f48","en":"1.05 - Distribution of Gas Speed"},"2.02 - Free Fall":{"zh":"2.02 - \u81ea\u7531\u843d\u9ad4","en":"2.02 - Free Fall"},"2.10 - Cavendish Experiment":{"zh":"2.10 - \u5361\u6587\u8fea\u8a31\u5be6\u9a57","en":"2.10 - Cavendish Experiment"},"3.01 - How do we see":{"zh":"3.01 - \u6211\u5011\u5982\u4f55\u770b\u898b","en":"3.01 - How do we see"},"3.01 - Laws of Reflection":{"zh":"3.01 - \u53cd\u5c04\u5b9a\u5f8b","en":"3.01 - Laws of Reflection"},"3.01 - Plane Mirror Ray Diagram":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716","en":"3.01 - Plane Mirror Ray Diagram"},"3.01 - Plane Mirror Ray Diagram 2":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716 2","en":"3.01 - Plane Mirror Ray Diagram 2"},"3.02 - Analogy of Refraction (Vehicle Model)":{"zh":"3.02 - \u6298\u5c04\u985e\u6bd4\uff08\u8eca\u8f1b\u6a21\u578b\uff09","en":"3.02 - Analogy of Refraction (Vehicle Model)"},"3.02 - Snell\u0027s Law":{"zh":"3.02 - \u65af\u6d85\u723e\u5b9a\u5f8b","en":"3.02 - Snell\u0027s Law"},"3.02 - Dispersion":{"zh":"3.02 - \u8272\u6563","en":"3.02 - Dispersion"},"3.03 - Lens Ray Diagram (by Air Li from 4A)":{"zh":"3.03 - \u900f\u93e1\u5149\u7dda\u5716\uff08\u7531 4A Air Li \u63d0\u4f9b\uff09","en":"3.03 - Lens Ray Diagram (by Air Li from 4A)"},"3.06 - Diffraction Grating":{"zh":"3.06 - \u7e5e\u5c04\u5149\u67f5","en":"3.06 - Diffraction Grating"},"3.06 - Young\u0027s Double-Slit Experiment":{"zh":"3.06 - \u694a\u6c0f\u96d9\u7e2b\u5be6\u9a57","en":"3.06 - Young\u0027s Double-Slit Experiment"},"3.07 - Signal Generator":{"zh":"3.07 - \u4fe1\u865f\u767c\u751f\u5668","en":"3.07 - Signal Generator"},"4.05 - Magnetic Field Lines":{"zh":"4.05 - \u78c1\u5834\u7dda","en":"4.05 - Magnetic Field Lines"},"4.06 - Mass Spectrometer":{"zh":"4.06 - \u8cea\u8b5c\u5100","en":"4.06 - Mass Spectrometer"},"5.01 - Geiger-Muller Counter":{"zh":"5.01 - \u84cb\u9769-\u7c73\u52d2\u8a08\u6578\u5668","en":"5.01 - Geiger-Muller Counter"},"E1.04 - Fraunhofer Lines":{"zh":"E1.04 - \u592b\u6717\u548c\u6590\u8b5c\u7dda","en":"E1.04 - Fraunhofer Lines"},"E2.01 - Rutherford Scattering Experiment":{"zh":"E2.01 - \u62c9\u585e\u798f\u6563\u5c04\u5be6\u9a57","en":"E2.01 - Rutherford Scattering Experiment"},"E2.01 - Photoelectric Effect":{"zh":"E2.01 - \u5149\u96fb\u6548\u61c9","en":"E2.01 - Photoelectric Effect"},"E2.02 - Electron Transition":{"zh":"E2.02 - \u96fb\u5b50\u8e8d\u9077","en":"E2.02 - Electron Transition"},"E2.02 - Emission Line Spectra":{"zh":"E2.02 - \u767c\u5c04\u7dda\u5149\u8b5c","en":"E2.02 - Emission Line Spectra"},"E3.01 - Air-Conditioner":{"zh":"E3.01 - \u7a7a\u8abf","en":"E3.01 - Air-Conditioner"},"E3.03 - Thermal Conductivity":{"zh":"E3.03 - \u71b1\u5c0e\u7387","en":"E3.03 - Thermal Conductivity"},"E3.03 - OTTV":{"zh":"E3.03 - \u7e3d\u71b1\u50b3\u503c","en":"E3.03 - OTTV"},"E3.03 - Cars (Electric Vehicles)":{"zh":"E3.03 - \u6c7d\u8eca\uff08\u96fb\u52d5\u8eca\uff09","en":"E3.03 - Cars (Electric Vehicles)"},"E3.04 - Wind Power":{"zh":"E3.04 - \u98a8\u529b\u767c\u96fb","en":"E3.04 - Wind Power"},"E3.04 - Photovoltaic Plate":{"zh":"E3.04 - \u5149\u4f0f\u677f","en":"E3.04 - Photovoltaic Plate"},"Hertzsprung-Russell Diagram":{"zh":"\u8d6b\u7f85\u5716","en":"Hertzsprung-Russell Diagram"},"Analemma":{"zh":"\u65e5\u884c\u8de1","en":"Analemma"},"Solar System Model":{"zh":"\u592a\u967d\u7cfb\u6a21\u578b","en":"Solar System Model"}};
+        const titleMap = {"Unit 4 - Structure of Cell":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u7d50\u69cb","en":"Unit 4 - Structure of Cell"},"Unit 4 - Cell Division":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u5206\u88c2","en":"Unit 4 - Cell Division"},"Unit 4 - DNA":{"zh":"\u55ae\u5143 4 - DNA","en":"Unit 4 - DNA"},"Unit 7 - Micro-Ecosystem":{"zh":"\u55ae\u5143 7 - \u5fae\u751f\u614b\u7cfb\u7d71","en":"Unit 7 - Micro-Ecosystem"},"Unit 7 - Bell Jar Model":{"zh":"\u55ae\u5143 7 - \u9418\u7f69\u6a21\u578b","en":"Unit 7 - Bell Jar Model"},"Unit 8 - Electric Circuit":{"zh":"\u55ae\u5143 8 - \u96fb\u8def","en":"Unit 8 - Electric Circuit"},"Osmosis":{"zh":"\u6ef2\u900f\u4f5c\u7528","en":"Osmosis"},"Cell Membrane Permeability":{"zh":"\u7d30\u80de\u819c\u901a\u900f\u6027","en":"Cell Membrane Permeability"},"Absorption of Nutrients in Small Intestine":{"zh":"\u5c0f\u8178\u71df\u990a\u5438\u6536","en":"Absorption of Nutrients in Small Intestine"},"Atomic Structure":{"zh":"\u539f\u5b50\u7d50\u69cb","en":"Atomic Structure"},"Relative Atomic Mass":{"zh":"\u76f8\u5c0d\u539f\u5b50\u8cea\u91cf","en":"Relative Atomic Mass"},"Electrolysis":{"zh":"\u96fb\u89e3","en":"Electrolysis"},"Atoms and their Orbitals":{"zh":"\u539f\u5b50\u53ca\u5176\u8ecc\u9053","en":"Atoms and their Orbitals"},"Firework Display":{"zh":"\u7159\u82b1\u5c55\u793a","en":"Firework Display"},"1.01 - Calibration of a Thermometer":{"zh":"1.01 - \u6eab\u5ea6\u8a08\u7684\u6821\u6e96","en":"1.01 - Calibration of a Thermometer"},"1.01 - Clinical Thermometer":{"zh":"1.01 - \u9ad4\u6eab\u8a08","en":"1.01 - Clinical Thermometer"},"1.02 - Conduction":{"zh":"1.02 - \u50b3\u5c0e","en":"1.02 - Conduction"},"1.02 - Convection":{"zh":"1.02 - \u5c0d\u6d41","en":"1.02 - Convection"},"1.02 - Radiation and Colour":{"zh":"1.02 - \u8f3b\u5c04\u8207\u984f\u8272","en":"1.02 - Radiation and Colour"},"1.03 - Specific Heat Capacity":{"zh":"1.03 - \u6bd4\u71b1\u5bb9","en":"1.03 - Specific Heat Capacity"},"1.03 - Specific Heat Capacity 2":{"zh":"1.03 - \u6bd4\u71b1\u5bb9 2","en":"1.03 - Specific Heat Capacity 2"},"1.03 - Thermal Equilibrium":{"zh":"1.03 - \u71b1\u5e73\u8861","en":"1.03 - Thermal Equilibrium"},"1.05 - Gas Laws":{"zh":"1.05 - \u6c23\u9ad4\u5b9a\u5f8b","en":"1.05 - Gas Laws"},"1.05 - Distribution of Gas Speed":{"zh":"1.05 - \u6c23\u9ad4\u901f\u5ea6\u5206\u4f48","en":"1.05 - Distribution of Gas Speed"},"2.02 - Free Fall":{"zh":"2.02 - \u81ea\u7531\u843d\u9ad4","en":"2.02 - Free Fall"},"2.10 - Cavendish Experiment":{"zh":"2.10 - \u5361\u6587\u8fea\u8a31\u5be6\u9a57","en":"2.10 - Cavendish Experiment"},"3.01 - How do we see":{"zh":"3.01 - \u6211\u5011\u5982\u4f55\u770b\u898b","en":"3.01 - How do we see"},"3.01 - Laws of Reflection":{"zh":"3.01 - \u53cd\u5c04\u5b9a\u5f8b","en":"3.01 - Laws of Reflection"},"3.01 - Plane Mirror Ray Diagram":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716","en":"3.01 - Plane Mirror Ray Diagram"},"3.01 - Plane Mirror Ray Diagram 2":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716 2","en":"3.01 - Plane Mirror Ray Diagram 2"},"3.02 - Analogy of Refraction (Vehicle Model)":{"zh":"3.02 - \u6298\u5c04\u985e\u6bd4\uff08\u8eca\u8f1b\u6a21\u578b\uff09","en":"3.02 - Analogy of Refraction (Vehicle Model)"},"3.02 - Snell\u0027s Law":{"zh":"3.02 - \u65af\u6d85\u723e\u5b9a\u5f8b","en":"3.02 - Snell\u0027s Law"},"3.02 - Dispersion":{"zh":"3.02 - \u8272\u6563","en":"3.02 - Dispersion"},"3.03 - Lens Ray Diagram (by Air Li from 4A)":{"zh":"3.03 - \u900f\u93e1\u5149\u7dda\u5716\uff08\u7531 4A Air Li \u63d0\u4f9b\uff09","en":"3.03 - Lens Ray Diagram (by Air Li from 4A)"},"3.06 - Diffraction Grating":{"zh":"3.06 - \u7e5e\u5c04\u5149\u67f5","en":"3.06 - Diffraction Grating"},"3.06 - Young\u0027s Double-Slit Experiment":{"zh":"3.06 - \u694a\u6c0f\u96d9\u7e2b\u5be6\u9a57","en":"3.06 - Young\u0027s Double-Slit Experiment"},"3.07 - Signal Generator":{"zh":"3.07 - \u8a0a\u865f\u7522\u751f\u5668","en":"3.07 - Signal Generator"},"4.05 - Magnetic Field Lines":{"zh":"4.05 - \u78c1\u5834\u7dda","en":"4.05 - Magnetic Field Lines"},"4.06 - Mass Spectrometer":{"zh":"4.06 - \u8cea\u8b5c\u5100","en":"4.06 - Mass Spectrometer"},"5.01 - Geiger-Muller Counter":{"zh":"5.01 - \u84cb\u9769-\u7c73\u52d2\u8a08\u6578\u5668","en":"5.01 - Geiger-Muller Counter"},"E1.04 - Fraunhofer Lines":{"zh":"E1.04 - \u592b\u6717\u548c\u6590\u8b5c\u7dda","en":"E1.04 - Fraunhofer Lines"},"E2.01 - Rutherford Scattering Experiment":{"zh":"E2.01 - \u62c9\u585e\u798f\u6563\u5c04\u5be6\u9a57","en":"E2.01 - Rutherford Scattering Experiment"},"E2.01 - Photoelectric Effect":{"zh":"E2.01 - \u5149\u96fb\u6548\u61c9","en":"E2.01 - Photoelectric Effect"},"E2.02 - Electron Transition":{"zh":"E2.02 - \u96fb\u5b50\u8e8d\u9077","en":"E2.02 - Electron Transition"},"E2.02 - Emission Line Spectra":{"zh":"E2.02 - \u767c\u5c04\u7dda\u5149\u8b5c","en":"E2.02 - Emission Line Spectra"},"E3.01 - Air-Conditioner":{"zh":"E3.01 - \u7a7a\u8abf","en":"E3.01 - Air-Conditioner"},"E3.03 - Thermal Conductivity":{"zh":"E3.03 - \u71b1\u5c0e\u7387","en":"E3.03 - Thermal Conductivity"},"E3.03 - OTTV":{"zh":"E3.03 - \u7e3d\u71b1\u50b3\u503c","en":"E3.03 - OTTV"},"E3.03 - Cars (Electric Vehicles)":{"zh":"E3.03 - \u6c7d\u8eca\uff08\u96fb\u52d5\u8eca\uff09","en":"E3.03 - Cars (Electric Vehicles)"},"E3.04 - Wind Power":{"zh":"E3.04 - \u98a8\u529b\u767c\u96fb","en":"E3.04 - Wind Power"},"E3.04 - Photovoltaic Plate":{"zh":"E3.04 - \u5149\u4f0f\u677f","en":"E3.04 - Photovoltaic Plate"},"Hertzsprung-Russell Diagram":{"zh":"\u8d6b\u7f85\u5716","en":"Hertzsprung-Russell Diagram"},"Analemma":{"zh":"\u65e5\u884c\u8de1","en":"Analemma"},"Solar System Model":{"zh":"\u592a\u967d\u7cfb\u6a21\u578b","en":"Solar System Model"}};
 
         // 摺疊/展開子選單
         function toggleSub(btn) {
@@ -313,10 +563,15 @@
             container.innerHTML = items.map(item => {
                 const titleZh = titleMap[item.title] ? titleMap[item.title]['zh'] : item.title;
                 const titleEn = titleMap[item.title] ? titleMap[item.title]['en'] : item.title;
+                const screenshot = item.screenshot || '';
+                const hasScreenshot = screenshot && screenshot.trim() !== '';
                 return `
-                <a href="${escapeHtml(item.url)}" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>
+                <div onclick="openModal('${escapeHtml(item.url)}')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                        ${hasScreenshot ? 
+                            `<img src="${escapeHtml(screenshot)}" alt="${escapeHtml(titleZh)}" class="w-full h-full object-cover">` :
+                            `<span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>`
+                        }
                         <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
@@ -326,7 +581,7 @@
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">${currentLang === 'zh' ? '最後更新日期：2025-12-21' : 'Last Updated: 2025-12-21'}</p>
                     </div>
-                </a>
+                </div>
             `;
             }).join('');
             
@@ -370,6 +625,195 @@
             updateUI();
         }
 
+        // Modal 函數
+        let currentModalUrl = '';
+        function openModal(url) {
+            const modal = document.getElementById('sim-modal');
+            const iframe = document.getElementById('sim-modal-iframe');
+            const captureBtn = document.getElementById('sim-modal-capture');
+            currentModalUrl = url;
+            iframe.src = url;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // 防止背景滾動
+            
+            // 等待 iframe 載入完成後啟用截圖按鈕
+            captureBtn.disabled = true;
+            iframe.onload = function() {
+                setTimeout(() => {
+                    captureBtn.disabled = false;
+                }, 1000); // 給 iframe 內容一些時間渲染
+            };
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('sim-modal');
+            const iframe = document.getElementById('sim-modal-iframe');
+            const captureBtn = document.getElementById('sim-modal-capture');
+            modal.classList.remove('active');
+            iframe.src = ''; // 清空 iframe 以停止載入
+            document.body.style.overflow = ''; // 恢復背景滾動
+            captureBtn.disabled = true;
+            currentModalUrl = '';
+        }
+        
+        // 截圖功能
+        async function captureModal() {
+            const captureBtn = document.getElementById('sim-modal-capture');
+            const modalContent = document.getElementById('sim-modal-content');
+            const iframe = document.getElementById('sim-modal-iframe');
+            
+            if (!modalContent || !iframe || !iframe.src) {
+                alert(currentLang === 'zh' ? '無法截圖：內容尚未載入' : 'Cannot capture: Content not loaded');
+                return;
+            }
+            
+            try {
+                captureBtn.disabled = true;
+                
+                // 等待字體加載完成
+                await document.fonts.ready;
+                
+                // 嘗試從 iframe 中捕獲內容
+                let canvas;
+                try {
+                    // 如果 iframe 是同源的，可以直接訪問其內容
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const iframeWin = iframe.contentWindow;
+                    if (iframeDoc && iframeWin) {
+                        // 等待 iframe 中的字體也加載完成
+                        if (iframeWin.document && iframeWin.document.fonts) {
+                            await iframeWin.document.fonts.ready;
+                        }
+                        
+                        // 重置 iframe 的滾動位置到頂部
+                        const originalScrollX = iframeWin.scrollX || 0;
+                        const originalScrollY = iframeWin.scrollY || 0;
+                        iframeWin.scrollTo(0, 0);
+                        
+                        // 等待滾動完成和渲染穩定
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        
+                        // 處理固定定位元素
+                        const fixedElements = [];
+                        const allElements = iframeDoc.querySelectorAll('*');
+                        allElements.forEach(el => {
+                            const style = iframeWin.getComputedStyle(el);
+                            if (style.position === 'fixed') {
+                                fixedElements.push({
+                                    element: el,
+                                    originalPosition: el.style.position,
+                                    originalTop: el.style.top,
+                                    originalLeft: el.style.left
+                                });
+                                el.style.position = 'absolute';
+                                const rect = el.getBoundingClientRect();
+                                el.style.top = rect.top + 'px';
+                                el.style.left = rect.left + 'px';
+                            }
+                        });
+                        
+                        canvas = await html2canvas(iframeDoc.body || iframeDoc.documentElement, {
+                            backgroundColor: '#ffffff',
+                            scale: 1,
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: false
+                        });
+                        
+                        // 恢復固定定位元素的樣式
+                        fixedElements.forEach(item => {
+                            item.element.style.position = item.originalPosition;
+                            item.element.style.top = item.originalTop;
+                            item.element.style.left = item.originalLeft;
+                        });
+                        
+                        // 恢復原始滾動位置
+                        iframeWin.scrollTo(originalScrollX, originalScrollY);
+                    } else {
+                        throw new Error('Cannot access iframe content');
+                    }
+                } catch (e) {
+                    // 如果無法訪問 iframe 內容（跨域限制），則捕獲整個 modal 內容區域
+                    console.warn('Cannot access iframe content, capturing modal container:', e);
+                    
+                    canvas = await html2canvas(modalContent, {
+                        backgroundColor: '#ffffff',
+                        scale: 1,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: false,
+                        ignoreElements: (element) => {
+                            // 忽略關閉按鈕和截圖按鈕
+                            return element.id === 'sim-modal-close' || element.id === 'sim-modal-capture';
+                        }
+                    });
+                }
+                
+                // 將 canvas 轉換為 PNG 並下載
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const fileName = getFileNameFromUrl(currentModalUrl) || 'simulation';
+                    const timestamp = getFormattedTimestamp();
+                    a.href = url;
+                    a.download = `${fileName}_${timestamp}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    captureBtn.disabled = false;
+                }, 'image/png');
+                
+            } catch (error) {
+                console.error('截圖失敗:', error);
+                alert(currentLang === 'zh' ? '截圖失敗，請稍後再試' : 'Capture failed, please try again');
+                captureBtn.disabled = false;
+            }
+        }
+        
+        // 從 URL 獲取文件名
+        function getFileNameFromUrl(url) {
+            if (!url) return '';
+            try {
+                const urlObj = new URL(url, window.location.origin);
+                const pathname = urlObj.pathname;
+                const fileName = pathname.split('/').pop().replace('.html', '');
+                return fileName || 'simulation';
+            } catch (e) {
+                return 'simulation';
+            }
+        }
+        
+        // 獲取格式化的時間戳（年月日時分秒）
+        function getFormattedTimestamp() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${year}${month}${day}${hours}${minutes}${seconds}`;
+        }
+
+        function closeModalOnBackdrop(event) {
+            // 如果點擊的是背景（不是 modal 內容），則關閉
+            if (event.target.id === 'sim-modal') {
+                closeModal();
+            }
+        }
+
+        // ESC 鍵關閉 modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('sim-modal');
+                if (modal.classList.contains('active')) {
+                    closeModal();
+                }
+            }
+        });
+
         function updateUI() {
             const texts = {
                 zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory" },
@@ -379,7 +823,7 @@
             document.getElementById('core-label').innerText = texts[currentLang].core;
 
             // 更新所有帶有 data-zh 和 data-en 屬性的元素
-            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title').forEach(el => {
+            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title, #footer-copyright, #footer-license span').forEach(el => {
                 const val = el.getAttribute(`data-${currentLang}`);
                 if (val) el.innerText = val;
             });

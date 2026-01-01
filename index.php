@@ -9,7 +9,12 @@ function parseCSV($filename) {
                 $data[] = [
                     'category' => $row[0],
                     'title' => $row[1],
-                    'url' => $row[2]
+                    'url' => $row[2],
+                    'screenshot' => isset($row[3]) && !empty($row[3]) ? $row[3] : '',
+                    'category_zh' => isset($row[4]) && !empty($row[4]) ? $row[4] : $row[0],
+                    'category_en' => isset($row[5]) && !empty($row[5]) ? $row[5] : $row[0],
+                    'title_zh' => isset($row[6]) && !empty($row[6]) ? $row[6] : $row[1],
+                    'title_en' => isset($row[7]) && !empty($row[7]) ? $row[7] : $row[1]
                 ];
             }
         }
@@ -31,100 +36,35 @@ function groupByCategory($data) {
     return $grouped;
 }
 
+// Build translation maps from CSV data
+function buildTranslationMaps($data) {
+    $categoryMap = [];
+    $titleMap = [];
+    
+    foreach ($data as $item) {
+        // Build category map (only need to add once per category)
+        if (!isset($categoryMap[$item['category']])) {
+            $categoryMap[$item['category']] = [
+                'zh' => $item['category_zh'],
+                'en' => $item['category_en']
+            ];
+        }
+        
+        // Build title map
+        $titleMap[$item['title']] = [
+            'zh' => $item['title_zh'],
+            'en' => $item['title_en']
+        ];
+    }
+    
+    return ['categoryMap' => $categoryMap, 'titleMap' => $titleMap];
+}
+
 $csvData = parseCSV('index.csv');
 $groupedData = groupByCategory($csvData);
-
-// Category mapping for navigation
-$categoryMap = [
-    'Integrated Science' => ['zh' => '綜合科學', 'en' => 'Integrated Science'],
-    'Biology' => ['zh' => '生物學', 'en' => 'Biology'],
-    'Chemistry' => ['zh' => '化學', 'en' => 'Chemistry'],
-    'Physics' => ['zh' => '物理', 'en' => 'Physics'],
-    'Astronomy' => ['zh' => '天文學', 'en' => 'Astronomy']
-];
-
-// Title translation mapping
-$titleMap = [
-    // Integrated Science
-    'Unit 4 - Structure of Cell' => ['zh' => '單元 4 - 細胞結構', 'en' => 'Unit 4 - Structure of Cell'],
-    'Unit 4 - Cell Division' => ['zh' => '單元 4 - 細胞分裂', 'en' => 'Unit 4 - Cell Division'],
-    'Unit 4 - DNA' => ['zh' => '單元 4 - DNA', 'en' => 'Unit 4 - DNA'],
-    'Unit 7 - Micro-Ecosystem' => ['zh' => '單元 7 - 微生態系統', 'en' => 'Unit 7 - Micro-Ecosystem'],
-    'Unit 7 - Bell Jar Model' => ['zh' => '單元 7 - 鐘罩模型', 'en' => 'Unit 7 - Bell Jar Model'],
-    'Unit 8 - Electric Circuit' => ['zh' => '單元 8 - 電路', 'en' => 'Unit 8 - Electric Circuit'],
-    
-    // Biology
-    'Osmosis' => ['zh' => '滲透作用', 'en' => 'Osmosis'],
-    'Cell Membrane Permeability' => ['zh' => '細胞膜通透性', 'en' => 'Cell Membrane Permeability'],
-    'Absorption of Nutrients in Small Intestine' => ['zh' => '小腸營養吸收', 'en' => 'Absorption of Nutrients in Small Intestine'],
-    
-    // Chemistry
-    'Atomic Structure' => ['zh' => '原子結構', 'en' => 'Atomic Structure'],
-    'Relative Atomic Mass' => ['zh' => '相對原子質量', 'en' => 'Relative Atomic Mass'],
-    'Electrolysis' => ['zh' => '電解', 'en' => 'Electrolysis'],
-    'Atoms and their Orbitals' => ['zh' => '原子及其軌道', 'en' => 'Atoms and their Orbitals'],
-    'Firework Display' => ['zh' => '煙花展示', 'en' => 'Firework Display'],
-    
-    // Physics - Topic 1
-    '1.01 - Calibration of a Thermometer' => ['zh' => '1.01 - 溫度計的校準', 'en' => '1.01 - Calibration of a Thermometer'],
-    '1.01 - Clinical Thermometer' => ['zh' => '1.01 - 體溫計', 'en' => '1.01 - Clinical Thermometer'],
-    '1.02 - Conduction' => ['zh' => '1.02 - 傳導', 'en' => '1.02 - Conduction'],
-    '1.02 - Convection' => ['zh' => '1.02 - 對流', 'en' => '1.02 - Convection'],
-    '1.02 - Radiation and Colour' => ['zh' => '1.02 - 輻射與顏色', 'en' => '1.02 - Radiation and Colour'],
-    '1.03 - Specific Heat Capacity' => ['zh' => '1.03 - 比熱容', 'en' => '1.03 - Specific Heat Capacity'],
-    '1.03 - Specific Heat Capacity 2' => ['zh' => '1.03 - 比熱容 2', 'en' => '1.03 - Specific Heat Capacity 2'],
-    '1.03 - Thermal Equilibrium' => ['zh' => '1.03 - 熱平衡', 'en' => '1.03 - Thermal Equilibrium'],
-    '1.05 - Gas Laws' => ['zh' => '1.05 - 氣體定律', 'en' => '1.05 - Gas Laws'],
-    '1.05 - Distribution of Gas Speed' => ['zh' => '1.05 - 氣體速度分佈', 'en' => '1.05 - Distribution of Gas Speed'],
-    
-    // Physics - Topic 2
-    '2.02 - Free Fall' => ['zh' => '2.02 - 自由落體', 'en' => '2.02 - Free Fall'],
-    '2.10 - Cavendish Experiment' => ['zh' => '2.10 - 卡文迪許實驗', 'en' => '2.10 - Cavendish Experiment'],
-    
-    // Physics - Topic 3a
-    '3.01 - How do we see' => ['zh' => '3.01 - 我們如何看見', 'en' => '3.01 - How do we see'],
-    '3.01 - Laws of Reflection' => ['zh' => '3.01 - 反射定律', 'en' => '3.01 - Laws of Reflection'],
-    '3.01 - Plane Mirror Ray Diagram' => ['zh' => '3.01 - 平面鏡光線圖', 'en' => '3.01 - Plane Mirror Ray Diagram'],
-    '3.01 - Plane Mirror Ray Diagram 2' => ['zh' => '3.01 - 平面鏡光線圖 2', 'en' => '3.01 - Plane Mirror Ray Diagram 2'],
-    '3.02 - Analogy of Refraction (Vehicle Model)' => ['zh' => '3.02 - 折射類比（車輛模型）', 'en' => '3.02 - Analogy of Refraction (Vehicle Model)'],
-    '3.02 - Snell\'s Law' => ['zh' => '3.02 - 斯涅爾定律', 'en' => '3.02 - Snell\'s Law'],
-    '3.02 - Dispersion' => ['zh' => '3.02 - 色散', 'en' => '3.02 - Dispersion'],
-    '3.03 - Lens Ray Diagram (by Air Li from 4A)' => ['zh' => '3.03 - 透鏡光線圖（由 4A Air Li 提供）', 'en' => '3.03 - Lens Ray Diagram (by Air Li from 4A)'],
-    
-    // Physics - Topic 3b
-    '3.06 - Diffraction Grating' => ['zh' => '3.06 - 繞射光柵', 'en' => '3.06 - Diffraction Grating'],
-    '3.06 - Young\'s Double-Slit Experiment' => ['zh' => '3.06 - 楊氏雙縫實驗', 'en' => '3.06 - Young\'s Double-Slit Experiment'],
-    '3.07 - Signal Generator' => ['zh' => '3.07 - 信號發生器', 'en' => '3.07 - Signal Generator'],
-    
-    // Physics - Topic 4b
-    '4.05 - Magnetic Field Lines' => ['zh' => '4.05 - 磁場線', 'en' => '4.05 - Magnetic Field Lines'],
-    '4.06 - Mass Spectrometer' => ['zh' => '4.06 - 質譜儀', 'en' => '4.06 - Mass Spectrometer'],
-    
-    // Physics - Topic 5
-    '5.01 - Geiger-Muller Counter' => ['zh' => '5.01 - 蓋革-米勒計數器', 'en' => '5.01 - Geiger-Muller Counter'],
-    
-    // Physics - Elective E1
-    'E1.04 - Fraunhofer Lines' => ['zh' => 'E1.04 - 夫朗和斐譜線', 'en' => 'E1.04 - Fraunhofer Lines'],
-    
-    // Physics - Elective E2
-    'E2.01 - Rutherford Scattering Experiment' => ['zh' => 'E2.01 - 拉塞福散射實驗', 'en' => 'E2.01 - Rutherford Scattering Experiment'],
-    'E2.01 - Photoelectric Effect' => ['zh' => 'E2.01 - 光電效應', 'en' => 'E2.01 - Photoelectric Effect'],
-    'E2.02 - Electron Transition' => ['zh' => 'E2.02 - 電子躍遷', 'en' => 'E2.02 - Electron Transition'],
-    'E2.02 - Emission Line Spectra' => ['zh' => 'E2.02 - 發射線光譜', 'en' => 'E2.02 - Emission Line Spectra'],
-    
-    // Physics - Elective E3
-    'E3.01 - Air-Conditioner' => ['zh' => 'E3.01 - 空調', 'en' => 'E3.01 - Air-Conditioner'],
-    'E3.03 - Thermal Conductivity' => ['zh' => 'E3.03 - 熱導率', 'en' => 'E3.03 - Thermal Conductivity'],
-    'E3.03 - OTTV' => ['zh' => 'E3.03 - 總熱傳值', 'en' => 'E3.03 - OTTV'],
-    'E3.03 - Cars (Electric Vehicles)' => ['zh' => 'E3.03 - 汽車（電動車）', 'en' => 'E3.03 - Cars (Electric Vehicles)'],
-    'E3.04 - Wind Power' => ['zh' => 'E3.04 - 風力發電', 'en' => 'E3.04 - Wind Power'],
-    'E3.04 - Photovoltaic Plate' => ['zh' => 'E3.04 - 光伏板', 'en' => 'E3.04 - Photovoltaic Plate'],
-    
-    // Astronomy
-    'Hertzsprung-Russell Diagram' => ['zh' => '赫羅圖', 'en' => 'Hertzsprung-Russell Diagram'],
-    'Analemma' => ['zh' => '日行跡', 'en' => 'Analemma'],
-    'Solar System Model' => ['zh' => '太陽系模型', 'en' => 'Solar System Model']
-];
+$translations = buildTranslationMaps($csvData);
+$categoryMap = $translations['categoryMap'];
+$titleMap = $translations['titleMap'];
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -138,6 +78,8 @@ $titleMap = [
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- MathJax -->
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- html2canvas for screenshot -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         /* 子選單展開動畫 */
         .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
@@ -150,8 +92,20 @@ $titleMap = [
             transition: transform 0.3s ease-in-out;
         }
         @media (max-width: 767px) {
+            #sidebar {
+                position: fixed;
+                left: 0;
+                top: 64px;
+            }
             #sidebar.hidden-mobile { transform: translateX(-100%); }
             #sidebar.show-mobile { transform: translateX(0); }
+        }
+        @media (min-width: 768px) {
+            #sidebar {
+                position: relative;
+                height: calc(100vh - 64px);
+                top: 0;
+            }
         }
 
         /* 自定義捲軸 */
@@ -163,13 +117,209 @@ $titleMap = [
         /* 遮罩層 */
         #overlay { display: none; }
         #overlay.active { display: block; }
+        
+        /* Container 樣式 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            width: 100%;
+        }
+        @media (min-width: 640px) {
+            .container {
+                padding: 0 1.5rem;
+            }
+        }
+        @media (min-width: 1024px) {
+            .container {
+                padding: 0 2rem;
+            }
+        }
+        
+        /* Modal 樣式 */
+        #sim-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+        }
+        #sim-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #sim-modal-content {
+            position: relative;
+            width: 95%;
+            height: 90%;
+            max-width: 1200px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #sim-modal-close {
+            position: absolute;
+            top: 2vh;
+            right: 2vw;
+            width: 3rem;
+            height: 3rem;
+            background-color: rgba(0, 0, 0, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 101;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        #sim-modal-capture {
+            position: absolute;
+            top: 2vh;
+            right: calc(2vw + 4rem);
+            width: 3rem;
+            height: 3rem;
+            background-color: rgba(0, 0, 0, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 101;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        #sim-modal-capture:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-color: white;
+            transform: scale(1.1);
+        }
+        #sim-modal-capture:active {
+            transform: scale(0.95);
+        }
+        #sim-modal-capture:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #sim-modal-close:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-color: white;
+            transform: scale(1.1);
+        }
+        #sim-modal-close:active {
+            transform: scale(0.95);
+        }
+        #sim-modal-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background-color: white;
+        }
+        @media (max-width: 768px) {
+            #sim-modal-content {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+            }
+            #sim-modal-close {
+                top: 1rem;
+                right: 1rem;
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+            #sim-modal-capture {
+                top: 1rem;
+                right: calc(1rem + 3.5rem);
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+        }
+        
+        /* Footer 樣式 */
+        footer {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
+            margin-top: auto;
+            padding: 0.75rem 0;
+        }
+        footer .container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 1rem;
+            text-align: right;
+            flex-wrap: wrap;
+        }
+        .footer-copyright {
+            font-size: 0.8125rem;
+            color: #94a3b8;
+        }
+        .footer-license {
+            font-size: 0.8125rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .footer-license a {
+            color: #60a5fa;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .footer-license a:hover {
+            color: #93c5fd;
+        }
+        .cc-badge {
+            display: inline-block;
+            padding: 0.2rem 0.4rem;
+            background-color: rgba(96, 165, 250, 0.1);
+            border: 1px solid #60a5fa;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .footer-license a:hover .cc-badge {
+            background-color: rgba(96, 165, 250, 0.2);
+            border-color: #93c5fd;
+        }
+        @media (max-width: 768px) {
+            footer {
+                padding: 0.625rem 0;
+            }
+            footer .container {
+                justify-content: center;
+                text-align: center;
+                gap: 0.5rem;
+            }
+            .footer-copyright,
+            .footer-license {
+                font-size: 0.75rem;
+            }
+        }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
+<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden flex flex-col min-h-screen">
 
     <!-- 1. 標題列 -->
     <header class="bg-indigo-900 text-white shadow-md fixed w-full z-50 top-0">
-        <div class="max-w-full mx-auto px-4 sm:px-6">
+        <div class="container">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <!-- 行動裝置選單按鈕 -->
@@ -198,9 +348,11 @@ $titleMap = [
     <!-- 背景遮罩 (Mobile 選單開啟時) -->
     <div id="overlay" class="fixed inset-0 bg-black/50 z-30 md:hidden" onclick="toggleSidebar()"></div>
 
-    <div class="flex pt-16 min-h-screen">
-        <!-- 2. 左方選單列 -->
-        <aside id="sidebar" class="w-64 bg-slate-800 text-slate-300 flex-shrink-0 fixed h-[calc(100vh-64px)] z-40 overflow-y-auto hidden-mobile md:translate-x-0">
+    <div class="flex-1 pt-16">
+        <div class="container">
+            <div class="flex">
+                <!-- 2. 左方選單列 -->
+                <aside id="sidebar" class="w-64 bg-slate-800 text-slate-300 flex-shrink-0 z-40 overflow-y-auto hidden-mobile md:block">
             
             <div class="p-4 pb-2 uppercase text-[10px] font-bold text-slate-500 tracking-[2px]" id="core-label">核心單元 Compulsory</div>
             
@@ -222,7 +374,7 @@ $titleMap = [
                             $titleZh = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['zh'] : $item['title'];
                             $titleEn = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['en'] : $item['title'];
                         ?>
-                        <a href="<?php echo htmlspecialchars($item['url']); ?>" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="<?php echo htmlspecialchars($titleZh); ?>" data-en="<?php echo htmlspecialchars($titleEn); ?>"><?php echo htmlspecialchars($titleZh); ?></a>
+                        <div onclick="openModal('<?php echo htmlspecialchars($item['url']); ?>')" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400 cursor-pointer" data-zh="<?php echo htmlspecialchars($titleZh); ?>" data-en="<?php echo htmlspecialchars($titleEn); ?>"><?php echo htmlspecialchars($titleZh); ?></div>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -231,28 +383,32 @@ $titleMap = [
                 endforeach; 
                 ?>
             </nav>
-        </aside>
+                </aside>
 
-        <!-- 3. 主顯示區域 -->
-        <main class="flex-1 ml-0 md:ml-64 p-4 md:p-8 transition-all duration-300">
-            
-            <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
-                <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
-                    <span id="breadcrumb-parent" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh']) : htmlspecialchars(key($groupedData)); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en']) : htmlspecialchars(key($groupedData)); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?></span>
-                    <span class="mx-2">/</span>
-                    <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
-                </nav>
-                <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh'] . '模擬實驗') : htmlspecialchars(key($groupedData) . '模擬實驗'); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en'] . ' Simulations') : htmlspecialchars(key($groupedData) . ' Simulations'); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?>模擬實驗</h1>
-            </div>
+                <!-- 3. 主顯示區域 -->
+                <main class="flex-1 transition-all duration-300 py-4 md:py-8 px-4 md:px-6 lg:px-8">
+                <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
+                    <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
+                        <span id="breadcrumb-parent" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh']) : htmlspecialchars(key($groupedData)); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en']) : htmlspecialchars(key($groupedData)); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?></span>
+                        <span class="mx-2">/</span>
+                        <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
+                    </nav>
+                    <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh'] . '模擬實驗') : htmlspecialchars(key($groupedData) . '模擬實驗'); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en'] . ' Simulations') : htmlspecialchars(key($groupedData) . ' Simulations'); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?>模擬實驗</h1>
+                </div>
 
-            <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 <?php 
                 $currentCategory = key($groupedData);
                 foreach ($groupedData[$currentCategory] as $item): 
                 ?>
-                <a href="<?php echo htmlspecialchars($item['url']); ?>" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                <div onclick="openModal('<?php echo htmlspecialchars($item['url']); ?>')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                        <?php if (!empty($item['screenshot'])): ?>
+                            <img src="<?php echo htmlspecialchars($item['screenshot']); ?>" alt="<?php echo htmlspecialchars(isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['zh'] : $item['title']); ?>" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]" style="display: none;">[實驗影像]</span>
+                        <?php else: ?>
+                            <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <?php endif; ?>
                         <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
@@ -266,10 +422,43 @@ $titleMap = [
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
                     </div>
-                </a>
-                <?php endforeach; ?>
+                </div>
+                        <?php endforeach; ?>
+                    </div>
+                </main>
             </div>
-        </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-copyright" id="footer-copyright" data-zh="版權 © Mr. Bryan Leung" data-en="Copyright © Mr. Bryan Leung">版權 © Mr. Bryan Leung</div>
+            <div class="footer-license" id="footer-license">
+                <span data-zh="開源及 Creative Commons，可以自由使用。" data-en="Open source and Creative Commons, free to use.">開源及 Creative Commons，可以自由使用。</span>
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" class="cc-link" title="Creative Commons Attribution 4.0 International License">
+                    <span class="cc-badge">CC BY 4.0</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal for Simulation -->
+    <div id="sim-modal" onclick="closeModalOnBackdrop(event)">
+        <button id="sim-modal-close" onclick="closeModal(); event.stopPropagation();" aria-label="關閉">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <button id="sim-modal-capture" onclick="captureModal(); event.stopPropagation();" aria-label="截圖" title="截圖並下載為 PNG">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+        </button>
+        <div id="sim-modal-content" onclick="event.stopPropagation()">
+            <iframe id="sim-modal-iframe" src=""></iframe>
+        </div>
     </div>
 
     <script>
@@ -315,10 +504,15 @@ $titleMap = [
             container.innerHTML = items.map(item => {
                 const titleZh = titleMap[item.title] ? titleMap[item.title]['zh'] : item.title;
                 const titleEn = titleMap[item.title] ? titleMap[item.title]['en'] : item.title;
+                const screenshot = item.screenshot || '';
+                const hasScreenshot = screenshot && screenshot.trim() !== '';
                 return `
-                <a href="${escapeHtml(item.url)}" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>
+                <div onclick="openModal('${escapeHtml(item.url)}')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
+                        ${hasScreenshot ? 
+                            `<img src="${escapeHtml(screenshot)}" alt="${escapeHtml(titleZh)}" class="w-full h-full object-cover">` :
+                            `<span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>`
+                        }
                         <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
@@ -328,7 +522,7 @@ $titleMap = [
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">${currentLang === 'zh' ? '最後更新日期：2025-12-21' : 'Last Updated: 2025-12-21'}</p>
                     </div>
-                </a>
+                </div>
             `;
             }).join('');
             
@@ -372,6 +566,195 @@ $titleMap = [
             updateUI();
         }
 
+        // Modal 函數
+        let currentModalUrl = '';
+        function openModal(url) {
+            const modal = document.getElementById('sim-modal');
+            const iframe = document.getElementById('sim-modal-iframe');
+            const captureBtn = document.getElementById('sim-modal-capture');
+            currentModalUrl = url;
+            iframe.src = url;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // 防止背景滾動
+            
+            // 等待 iframe 載入完成後啟用截圖按鈕
+            captureBtn.disabled = true;
+            iframe.onload = function() {
+                setTimeout(() => {
+                    captureBtn.disabled = false;
+                }, 1000); // 給 iframe 內容一些時間渲染
+            };
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('sim-modal');
+            const iframe = document.getElementById('sim-modal-iframe');
+            const captureBtn = document.getElementById('sim-modal-capture');
+            modal.classList.remove('active');
+            iframe.src = ''; // 清空 iframe 以停止載入
+            document.body.style.overflow = ''; // 恢復背景滾動
+            captureBtn.disabled = true;
+            currentModalUrl = '';
+        }
+        
+        // 截圖功能
+        async function captureModal() {
+            const captureBtn = document.getElementById('sim-modal-capture');
+            const modalContent = document.getElementById('sim-modal-content');
+            const iframe = document.getElementById('sim-modal-iframe');
+            
+            if (!modalContent || !iframe || !iframe.src) {
+                alert(currentLang === 'zh' ? '無法截圖：內容尚未載入' : 'Cannot capture: Content not loaded');
+                return;
+            }
+            
+            try {
+                captureBtn.disabled = true;
+                
+                // 等待字體加載完成
+                await document.fonts.ready;
+                
+                // 嘗試從 iframe 中捕獲內容
+                let canvas;
+                try {
+                    // 如果 iframe 是同源的，可以直接訪問其內容
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const iframeWin = iframe.contentWindow;
+                    if (iframeDoc && iframeWin) {
+                        // 等待 iframe 中的字體也加載完成
+                        if (iframeWin.document && iframeWin.document.fonts) {
+                            await iframeWin.document.fonts.ready;
+                        }
+                        
+                        // 重置 iframe 的滾動位置到頂部
+                        const originalScrollX = iframeWin.scrollX || 0;
+                        const originalScrollY = iframeWin.scrollY || 0;
+                        iframeWin.scrollTo(0, 0);
+                        
+                        // 等待滾動完成和渲染穩定
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        
+                        // 處理固定定位元素
+                        const fixedElements = [];
+                        const allElements = iframeDoc.querySelectorAll('*');
+                        allElements.forEach(el => {
+                            const style = iframeWin.getComputedStyle(el);
+                            if (style.position === 'fixed') {
+                                fixedElements.push({
+                                    element: el,
+                                    originalPosition: el.style.position,
+                                    originalTop: el.style.top,
+                                    originalLeft: el.style.left
+                                });
+                                el.style.position = 'absolute';
+                                const rect = el.getBoundingClientRect();
+                                el.style.top = rect.top + 'px';
+                                el.style.left = rect.left + 'px';
+                            }
+                        });
+                        
+                        canvas = await html2canvas(iframeDoc.body || iframeDoc.documentElement, {
+                            backgroundColor: '#ffffff',
+                            scale: 1,
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: false
+                        });
+                        
+                        // 恢復固定定位元素的樣式
+                        fixedElements.forEach(item => {
+                            item.element.style.position = item.originalPosition;
+                            item.element.style.top = item.originalTop;
+                            item.element.style.left = item.originalLeft;
+                        });
+                        
+                        // 恢復原始滾動位置
+                        iframeWin.scrollTo(originalScrollX, originalScrollY);
+                    } else {
+                        throw new Error('Cannot access iframe content');
+                    }
+                } catch (e) {
+                    // 如果無法訪問 iframe 內容（跨域限制），則捕獲整個 modal 內容區域
+                    console.warn('Cannot access iframe content, capturing modal container:', e);
+                    
+                    canvas = await html2canvas(modalContent, {
+                        backgroundColor: '#ffffff',
+                        scale: 1,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: false,
+                        ignoreElements: (element) => {
+                            // 忽略關閉按鈕和截圖按鈕
+                            return element.id === 'sim-modal-close' || element.id === 'sim-modal-capture';
+                        }
+                    });
+                }
+                
+                // 將 canvas 轉換為 PNG 並下載
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const fileName = getFileNameFromUrl(currentModalUrl) || 'simulation';
+                    const timestamp = getFormattedTimestamp();
+                    a.href = url;
+                    a.download = `${fileName}_${timestamp}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    captureBtn.disabled = false;
+                }, 'image/png');
+                
+            } catch (error) {
+                console.error('截圖失敗:', error);
+                alert(currentLang === 'zh' ? '截圖失敗，請稍後再試' : 'Capture failed, please try again');
+                captureBtn.disabled = false;
+            }
+        }
+        
+        // 從 URL 獲取文件名
+        function getFileNameFromUrl(url) {
+            if (!url) return '';
+            try {
+                const urlObj = new URL(url, window.location.origin);
+                const pathname = urlObj.pathname;
+                const fileName = pathname.split('/').pop().replace('.html', '');
+                return fileName || 'simulation';
+            } catch (e) {
+                return 'simulation';
+            }
+        }
+        
+        // 獲取格式化的時間戳（年月日時分秒）
+        function getFormattedTimestamp() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${year}${month}${day}${hours}${minutes}${seconds}`;
+        }
+
+        function closeModalOnBackdrop(event) {
+            // 如果點擊的是背景（不是 modal 內容），則關閉
+            if (event.target.id === 'sim-modal') {
+                closeModal();
+            }
+        }
+
+        // ESC 鍵關閉 modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('sim-modal');
+                if (modal.classList.contains('active')) {
+                    closeModal();
+                }
+            }
+        });
+
         function updateUI() {
             const texts = {
                 zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory" },
@@ -381,7 +764,7 @@ $titleMap = [
             document.getElementById('core-label').innerText = texts[currentLang].core;
 
             // 更新所有帶有 data-zh 和 data-en 屬性的元素
-            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title').forEach(el => {
+            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title, #footer-copyright, #footer-license span').forEach(el => {
                 const val = el.getAttribute(`data-${currentLang}`);
                 if (val) el.innerText = val;
             });
