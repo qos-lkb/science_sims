@@ -1,0 +1,44 @@
+# Security Settings for Root Directory
+
+# Disable directory listing
+Options -Indexes
+
+# Prevent access to sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect .htaccess and other config files
+<FilesMatch "^(\.htaccess|\.htpasswd|\.git|\.gitignore|\.env|\.log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow access to HTML, PHP, CSS, JS, and image files
+<FilesMatch "\.(html|php|css|js|png|jpg|jpeg|gif|svg|ico|webp|json|xml|txt|csv)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Set default charset
+AddDefaultCharset UTF-8
+
+# Prevent access to backup files
+<FilesMatch "\.(bak|backup|old|tmp|swp|~)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    # Prevent MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+    # Prevent clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+    # Enable XSS protection
+    Header set X-XSS-Protection "1; mode=block"
+    # Referrer policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+

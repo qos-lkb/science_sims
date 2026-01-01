@@ -1,0 +1,30 @@
+# Security Settings for Chemistry Screenshots Directory
+
+# Disable directory listing
+Options -Indexes
+
+# Allow access to image files only
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Deny access to all other file types
+<FilesMatch "^[^.]*$|\.(?!png|jpg|jpeg|gif|svg|ico|webp)[^.]+$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Prevent access to sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Set cache headers for images
+<IfModule mod_headers.c>
+    <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+</IfModule>
+
