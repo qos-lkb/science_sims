@@ -71,7 +71,7 @@ $titleMap = $translations['titleMap'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>物理模擬實驗平台 | HKDSE Physics Sim</title>
+    <title>科學模擬實驗平台 | Science Simulations Platform</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -332,7 +332,7 @@ $titleMap = $translations['titleMap'];
                         <svg class="w-7 h-7 md:w-8 md:h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                        <span class="font-bold text-lg md:text-xl tracking-tight" id="app-title">物理模擬實驗平台</span>
+                        <span class="font-bold text-lg md:text-xl tracking-tight" id="app-title">科學模擬實驗平台</span>
                     </div>
                 </div>
                 
@@ -757,8 +757,8 @@ $titleMap = $translations['titleMap'];
 
         function updateUI() {
             const texts = {
-                zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory" },
-                en: { title: "Physics Sim Platform", core: "Compulsory Part" }
+                zh: { title: "科學模擬實驗平台", core: "核心單元 Compulsory" },
+                en: { title: "Science Simulations Platform", core: "Compulsory Part" }
             };
             document.getElementById('app-title').innerText = texts[currentLang].title;
             document.getElementById('core-label').innerText = texts[currentLang].core;
