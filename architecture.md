@@ -2,7 +2,11 @@
 
 ## Project Overview
 
-This is a **static educational website** hosting interactive science simulations for teaching physics, chemistry, biology, integrated science, and astronomy. The project is designed as a collection of standalone HTML files, each implementing a specific simulation or concept visualization. The site is optimized for GitHub Pages deployment and requires no build process.
+This is an **educational website** hosting interactive science simulations for teaching physics, chemistry, biology, integrated science, and astronomy. The project is designed as a collection of standalone HTML files, each implementing a specific simulation or concept visualization. 
+
+The site supports **two deployment modes**:
+- **PHP Mode**: Dynamic content generation from CSV data files (requires PHP server)
+- **Static Mode**: Pure HTML/CSS/JavaScript files (works on GitHub Pages)
 
 **Primary Purpose**: Educational resource for HKDSE (Hong Kong Diploma of Secondary Education) and secondary school science curriculum.
 
@@ -17,7 +21,10 @@ This is a **static educational website** hosting interactive science simulations
 - **HTML5**: Semantic markup for all simulation pages
 - **CSS3**: Custom styling with Tailwind CSS utility classes
 - **Vanilla JavaScript**: No frameworks required (some simulations use React standalone)
-- **Static Site**: No server-side processing or build step
+- **PHP** (Optional): Server-side processing for dynamic content generation
+  - Used in `index.php` for CSV-based data loading
+  - Used in `markdown_reader.php` for Markdown file rendering
+  - Falls back to static HTML when PHP is unavailable
 
 ### External Dependencies (CDN)
 
@@ -54,6 +61,12 @@ This is a **static educational website** hosting interactive science simulations
   - JSX/ES6+ transpilation in browser
   - Only used where React is present
 
+#### Utility Libraries
+- **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`)
+  - Screenshot/capture functionality for simulations
+  - Used in modal interface to capture simulation screenshots
+  - Downloads as PNG with timestamp filename
+
 ---
 
 ## Project Structure
@@ -61,7 +74,10 @@ This is a **static educational website** hosting interactive science simulations
 ```
 qos-lkb.github.io/
 ├── index.html                 # Main landing page (English, tab-based navigation)
+├── index.php                  # Dynamic landing page (PHP, CSV-driven, modal interface)
 ├── index_new.html             # Modern landing page (Chinese/English, sidebar navigation)
+├── index.csv                  # Simulation data source (Category, Title, URL, Screenshot, etc.)
+├── markdown_reader.php        # Markdown file reader and renderer
 ├── architecture.md            # This file
 ├── link.txt                   # External links reference
 │
@@ -252,6 +268,38 @@ function animate() {
 - Responsive canvas sizing
 - Custom styling with Tailwind colors
 
+### 7. CSV-Driven Data Management
+
+**Dynamic Content Loading**:
+- Simulation metadata stored in `index.csv`
+- PHP reads CSV and generates navigation dynamically
+- Supports bilingual titles (Chinese/English)
+- Includes screenshot paths, update dates, and categorization
+- Easy to maintain: update CSV to add/modify simulations
+
+**CSV Structure**:
+```csv
+Category,Title,URL,Screenshot,Category_ZH,Category_EN,Title_ZH,Title_EN,Last_Updated
+```
+
+### 8. Modal-Based Simulation Display
+
+**Modal Interface Pattern**:
+- Simulations open in full-screen modal overlay
+- Iframe-based loading for isolation
+- Screenshot capture functionality
+- Keyboard shortcuts (ESC to close)
+- Responsive design (full-screen on mobile)
+
+### 9. Markdown Documentation Reader
+
+**Markdown Support**:
+- `markdown_reader.php` reads and renders Markdown files
+- Custom Markdown-to-HTML converter
+- Supports code blocks, tables, lists, and inline formatting
+- File selector for multiple Markdown documents
+- Styled output with syntax highlighting
+
 ---
 
 ## File Organization Principles
@@ -287,6 +335,7 @@ function animate() {
 | MathJax | 3.x | Math rendering | Simulations with equations |
 | React | 18 (standalone) | UI framework | Advanced simulations |
 | Babel Standalone | Latest | JSX transpilation | React-based simulations |
+| html2canvas | 1.4.1 | Screenshot capture | Modal interface (index.php) |
 
 ### Browser Compatibility
 
@@ -299,25 +348,40 @@ function animate() {
 
 ## Deployment
 
-### GitHub Pages
+### GitHub Pages (Static Mode)
 
 1. **Repository**: `qos-lkb.github.io`
 2. **Branch**: `main` (or `master`)
 3. **Build**: None required (static files)
 4. **URL**: `https://qos-lkb.github.io`
+5. **Note**: PHP files will not execute on GitHub Pages; use `index.html` or `index_new.html` for static deployment
+
+### PHP Server Deployment
+
+1. **Requirements**: PHP 7.4+ server (Apache/Nginx with PHP-FPM)
+2. **Files**: `index.php`, `markdown_reader.php`, `index.csv`
+3. **Benefits**: Dynamic content generation, CSV-driven updates
+4. **Local Development**: Use XAMPP, MAMP, or PHP built-in server
 
 ### Deployment Process
 
+**For Static Deployment (GitHub Pages)**:
 1. Commit changes to repository
 2. Push to main branch
 3. GitHub Pages automatically deploys
 4. Changes live within minutes
 
+**For PHP Deployment**:
+1. Upload files to PHP-enabled server
+2. Ensure `index.csv` is readable
+3. Verify PHP version compatibility
+4. Test `index.php` and `markdown_reader.php`
+
 ### Custom Domain (Optional)
 
-- Configured via GitHub Pages settings
+- Configured via GitHub Pages settings (static) or server config (PHP)
 - CNAME file in root directory
-- DNS records point to GitHub Pages
+- DNS records point to hosting provider
 
 ---
 
@@ -337,9 +401,28 @@ function animate() {
    - Controls/inputs (if interactive)
    - Visualization canvas/container
    - Footer (optional)
-4. **Link from index.html** or `index_new.html`
-5. **Test** in multiple browsers
-6. **Commit and push**
+4. **Add to CSV** (if using `index.php`):
+   - Open `index.csv`
+   - Add new row with: Category, Title, URL, Screenshot path, Chinese/English translations, Last Updated date
+   - Format: `Category,Title,URL,Screenshot,Category_ZH,Category_EN,Title_ZH,Title_EN,Last_Updated`
+5. **Link from index files**:
+   - For static: Update `index.html` or `index_new.html`
+   - For PHP: Update `index.csv` (automatic)
+6. **Test** in multiple browsers
+7. **Commit and push**
+
+### Updating Simulation Metadata
+
+**Using CSV (Recommended for PHP mode)**:
+1. Edit `index.csv` with spreadsheet software or text editor
+2. Maintain CSV format: Category, Title, URL, Screenshot, Category_ZH, Category_EN, Title_ZH, Title_EN, Last_Updated
+3. Save and upload to server
+4. Changes reflect immediately in `index.php`
+
+**Screenshot Management**:
+- Screenshots stored in `{subject}/screenshots/` directories
+- Naming convention: `{filename}_{timestamp}.png`
+- Generated via modal capture feature or manually created
 
 ### Code Style
 
@@ -430,6 +513,6 @@ function animate() {
 
 ---
 
-**Last Updated**: 2025-01-XX  
+**Last Updated**: 2026-01-01  
 **Maintained by**: Mr. B. Leung
 
