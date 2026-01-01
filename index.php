@@ -14,7 +14,8 @@ function parseCSV($filename) {
                     'category_zh' => isset($row[4]) && !empty($row[4]) ? $row[4] : $row[0],
                     'category_en' => isset($row[5]) && !empty($row[5]) ? $row[5] : $row[0],
                     'title_zh' => isset($row[6]) && !empty($row[6]) ? $row[6] : $row[1],
-                    'title_en' => isset($row[7]) && !empty($row[7]) ? $row[7] : $row[1]
+                    'title_en' => isset($row[7]) && !empty($row[7]) ? $row[7] : $row[1],
+                    'last_updated' => isset($row[8]) && !empty($row[8]) ? $row[8] : '2026-01-01'
                 ];
             }
         }
@@ -420,7 +421,10 @@ $titleMap = $translations['titleMap'];
                         <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
                     </div>
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
-                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                        <?php 
+                        $lastUpdated = isset($item['last_updated']) ? $item['last_updated'] : '2026-01-01';
+                        ?>
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：<?php echo htmlspecialchars($lastUpdated); ?>" data-en="Last Updated: <?php echo htmlspecialchars($lastUpdated); ?>">最後更新日期：<?php echo htmlspecialchars($lastUpdated); ?></p>
                     </div>
                 </div>
                         <?php endforeach; ?>
@@ -506,6 +510,7 @@ $titleMap = $translations['titleMap'];
                 const titleEn = titleMap[item.title] ? titleMap[item.title]['en'] : item.title;
                 const screenshot = item.screenshot || '';
                 const hasScreenshot = screenshot && screenshot.trim() !== '';
+                const lastUpdated = item.last_updated || '2026-01-01';
                 return `
                 <div onclick="openModal('${escapeHtml(item.url)}')" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer">
                     <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group overflow-hidden">
@@ -520,7 +525,7 @@ $titleMap = $translations['titleMap'];
                         <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">${currentLang === 'zh' ? '點擊進入模擬實驗' : 'Click to enter simulation'}</p>
                     </div>
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
-                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">${currentLang === 'zh' ? '最後更新日期：2025-12-21' : 'Last Updated: 2025-12-21'}</p>
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：${escapeHtml(lastUpdated)}" data-en="Last Updated: ${escapeHtml(lastUpdated)}">${currentLang === 'zh' ? '最後更新日期：' + escapeHtml(lastUpdated) : 'Last Updated: ' + escapeHtml(lastUpdated)}</p>
                     </div>
                 </div>
             `;
