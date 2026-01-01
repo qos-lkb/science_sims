@@ -1,142 +1,397 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Page for Mr. B. Leung</title>
+    <title>物理模擬實驗平台 | HKDSE Physics Sim</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
-        body {
-            font-family: 'Barlow', sans-serif;
+        /* 子選單展開動畫 */
+        .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .submenu.open { max-height: 1000px; }
+        .rotate-icon { transition: transform 0.3s; }
+        .rotate-icon.active { transform: rotate(180deg); }
+        
+        /* 側邊欄過渡動畫 (Mobile) */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
         }
-        .hidden {
-            display: none;
+        @media (max-width: 767px) {
+            #sidebar.hidden-mobile { transform: translateX(-100%); }
+            #sidebar.show-mobile { transform: translateX(0); }
         }
+
+        /* 自定義捲軸 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* 遮罩層 */
+        #overlay { display: none; }
+        #overlay.active { display: block; }
     </style>
-    <script>
-        function showSection(sectionId) {
-            const sections = document.querySelectorAll('.subject-section');
-            sections.forEach(section => section.classList.add('hidden'));
-            document.getElementById(sectionId).classList.remove('hidden');
-        }
-
-        function initializePage() {
-            showSection('physics');
-        }
-    </script>
 </head>
-<body class="bg-gray-100 text-gray-800" onload="initializePage()">
+<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
 
-    <!-- Header -->
-    <header class="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">Science Simulations (Gemini 3 Pro)</h1>
-        <nav>
-            <button onclick="showSection('integrated-science')" class="text-white hover:underline mx-2">Science</button>
-            <button onclick="showSection('biology')" class="text-white hover:underline mx-2">Biology</button>
-            <button onclick="showSection('chemistry')" class="text-white hover:underline mx-2">Chemistry</button>
-            <button onclick="showSection('physics')" class="text-white hover:underline mx-2">Physics</button>
-			<button onclick="showSection('astronomy')" class="text-white hover:underline mx-2">Astronomy</button>
-        </nav>
+    <!-- 1. 標題列 -->
+    <header class="bg-indigo-900 text-white shadow-md fixed w-full z-50 top-0">
+        <div class="max-w-full mx-auto px-4 sm:px-6">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <!-- 行動裝置選單按鈕 -->
+                    <button id="mobile-toggle" class="mr-3 p-2 rounded-md hover:bg-indigo-800 md:hidden focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div class="flex-shrink-0 flex items-center gap-2 cursor-pointer" onclick="location.reload()">
+                        <svg class="w-7 h-7 md:w-8 md:h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <span class="font-bold text-lg md:text-xl tracking-tight" id="app-title">物理模擬實驗平台</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleLang()" class="px-3 py-1 md:px-4 md:py-1.5 rounded-full border border-indigo-400 hover:bg-white hover:text-indigo-900 transition-all text-xs md:text-sm font-medium">
+                        中 / EN
+                    </button>
+                </div>
+            </div>
+        </div>
     </header>
 
-    <!-- Content Area -->
-    <main class="p-6">
-        <!-- Integrated Science -->
-        <div id="integrated-science" class="subject-section hidden">
-            <h3 class="text-lg font-bold mb-2 text-center">Integrated Science</h3>
-			<div class="grid grid-cols-4 gap-4 justify-items-center">
-				<a href="science/structure_of_cell.html" class="block text-blue-600 hover:underline">Unit 4 - Structure of Cell</a>
-				<a href="science/cell_division.html" class="block text-blue-600 hover:underline">Unit 4 - Cell Division</a>
-				<a href="science/dna.html" class="block text-blue-600 hover:underline">Unit 4 - DNA</a>
-				<a href="science/microecosystem.html" class="block text-blue-600 hover:underline">Unit 7 - Micro-Ecosystem</a>
-				<a href="science/belljar_model.html" class="block text-blue-600 hover:underline">Unit 7 - Bell Jar Model</a>
-				<a href="science/electric_circuit.html" class="block text-blue-600 hover:underline">Unit 8 - Electric Circuit</a>
-			</div>
-        </div>
+    <!-- 背景遮罩 (Mobile 選單開啟時) -->
+    <div id="overlay" class="fixed inset-0 bg-black/50 z-30 md:hidden" onclick="toggleSidebar()"></div>
 
-        <!-- Biology -->
-        <div id="biology" class="subject-section hidden">
-            <h3 class="text-lg font-bold mb-2 text-center">Biology</h3>
-			<div class="grid grid-cols-4 gap-4 justify-items-center">
-            	<a href="biology/osmosis.html" class="block text-blue-600 hover:underline">Osmosis</a>
-            	<a href="biology/cell_membrane_permeability.html" class="block text-blue-600 hover:underline">Cell Membrane Permeability</a>
-				<a href="biology/absorption_ileum.html" class="block text-blue-600 hover:underline">Absorption of Nutrients in Small Intestine</a>
-			</div>
-        </div>
+    <div class="flex pt-16 min-h-screen">
+        <!-- 2. 左方選單列 -->
+        <aside id="sidebar" class="w-64 bg-slate-800 text-slate-300 flex-shrink-0 fixed h-[calc(100vh-64px)] z-40 overflow-y-auto hidden-mobile md:translate-x-0">
+            
+            <div class="p-4 pb-2 uppercase text-[10px] font-bold text-slate-500 tracking-[2px]" id="core-label">核心單元 Compulsory</div>
+            
+            <nav class="mt-2 space-y-1 px-2 pb-6" id="main-nav">
+                                <div class="nav-group ">
+                    <button onclick="toggleSub(this); showCategory('integrated-science')" class="group w-full flex items-center justify-between p-3 rounded-md hover:bg-slate-700 hover:text-white transition-colors">
+                        <span class="main-label" data-zh="綜合科學" data-en="Integrated Science">綜合科學</span>
+                        <svg class="w-4 h-4 rotate-icon active" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="submenu bg-slate-900 rounded-md open">
+                                                <a href="science/structure_of_cell.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - 細胞結構" data-en="Unit 4 - Structure of Cell">單元 4 - 細胞結構</a>
+                                                <a href="science/cell_division.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - 細胞分裂" data-en="Unit 4 - Cell Division">單元 4 - 細胞分裂</a>
+                                                <a href="science/dna.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 4 - DNA" data-en="Unit 4 - DNA">單元 4 - DNA</a>
+                                                <a href="science/microecosystem.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 7 - 微生態系統" data-en="Unit 7 - Micro-Ecosystem">單元 7 - 微生態系統</a>
+                                                <a href="science/belljar_model.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 7 - 鐘罩模型" data-en="Unit 7 - Bell Jar Model">單元 7 - 鐘罩模型</a>
+                                                <a href="science/electric_circuit.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="單元 8 - 電路" data-en="Unit 8 - Electric Circuit">單元 8 - 電路</a>
+                                            </div>
+                </div>
+                                <div class="nav-group border-t border-slate-700/50 mt-1">
+                    <button onclick="toggleSub(this); showCategory('biology')" class="group w-full flex items-center justify-between p-3 rounded-md hover:bg-slate-700 hover:text-white transition-colors">
+                        <span class="main-label" data-zh="生物學" data-en="Biology">生物學</span>
+                        <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="submenu bg-slate-900 rounded-md ">
+                                                <a href="biology/osmosis.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="滲透作用" data-en="Osmosis">滲透作用</a>
+                                                <a href="biology/cell_membrane_permeability.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="細胞膜通透性" data-en="Cell Membrane Permeability">細胞膜通透性</a>
+                                                <a href="biology/absorption_ileum.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="小腸營養吸收" data-en="Absorption of Nutrients in Small Intestine">小腸營養吸收</a>
+                                            </div>
+                </div>
+                                <div class="nav-group border-t border-slate-700/50 mt-1">
+                    <button onclick="toggleSub(this); showCategory('chemistry')" class="group w-full flex items-center justify-between p-3 rounded-md hover:bg-slate-700 hover:text-white transition-colors">
+                        <span class="main-label" data-zh="化學" data-en="Chemistry">化學</span>
+                        <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="submenu bg-slate-900 rounded-md ">
+                                                <a href="chem/atomic_structure.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="原子結構" data-en="Atomic Structure">原子結構</a>
+                                                <a href="chem/ram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="相對原子質量" data-en="Relative Atomic Mass">相對原子質量</a>
+                                                <a href="chem/electrolysis.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="電解" data-en="Electrolysis">電解</a>
+                                                <a href="chem/orbital.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="原子及其軌道" data-en="Atoms and their Orbitals">原子及其軌道</a>
+                                                <a href="chem/firework_display.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="煙花展示" data-en="Firework Display">煙花展示</a>
+                                            </div>
+                </div>
+                                <div class="nav-group border-t border-slate-700/50 mt-1">
+                    <button onclick="toggleSub(this); showCategory('physics')" class="group w-full flex items-center justify-between p-3 rounded-md hover:bg-slate-700 hover:text-white transition-colors">
+                        <span class="main-label" data-zh="物理" data-en="Physics">物理</span>
+                        <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="submenu bg-slate-900 rounded-md ">
+                                                <a href="physics/01/0101_calibration_of_thermometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.01 - 溫度計的校準" data-en="1.01 - Calibration of a Thermometer">1.01 - 溫度計的校準</a>
+                                                <a href="physics/01/0101_clinical_thermometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.01 - 體溫計" data-en="1.01 - Clinical Thermometer">1.01 - 體溫計</a>
+                                                <a href="physics/01/0102_conduction.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 傳導" data-en="1.02 - Conduction">1.02 - 傳導</a>
+                                                <a href="physics/01/0102_convection.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 對流" data-en="1.02 - Convection">1.02 - 對流</a>
+                                                <a href="physics/01/0102_radiation_and_colour.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.02 - 輻射與顏色" data-en="1.02 - Radiation and Colour">1.02 - 輻射與顏色</a>
+                                                <a href="physics/01/0103_specific_heat_capacity.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 比熱容" data-en="1.03 - Specific Heat Capacity">1.03 - 比熱容</a>
+                                                <a href="physics/01/0103_specific_heat_capacity2.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 比熱容 2" data-en="1.03 - Specific Heat Capacity 2">1.03 - 比熱容 2</a>
+                                                <a href="physics/01/0103_thermal_equilibrium.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.03 - 熱平衡" data-en="1.03 - Thermal Equilibrium">1.03 - 熱平衡</a>
+                                                <a href="physics/01/0105_gas_laws.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.05 - 氣體定律" data-en="1.05 - Gas Laws">1.05 - 氣體定律</a>
+                                                <a href="physics/01/0105_distribution_gas_speed.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="1.05 - 氣體速度分佈" data-en="1.05 - Distribution of Gas Speed">1.05 - 氣體速度分佈</a>
+                                                <a href="physics/02/0202_freefall.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="2.02 - 自由落體" data-en="2.02 - Free Fall">2.02 - 自由落體</a>
+                                                <a href="physics/02/0210_cavendish_experiment.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="2.10 - 卡文迪許實驗" data-en="2.10 - Cavendish Experiment">2.10 - 卡文迪許實驗</a>
+                                                <a href="physics/03a/0301_how_we_see.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 我們如何看見" data-en="3.01 - How do we see">3.01 - 我們如何看見</a>
+                                                <a href="physics/03a/0301_laws_of_reflection.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 反射定律" data-en="3.01 - Laws of Reflection">3.01 - 反射定律</a>
+                                                <a href="physics/03a/0301_plane_mirror_ray_diagram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 平面鏡光線圖" data-en="3.01 - Plane Mirror Ray Diagram">3.01 - 平面鏡光線圖</a>
+                                                <a href="physics/03a/0301_plane_mirror_ray_diagram2.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.01 - 平面鏡光線圖 2" data-en="3.01 - Plane Mirror Ray Diagram 2">3.01 - 平面鏡光線圖 2</a>
+                                                <a href="physics/03a/0302_analogy_refraction.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 折射類比（車輛模型）" data-en="3.02 - Analogy of Refraction (Vehicle Model)">3.02 - 折射類比（車輛模型）</a>
+                                                <a href="physics/03a/0302_snells_law.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 斯涅爾定律" data-en="3.02 - Snell&#039;s Law">3.02 - 斯涅爾定律</a>
+                                                <a href="physics/03a/0302_dispersion.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.02 - 色散" data-en="3.02 - Dispersion">3.02 - 色散</a>
+                                                <a href="physics/03a/0303_lenses.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.03 - 透鏡光線圖（由 4A Air Li 提供）" data-en="3.03 - Lens Ray Diagram (by Air Li from 4A)">3.03 - 透鏡光線圖（由 4A Air Li 提供）</a>
+                                                <a href="physics/03b/0306_diffraction_grating.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.06 - 繞射光柵" data-en="3.06 - Diffraction Grating">3.06 - 繞射光柵</a>
+                                                <a href="physics/03b/0306_youngs_double_slit.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.06 - 楊氏雙縫實驗" data-en="3.06 - Young&#039;s Double-Slit Experiment">3.06 - 楊氏雙縫實驗</a>
+                                                <a href="physics/03b/0307_signal_generator.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="3.07 - 信號發生器" data-en="3.07 - Signal Generator">3.07 - 信號發生器</a>
+                                                <a href="physics/04b/0405_magnetic_field_lines.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="4.05 - 磁場線" data-en="4.05 - Magnetic Field Lines">4.05 - 磁場線</a>
+                                                <a href="physics/04b/0406_mass_spectrometer.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="4.06 - 質譜儀" data-en="4.06 - Mass Spectrometer">4.06 - 質譜儀</a>
+                                                <a href="physics/05/0501_geiger_muller_counter.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="5.01 - 蓋革-米勒計數器" data-en="5.01 - Geiger-Muller Counter">5.01 - 蓋革-米勒計數器</a>
+                                                <a href="physics/e01/e0104_fraunhofer_lines.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E1.04 - 夫朗和斐譜線" data-en="E1.04 - Fraunhofer Lines">E1.04 - 夫朗和斐譜線</a>
+                                                <a href="physics/e02/e0201_rutherford_experiment.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.01 - 拉塞福散射實驗" data-en="E2.01 - Rutherford Scattering Experiment">E2.01 - 拉塞福散射實驗</a>
+                                                <a href="physics/e02/e0201_photoelectric_effect.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.01 - 光電效應" data-en="E2.01 - Photoelectric Effect">E2.01 - 光電效應</a>
+                                                <a href="physics/e02/e0202_electron_transition.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.02 - 電子躍遷" data-en="E2.02 - Electron Transition">E2.02 - 電子躍遷</a>
+                                                <a href="physics/e02/e0202_emission_line_spectra.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E2.02 - 發射線光譜" data-en="E2.02 - Emission Line Spectra">E2.02 - 發射線光譜</a>
+                                                <a href="physics/e03/e0301_air-conditioner.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.01 - 空調" data-en="E3.01 - Air-Conditioner">E3.01 - 空調</a>
+                                                <a href="physics/e03/e0303_thermal_conductivity.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 熱導率" data-en="E3.03 - Thermal Conductivity">E3.03 - 熱導率</a>
+                                                <a href="physics/e03/e0303_ottv.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 總熱傳值" data-en="E3.03 - OTTV">E3.03 - 總熱傳值</a>
+                                                <a href="physics/e03/e0303_cars.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.03 - 汽車（電動車）" data-en="E3.03 - Cars (Electric Vehicles)">E3.03 - 汽車（電動車）</a>
+                                                <a href="physics/e03/e0304_wind_power.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.04 - 風力發電" data-en="E3.04 - Wind Power">E3.04 - 風力發電</a>
+                                                <a href="physics/e03/e0304_photovoltaic_plate.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="E3.04 - 光伏板" data-en="E3.04 - Photovoltaic Plate">E3.04 - 光伏板</a>
+                                            </div>
+                </div>
+                                <div class="nav-group border-t border-slate-700/50 mt-1">
+                    <button onclick="toggleSub(this); showCategory('astronomy')" class="group w-full flex items-center justify-between p-3 rounded-md hover:bg-slate-700 hover:text-white transition-colors">
+                        <span class="main-label" data-zh="天文學" data-en="Astronomy">天文學</span>
+                        <svg class="w-4 h-4 rotate-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="submenu bg-slate-900 rounded-md ">
+                                                <a href="astronomy/hr_diagram.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="赫羅圖" data-en="Hertzsprung-Russell Diagram">赫羅圖</a>
+                                                <a href="astronomy/analemma.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="日行跡" data-en="Analemma">日行跡</a>
+                                                <a href="astronomy/solar_system_model.html" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="太陽系模型" data-en="Solar System Model">太陽系模型</a>
+                                            </div>
+                </div>
+                            </nav>
+        </aside>
 
-        <!-- Chemistry -->
-        <div id="chemistry" class="subject-section hidden">
-            <h3 class="text-lg font-bold mb-2 text-center">Chemistry</h3>
-			<div class="grid grid-cols-4 gap-4 justify-items-center">
-				<a href="chem/atomic_structure.html" class="block text-blue-600 hover:underline">Atomic Structure</a>
-				<a href="chem/ram.html" class="block text-blue-600 hover:underline">Relative Atomic Mass</a>
-				<a href="chem/electrolysis.html" class="block text-blue-600 hover:underline">Electrolysis</a>
-				<a href="chem/orbital.html" class="block text-blue-600 hover:underline">Atoms and their Orbitals</a>
-                <a href="chem/firework_display.html" class="block text-blue-600 hover:underline">Firework Display</a>
-			</div>
-        </div>
+        <!-- 3. 主顯示區域 -->
+        <main class="flex-1 ml-0 md:ml-64 p-4 md:p-8 transition-all duration-300">
+            
+            <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
+                <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
+                    <span id="breadcrumb-parent" data-zh="綜合科學" data-en="Integrated Science">綜合科學</span>
+                    <span class="mx-2">/</span>
+                    <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
+                </nav>
+                <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="綜合科學模擬實驗" data-en="Integrated Science Simulations">綜合科學模擬實驗</h1>
+            </div>
 
-        <!-- Physics -->
-        <div id="physics" class="subject-section">
-            <h3 class="text-lg font-bold mb-2 text-center">Physics</h3>
-			<div class="grid grid-cols-4 gap-4 justify-items-center">
-				<a href="physics/01/0101_calibration_of_thermometer.html" class="block text-blue-600 hover:underline">1.01 - Calibration of a Thermometer</a>
-				<a href="physics/01/0101_clinical_thermometer.html" class="block text-blue-600 hover:underline">1.01 - Clinical Thermometer</a>
-				<a href="physics/01/0102_conduction.html" class="block text-blue-600 hover:underline">1.02 - Conduction</a>
-				<a href="physics/01/0102_convection.html" class="block text-blue-600 hover:underline">1.02 - Convection</a>
-				<a href="physics/01/0102_radiation_and_colour.html" class="block text-blue-600 hover:underline">1.02 - Radiation and Colour</a>
-				<a href="physics/01/0103_specific_heat_capacity.html" class="block text-blue-600 hover:underline">1.03 - Specific Heat Capacity</a>
-				<a href="physics/01/0103_specific_heat_capacity2.html" class="block text-blue-600 hover:underline">1.03 - Specific Heat Capacity 2</a>
-				<a href="physics/01/0103_thermal_equilibrium.html" class="block text-blue-600 hover:underline">1.03 - Thermal Equilibrium</a>
-                <a href="physics/01/0105_gas_laws.html" class="block text-blue-600 hover:underline">1.05 - Gas Laws</a>
-                <a href="physics/01/0105_distribution_gas_speed.html" class="block text-blue-600 hover:underline">1.05 - Distribution of Gas Speed</a>
-				<a href="physics/02/0202_freefall.html" class="block text-blue-600 hover:underline">2.02 - Free Fall</a>
-				<a href="physics/02/0210_cavendish_experiment.html" class="block text-blue-600 hover:underline">2.10 - Cavendish Experiment</a>
-				<a href="physics/03a/0301_how_we_see.html" class="block text-blue-600 hover:underline">3.01 - How do we see</a>
-				<a href="physics/03a/0301_laws_of_reflection.html" class="block text-blue-600 hover:underline">3.01 - Laws of Reflection</a>
-				<a href="physics/03a/0301_plane_mirror_ray_diagram.html" class="block text-blue-600 hover:underline">3.01 - Plane Mirror Ray Diagram</a>
-				<a href="physics/03a/0301_plane_mirror_ray_diagram2.html" class="block text-blue-600 hover:underline">3.01 - Plane Mirror Ray Diagram 2</a>
-				<a href="physics/03a/0302_analogy_refraction.html" class="block text-blue-600 hover:underline">3.02 - Analogy of Refraction (Vehicle Model)</a>
-				<a href="physics/03a/0302_snells_law.html" class="block text-blue-600 hover:underline">3.02 - Snell's Law</a>
-				<a href="physics/03a/0302_dispersion.html" class="block text-blue-600 hover:underline">3.02 - Dispersion</a>
-				<a href="physics/03a/0303_lenses.html" class="block text-blue-600 hover:underline">3.03 - Lens Ray Diagram (by Air Li from 4A)</a>
-				<a href="physics/03b/0306_diffraction_grating.html" class="block text-blue-600 hover:underline">3.06 - Diffraction Grating</a>
-				<a href="physics/03b/0306_youngs_double_slit.html" class="block text-blue-600 hover:underline">3.06 - Young's Double-Slit Experiment</a>
-				<a href="physics/03b/0307_signal_generator.html" class="block text-blue-600 hover:underline">3.07 - Signal Generator</a>
-                <a href="physics/04b/0405_magnetic_field_lines.html" class="block text-blue-600 hover:underline">4.05 - Magnetic Field Lines</a>
-                <a href="physics/04b/0406_mass_spectrometer.html" class="block text-blue-600 hover:underline">4.06 - Mass Spectrometer</a>
-				<a href="physics/05/0501_geiger_muller_counter.html" class="block text-blue-600 hover:underline">5.01 - Geiger-Muller Counter</a>
-				<a href="physics/e01/e0104_fraunhofer_lines.html" class="block text-blue-600 hover:underline">E1.04 - Fraunhofer Lines</a>
-				<a href="physics/e02/e0201_rutherford_experiment.html" class="block text-blue-600 hover:underline">E2.01 - Rutherford Scattering Experiment</a>
-				<a href="physics/e02/e0201_photoelectric_effect.html" class="block text-blue-600 hover:underline">E2.01 - Photoelectric Effect</a>
-				<a href="physics/e02/e0202_electron_transition.html" class="block text-blue-600 hover:underline">E2.02 - Electron Transition</a>
-				<a href="physics/e02/e0202_emission_line_spectra.html" class="block text-blue-600 hover:underline">E2.02 - Emission Line Spectra</a>
-				<a href="physics/e03/e0301_air-conditioner.html" class="block text-blue-600 hover:underline">E3.01 - Air-Conditioner</a>
-                <a href="physics/e03/e0303_thermal_conductivity.html" class="block text-blue-600 hover:underline">E3.03 - Thermal Conductivity</a>
-                <a href="physics/e03/e0303_ottv.html" class="block text-blue-600 hover:underline">E3.03 - OTTV</a>
-                <a href="physics/e03/e0303_cars.html" class="block text-blue-600 hover:underline">E3.03 - Cars (Electric Vehicles)</a>
-				<a href="physics/e03/e0304_wind_power.html" class="block text-blue-600 hover:underline">E3.04 - Wind Power</a>
-                <a href="physics/e03/e0304_photovoltaic_plate.html" class="block text-blue-600 hover:underline">E3.04 - Photovoltaic Plate</a>
+            <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                <a href="science/structure_of_cell.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - 細胞結構" data-en="Unit 4 - Structure of Cell">單元 4 - 細胞結構</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                                <a href="science/cell_division.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - 細胞分裂" data-en="Unit 4 - Cell Division">單元 4 - 細胞分裂</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                                <a href="science/dna.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 4 - DNA" data-en="Unit 4 - DNA">單元 4 - DNA</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                                <a href="science/microecosystem.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 7 - 微生態系統" data-en="Unit 7 - Micro-Ecosystem">單元 7 - 微生態系統</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                                <a href="science/belljar_model.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 7 - 鐘罩模型" data-en="Unit 7 - Bell Jar Model">單元 7 - 鐘罩模型</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                                <a href="science/electric_circuit.html" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                                                <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="單元 8 - 電路" data-en="Unit 8 - Electric Circuit">單元 8 - 電路</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">最後更新日期：2025-12-21</p>
+                    </div>
+                </a>
+                            </div>
+        </main>
+    </div>
 
-			</div>
-        </div>
+    <script>
+        let currentLang = 'zh';
+        const categoryData = {"Integrated Science":[{"category":"Integrated Science","title":"Unit 4 - Structure of Cell","url":"science\/structure_of_cell.html"},{"category":"Integrated Science","title":"Unit 4 - Cell Division","url":"science\/cell_division.html"},{"category":"Integrated Science","title":"Unit 4 - DNA","url":"science\/dna.html"},{"category":"Integrated Science","title":"Unit 7 - Micro-Ecosystem","url":"science\/microecosystem.html"},{"category":"Integrated Science","title":"Unit 7 - Bell Jar Model","url":"science\/belljar_model.html"},{"category":"Integrated Science","title":"Unit 8 - Electric Circuit","url":"science\/electric_circuit.html"}],"Biology":[{"category":"Biology","title":"Osmosis","url":"biology\/osmosis.html"},{"category":"Biology","title":"Cell Membrane Permeability","url":"biology\/cell_membrane_permeability.html"},{"category":"Biology","title":"Absorption of Nutrients in Small Intestine","url":"biology\/absorption_ileum.html"}],"Chemistry":[{"category":"Chemistry","title":"Atomic Structure","url":"chem\/atomic_structure.html"},{"category":"Chemistry","title":"Relative Atomic Mass","url":"chem\/ram.html"},{"category":"Chemistry","title":"Electrolysis","url":"chem\/electrolysis.html"},{"category":"Chemistry","title":"Atoms and their Orbitals","url":"chem\/orbital.html"},{"category":"Chemistry","title":"Firework Display","url":"chem\/firework_display.html"}],"Physics":[{"category":"Physics","title":"1.01 - Calibration of a Thermometer","url":"physics\/01\/0101_calibration_of_thermometer.html"},{"category":"Physics","title":"1.01 - Clinical Thermometer","url":"physics\/01\/0101_clinical_thermometer.html"},{"category":"Physics","title":"1.02 - Conduction","url":"physics\/01\/0102_conduction.html"},{"category":"Physics","title":"1.02 - Convection","url":"physics\/01\/0102_convection.html"},{"category":"Physics","title":"1.02 - Radiation and Colour","url":"physics\/01\/0102_radiation_and_colour.html"},{"category":"Physics","title":"1.03 - Specific Heat Capacity","url":"physics\/01\/0103_specific_heat_capacity.html"},{"category":"Physics","title":"1.03 - Specific Heat Capacity 2","url":"physics\/01\/0103_specific_heat_capacity2.html"},{"category":"Physics","title":"1.03 - Thermal Equilibrium","url":"physics\/01\/0103_thermal_equilibrium.html"},{"category":"Physics","title":"1.05 - Gas Laws","url":"physics\/01\/0105_gas_laws.html"},{"category":"Physics","title":"1.05 - Distribution of Gas Speed","url":"physics\/01\/0105_distribution_gas_speed.html"},{"category":"Physics","title":"2.02 - Free Fall","url":"physics\/02\/0202_freefall.html"},{"category":"Physics","title":"2.10 - Cavendish Experiment","url":"physics\/02\/0210_cavendish_experiment.html"},{"category":"Physics","title":"3.01 - How do we see","url":"physics\/03a\/0301_how_we_see.html"},{"category":"Physics","title":"3.01 - Laws of Reflection","url":"physics\/03a\/0301_laws_of_reflection.html"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram","url":"physics\/03a\/0301_plane_mirror_ray_diagram.html"},{"category":"Physics","title":"3.01 - Plane Mirror Ray Diagram 2","url":"physics\/03a\/0301_plane_mirror_ray_diagram2.html"},{"category":"Physics","title":"3.02 - Analogy of Refraction (Vehicle Model)","url":"physics\/03a\/0302_analogy_refraction.html"},{"category":"Physics","title":"3.02 - Snell\u0027s Law","url":"physics\/03a\/0302_snells_law.html"},{"category":"Physics","title":"3.02 - Dispersion","url":"physics\/03a\/0302_dispersion.html"},{"category":"Physics","title":"3.03 - Lens Ray Diagram (by Air Li from 4A)","url":"physics\/03a\/0303_lenses.html"},{"category":"Physics","title":"3.06 - Diffraction Grating","url":"physics\/03b\/0306_diffraction_grating.html"},{"category":"Physics","title":"3.06 - Young\u0027s Double-Slit Experiment","url":"physics\/03b\/0306_youngs_double_slit.html"},{"category":"Physics","title":"3.07 - Signal Generator","url":"physics\/03b\/0307_signal_generator.html"},{"category":"Physics","title":"4.05 - Magnetic Field Lines","url":"physics\/04b\/0405_magnetic_field_lines.html"},{"category":"Physics","title":"4.06 - Mass Spectrometer","url":"physics\/04b\/0406_mass_spectrometer.html"},{"category":"Physics","title":"5.01 - Geiger-Muller Counter","url":"physics\/05\/0501_geiger_muller_counter.html"},{"category":"Physics","title":"E1.04 - Fraunhofer Lines","url":"physics\/e01\/e0104_fraunhofer_lines.html"},{"category":"Physics","title":"E2.01 - Rutherford Scattering Experiment","url":"physics\/e02\/e0201_rutherford_experiment.html"},{"category":"Physics","title":"E2.01 - Photoelectric Effect","url":"physics\/e02\/e0201_photoelectric_effect.html"},{"category":"Physics","title":"E2.02 - Electron Transition","url":"physics\/e02\/e0202_electron_transition.html"},{"category":"Physics","title":"E2.02 - Emission Line Spectra","url":"physics\/e02\/e0202_emission_line_spectra.html"},{"category":"Physics","title":"E3.01 - Air-Conditioner","url":"physics\/e03\/e0301_air-conditioner.html"},{"category":"Physics","title":"E3.03 - Thermal Conductivity","url":"physics\/e03\/e0303_thermal_conductivity.html"},{"category":"Physics","title":"E3.03 - OTTV","url":"physics\/e03\/e0303_ottv.html"},{"category":"Physics","title":"E3.03 - Cars (Electric Vehicles)","url":"physics\/e03\/e0303_cars.html"},{"category":"Physics","title":"E3.04 - Wind Power","url":"physics\/e03\/e0304_wind_power.html"},{"category":"Physics","title":"E3.04 - Photovoltaic Plate","url":"physics\/e03\/e0304_photovoltaic_plate.html"}],"Astronomy":[{"category":"Astronomy","title":"Hertzsprung-Russell Diagram","url":"astronomy\/hr_diagram.html"},{"category":"Astronomy","title":"Analemma","url":"astronomy\/analemma.html"},{"category":"Astronomy","title":"Solar System Model","url":"astronomy\/solar_system_model.html"}]};
+        const categoryMap = {"Integrated Science":{"zh":"\u7d9c\u5408\u79d1\u5b78","en":"Integrated Science"},"Biology":{"zh":"\u751f\u7269\u5b78","en":"Biology"},"Chemistry":{"zh":"\u5316\u5b78","en":"Chemistry"},"Physics":{"zh":"\u7269\u7406","en":"Physics"},"Astronomy":{"zh":"\u5929\u6587\u5b78","en":"Astronomy"}};
+        const titleMap = {"Unit 4 - Structure of Cell":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u7d50\u69cb","en":"Unit 4 - Structure of Cell"},"Unit 4 - Cell Division":{"zh":"\u55ae\u5143 4 - \u7d30\u80de\u5206\u88c2","en":"Unit 4 - Cell Division"},"Unit 4 - DNA":{"zh":"\u55ae\u5143 4 - DNA","en":"Unit 4 - DNA"},"Unit 7 - Micro-Ecosystem":{"zh":"\u55ae\u5143 7 - \u5fae\u751f\u614b\u7cfb\u7d71","en":"Unit 7 - Micro-Ecosystem"},"Unit 7 - Bell Jar Model":{"zh":"\u55ae\u5143 7 - \u9418\u7f69\u6a21\u578b","en":"Unit 7 - Bell Jar Model"},"Unit 8 - Electric Circuit":{"zh":"\u55ae\u5143 8 - \u96fb\u8def","en":"Unit 8 - Electric Circuit"},"Osmosis":{"zh":"\u6ef2\u900f\u4f5c\u7528","en":"Osmosis"},"Cell Membrane Permeability":{"zh":"\u7d30\u80de\u819c\u901a\u900f\u6027","en":"Cell Membrane Permeability"},"Absorption of Nutrients in Small Intestine":{"zh":"\u5c0f\u8178\u71df\u990a\u5438\u6536","en":"Absorption of Nutrients in Small Intestine"},"Atomic Structure":{"zh":"\u539f\u5b50\u7d50\u69cb","en":"Atomic Structure"},"Relative Atomic Mass":{"zh":"\u76f8\u5c0d\u539f\u5b50\u8cea\u91cf","en":"Relative Atomic Mass"},"Electrolysis":{"zh":"\u96fb\u89e3","en":"Electrolysis"},"Atoms and their Orbitals":{"zh":"\u539f\u5b50\u53ca\u5176\u8ecc\u9053","en":"Atoms and their Orbitals"},"Firework Display":{"zh":"\u7159\u82b1\u5c55\u793a","en":"Firework Display"},"1.01 - Calibration of a Thermometer":{"zh":"1.01 - \u6eab\u5ea6\u8a08\u7684\u6821\u6e96","en":"1.01 - Calibration of a Thermometer"},"1.01 - Clinical Thermometer":{"zh":"1.01 - \u9ad4\u6eab\u8a08","en":"1.01 - Clinical Thermometer"},"1.02 - Conduction":{"zh":"1.02 - \u50b3\u5c0e","en":"1.02 - Conduction"},"1.02 - Convection":{"zh":"1.02 - \u5c0d\u6d41","en":"1.02 - Convection"},"1.02 - Radiation and Colour":{"zh":"1.02 - \u8f3b\u5c04\u8207\u984f\u8272","en":"1.02 - Radiation and Colour"},"1.03 - Specific Heat Capacity":{"zh":"1.03 - \u6bd4\u71b1\u5bb9","en":"1.03 - Specific Heat Capacity"},"1.03 - Specific Heat Capacity 2":{"zh":"1.03 - \u6bd4\u71b1\u5bb9 2","en":"1.03 - Specific Heat Capacity 2"},"1.03 - Thermal Equilibrium":{"zh":"1.03 - \u71b1\u5e73\u8861","en":"1.03 - Thermal Equilibrium"},"1.05 - Gas Laws":{"zh":"1.05 - \u6c23\u9ad4\u5b9a\u5f8b","en":"1.05 - Gas Laws"},"1.05 - Distribution of Gas Speed":{"zh":"1.05 - \u6c23\u9ad4\u901f\u5ea6\u5206\u4f48","en":"1.05 - Distribution of Gas Speed"},"2.02 - Free Fall":{"zh":"2.02 - \u81ea\u7531\u843d\u9ad4","en":"2.02 - Free Fall"},"2.10 - Cavendish Experiment":{"zh":"2.10 - \u5361\u6587\u8fea\u8a31\u5be6\u9a57","en":"2.10 - Cavendish Experiment"},"3.01 - How do we see":{"zh":"3.01 - \u6211\u5011\u5982\u4f55\u770b\u898b","en":"3.01 - How do we see"},"3.01 - Laws of Reflection":{"zh":"3.01 - \u53cd\u5c04\u5b9a\u5f8b","en":"3.01 - Laws of Reflection"},"3.01 - Plane Mirror Ray Diagram":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716","en":"3.01 - Plane Mirror Ray Diagram"},"3.01 - Plane Mirror Ray Diagram 2":{"zh":"3.01 - \u5e73\u9762\u93e1\u5149\u7dda\u5716 2","en":"3.01 - Plane Mirror Ray Diagram 2"},"3.02 - Analogy of Refraction (Vehicle Model)":{"zh":"3.02 - \u6298\u5c04\u985e\u6bd4\uff08\u8eca\u8f1b\u6a21\u578b\uff09","en":"3.02 - Analogy of Refraction (Vehicle Model)"},"3.02 - Snell\u0027s Law":{"zh":"3.02 - \u65af\u6d85\u723e\u5b9a\u5f8b","en":"3.02 - Snell\u0027s Law"},"3.02 - Dispersion":{"zh":"3.02 - \u8272\u6563","en":"3.02 - Dispersion"},"3.03 - Lens Ray Diagram (by Air Li from 4A)":{"zh":"3.03 - \u900f\u93e1\u5149\u7dda\u5716\uff08\u7531 4A Air Li \u63d0\u4f9b\uff09","en":"3.03 - Lens Ray Diagram (by Air Li from 4A)"},"3.06 - Diffraction Grating":{"zh":"3.06 - \u7e5e\u5c04\u5149\u67f5","en":"3.06 - Diffraction Grating"},"3.06 - Young\u0027s Double-Slit Experiment":{"zh":"3.06 - \u694a\u6c0f\u96d9\u7e2b\u5be6\u9a57","en":"3.06 - Young\u0027s Double-Slit Experiment"},"3.07 - Signal Generator":{"zh":"3.07 - \u4fe1\u865f\u767c\u751f\u5668","en":"3.07 - Signal Generator"},"4.05 - Magnetic Field Lines":{"zh":"4.05 - \u78c1\u5834\u7dda","en":"4.05 - Magnetic Field Lines"},"4.06 - Mass Spectrometer":{"zh":"4.06 - \u8cea\u8b5c\u5100","en":"4.06 - Mass Spectrometer"},"5.01 - Geiger-Muller Counter":{"zh":"5.01 - \u84cb\u9769-\u7c73\u52d2\u8a08\u6578\u5668","en":"5.01 - Geiger-Muller Counter"},"E1.04 - Fraunhofer Lines":{"zh":"E1.04 - \u592b\u6717\u548c\u6590\u8b5c\u7dda","en":"E1.04 - Fraunhofer Lines"},"E2.01 - Rutherford Scattering Experiment":{"zh":"E2.01 - \u62c9\u585e\u798f\u6563\u5c04\u5be6\u9a57","en":"E2.01 - Rutherford Scattering Experiment"},"E2.01 - Photoelectric Effect":{"zh":"E2.01 - \u5149\u96fb\u6548\u61c9","en":"E2.01 - Photoelectric Effect"},"E2.02 - Electron Transition":{"zh":"E2.02 - \u96fb\u5b50\u8e8d\u9077","en":"E2.02 - Electron Transition"},"E2.02 - Emission Line Spectra":{"zh":"E2.02 - \u767c\u5c04\u7dda\u5149\u8b5c","en":"E2.02 - Emission Line Spectra"},"E3.01 - Air-Conditioner":{"zh":"E3.01 - \u7a7a\u8abf","en":"E3.01 - Air-Conditioner"},"E3.03 - Thermal Conductivity":{"zh":"E3.03 - \u71b1\u5c0e\u7387","en":"E3.03 - Thermal Conductivity"},"E3.03 - OTTV":{"zh":"E3.03 - \u7e3d\u71b1\u50b3\u503c","en":"E3.03 - OTTV"},"E3.03 - Cars (Electric Vehicles)":{"zh":"E3.03 - \u6c7d\u8eca\uff08\u96fb\u52d5\u8eca\uff09","en":"E3.03 - Cars (Electric Vehicles)"},"E3.04 - Wind Power":{"zh":"E3.04 - \u98a8\u529b\u767c\u96fb","en":"E3.04 - Wind Power"},"E3.04 - Photovoltaic Plate":{"zh":"E3.04 - \u5149\u4f0f\u677f","en":"E3.04 - Photovoltaic Plate"},"Hertzsprung-Russell Diagram":{"zh":"\u8d6b\u7f85\u5716","en":"Hertzsprung-Russell Diagram"},"Analemma":{"zh":"\u65e5\u884c\u8de1","en":"Analemma"},"Solar System Model":{"zh":"\u592a\u967d\u7cfb\u6a21\u578b","en":"Solar System Model"}};
 
-		<!-- Astronomy -->
-        <div id="astronomy" class="subject-section hidden">
-            <h3 class="text-lg font-bold mb-2 text-center">Astronomy</h3>
-			<div class="grid grid-cols-4 gap-4 justify-items-center">
-				<a href="astronomy/hr_diagram.html" class="block text-blue-600 hover:underline">Hertzsprung-Russell Diagram</a>
-				<a href="astronomy/analemma.html" class="block text-blue-600 hover:underline">Analemma</a>
-				<a href="astronomy/solar_system_model.html" class="block text-blue-600 hover:underline">Solar System Model</a>
-			</div>
-        </div>
-    </main>
+        // 摺疊/展開子選單
+        function toggleSub(btn) {
+            const submenu = btn.nextElementSibling;
+            const icon = btn.querySelector('.rotate-icon');
+            submenu.classList.toggle('open');
+            icon.classList.toggle('active');
+        }
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white text-center p-4 mt-auto fixed bottom-0 left-0 w-full">
-        <p>&copy; 2025 Mr. B. Leung. All rights reserved.</p>
-    </footer>
+        // 顯示特定類別的卡片
+        function showCategory(categoryId) {
+            const category = Object.keys(categoryData).find(cat => 
+                cat.toLowerCase().replace(/\s+/g, '-') === categoryId
+            ) || Object.keys(categoryData)[0];
+            
+            const items = categoryData[category];
+            const container = document.getElementById('card-container');
+            const breadcrumbParent = document.getElementById('breadcrumb-parent');
+            const pageTitle = document.getElementById('page-title');
+            
+            // 更新麵包屑和標題
+            const categoryZh = categoryMap[category] ? categoryMap[category]['zh'] : category;
+            const categoryEn = categoryMap[category] ? categoryMap[category]['en'] : category;
+            
+            breadcrumbParent.setAttribute('data-zh', categoryZh);
+            breadcrumbParent.setAttribute('data-en', categoryEn);
+            breadcrumbParent.textContent = currentLang === 'zh' ? categoryZh : categoryEn;
+            
+            const titleZh = categoryZh + '模擬實驗';
+            const titleEn = categoryEn + ' Simulations';
+            pageTitle.setAttribute('data-zh', titleZh);
+            pageTitle.setAttribute('data-en', titleEn);
+            pageTitle.textContent = currentLang === 'zh' ? titleZh : titleEn;
+            
+            // 生成卡片
+            container.innerHTML = items.map(item => {
+                const titleZh = titleMap[item.title] ? titleMap[item.title]['zh'] : item.title;
+                const titleEn = titleMap[item.title] ? titleMap[item.title]['en'] : item.title;
+                return `
+                <a href="${escapeHtml(item.url)}" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                    <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>
+                        <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
+                    </div>
+                    <div class="p-4 md:p-5 flex-grow">
+                        <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="${escapeHtml(titleZh)}" data-en="${escapeHtml(titleEn)}">${escapeHtml(currentLang === 'zh' ? titleZh : titleEn)}</h3>
+                        <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">${currentLang === 'zh' ? '點擊進入模擬實驗' : 'Click to enter simulation'}</p>
+                    </div>
+                    <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
+                        <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">${currentLang === 'zh' ? '最後更新日期：2025-12-21' : 'Last Updated: 2025-12-21'}</p>
+                    </div>
+                </a>
+            `;
+            }).join('');
+            
+            updateUI();
+        }
 
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // 行動裝置側邊欄切換
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        function toggleSidebar() {
+            const isHidden = sidebar.classList.contains('hidden-mobile');
+            if (isHidden) {
+                sidebar.classList.remove('hidden-mobile');
+                sidebar.classList.add('show-mobile');
+                overlay.classList.add('active');
+            } else {
+                sidebar.classList.add('hidden-mobile');
+                sidebar.classList.remove('show-mobile');
+                overlay.classList.remove('active');
+            }
+        }
+
+        mobileToggle.addEventListener('click', toggleSidebar);
+
+        // 切換語言
+        function toggleLang() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateUI();
+        }
+
+        function updateUI() {
+            const texts = {
+                zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory" },
+                en: { title: "Physics Sim Platform", core: "Compulsory Part" }
+            };
+            document.getElementById('app-title').innerText = texts[currentLang].title;
+            document.getElementById('core-label').innerText = texts[currentLang].core;
+
+            // 更新所有帶有 data-zh 和 data-en 屬性的元素
+            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title').forEach(el => {
+                const val = el.getAttribute(`data-${currentLang}`);
+                if (val) el.innerText = val;
+            });
+        }
+
+        // 初始化顯示第一個類別
+        window.addEventListener('DOMContentLoaded', function() {
+            const firstCategory = Object.keys(categoryData)[0];
+            const categoryId = firstCategory.toLowerCase().replace(/\s+/g, '-');
+            showCategory(categoryId);
+        });
+    </script>
 </body>
 </html>
+
