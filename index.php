@@ -42,6 +42,89 @@ $categoryMap = [
     'Physics' => ['zh' => '物理', 'en' => 'Physics'],
     'Astronomy' => ['zh' => '天文學', 'en' => 'Astronomy']
 ];
+
+// Title translation mapping
+$titleMap = [
+    // Integrated Science
+    'Unit 4 - Structure of Cell' => ['zh' => '單元 4 - 細胞結構', 'en' => 'Unit 4 - Structure of Cell'],
+    'Unit 4 - Cell Division' => ['zh' => '單元 4 - 細胞分裂', 'en' => 'Unit 4 - Cell Division'],
+    'Unit 4 - DNA' => ['zh' => '單元 4 - DNA', 'en' => 'Unit 4 - DNA'],
+    'Unit 7 - Micro-Ecosystem' => ['zh' => '單元 7 - 微生態系統', 'en' => 'Unit 7 - Micro-Ecosystem'],
+    'Unit 7 - Bell Jar Model' => ['zh' => '單元 7 - 鐘罩模型', 'en' => 'Unit 7 - Bell Jar Model'],
+    'Unit 8 - Electric Circuit' => ['zh' => '單元 8 - 電路', 'en' => 'Unit 8 - Electric Circuit'],
+    
+    // Biology
+    'Osmosis' => ['zh' => '滲透作用', 'en' => 'Osmosis'],
+    'Cell Membrane Permeability' => ['zh' => '細胞膜通透性', 'en' => 'Cell Membrane Permeability'],
+    'Absorption of Nutrients in Small Intestine' => ['zh' => '小腸營養吸收', 'en' => 'Absorption of Nutrients in Small Intestine'],
+    
+    // Chemistry
+    'Atomic Structure' => ['zh' => '原子結構', 'en' => 'Atomic Structure'],
+    'Relative Atomic Mass' => ['zh' => '相對原子質量', 'en' => 'Relative Atomic Mass'],
+    'Electrolysis' => ['zh' => '電解', 'en' => 'Electrolysis'],
+    'Atoms and their Orbitals' => ['zh' => '原子及其軌道', 'en' => 'Atoms and their Orbitals'],
+    'Firework Display' => ['zh' => '煙花展示', 'en' => 'Firework Display'],
+    
+    // Physics - Topic 1
+    '1.01 - Calibration of a Thermometer' => ['zh' => '1.01 - 溫度計的校準', 'en' => '1.01 - Calibration of a Thermometer'],
+    '1.01 - Clinical Thermometer' => ['zh' => '1.01 - 體溫計', 'en' => '1.01 - Clinical Thermometer'],
+    '1.02 - Conduction' => ['zh' => '1.02 - 傳導', 'en' => '1.02 - Conduction'],
+    '1.02 - Convection' => ['zh' => '1.02 - 對流', 'en' => '1.02 - Convection'],
+    '1.02 - Radiation and Colour' => ['zh' => '1.02 - 輻射與顏色', 'en' => '1.02 - Radiation and Colour'],
+    '1.03 - Specific Heat Capacity' => ['zh' => '1.03 - 比熱容', 'en' => '1.03 - Specific Heat Capacity'],
+    '1.03 - Specific Heat Capacity 2' => ['zh' => '1.03 - 比熱容 2', 'en' => '1.03 - Specific Heat Capacity 2'],
+    '1.03 - Thermal Equilibrium' => ['zh' => '1.03 - 熱平衡', 'en' => '1.03 - Thermal Equilibrium'],
+    '1.05 - Gas Laws' => ['zh' => '1.05 - 氣體定律', 'en' => '1.05 - Gas Laws'],
+    '1.05 - Distribution of Gas Speed' => ['zh' => '1.05 - 氣體速度分佈', 'en' => '1.05 - Distribution of Gas Speed'],
+    
+    // Physics - Topic 2
+    '2.02 - Free Fall' => ['zh' => '2.02 - 自由落體', 'en' => '2.02 - Free Fall'],
+    '2.10 - Cavendish Experiment' => ['zh' => '2.10 - 卡文迪許實驗', 'en' => '2.10 - Cavendish Experiment'],
+    
+    // Physics - Topic 3a
+    '3.01 - How do we see' => ['zh' => '3.01 - 我們如何看見', 'en' => '3.01 - How do we see'],
+    '3.01 - Laws of Reflection' => ['zh' => '3.01 - 反射定律', 'en' => '3.01 - Laws of Reflection'],
+    '3.01 - Plane Mirror Ray Diagram' => ['zh' => '3.01 - 平面鏡光線圖', 'en' => '3.01 - Plane Mirror Ray Diagram'],
+    '3.01 - Plane Mirror Ray Diagram 2' => ['zh' => '3.01 - 平面鏡光線圖 2', 'en' => '3.01 - Plane Mirror Ray Diagram 2'],
+    '3.02 - Analogy of Refraction (Vehicle Model)' => ['zh' => '3.02 - 折射類比（車輛模型）', 'en' => '3.02 - Analogy of Refraction (Vehicle Model)'],
+    '3.02 - Snell\'s Law' => ['zh' => '3.02 - 斯涅爾定律', 'en' => '3.02 - Snell\'s Law'],
+    '3.02 - Dispersion' => ['zh' => '3.02 - 色散', 'en' => '3.02 - Dispersion'],
+    '3.03 - Lens Ray Diagram (by Air Li from 4A)' => ['zh' => '3.03 - 透鏡光線圖（由 4A Air Li 提供）', 'en' => '3.03 - Lens Ray Diagram (by Air Li from 4A)'],
+    
+    // Physics - Topic 3b
+    '3.06 - Diffraction Grating' => ['zh' => '3.06 - 繞射光柵', 'en' => '3.06 - Diffraction Grating'],
+    '3.06 - Young\'s Double-Slit Experiment' => ['zh' => '3.06 - 楊氏雙縫實驗', 'en' => '3.06 - Young\'s Double-Slit Experiment'],
+    '3.07 - Signal Generator' => ['zh' => '3.07 - 信號發生器', 'en' => '3.07 - Signal Generator'],
+    
+    // Physics - Topic 4b
+    '4.05 - Magnetic Field Lines' => ['zh' => '4.05 - 磁場線', 'en' => '4.05 - Magnetic Field Lines'],
+    '4.06 - Mass Spectrometer' => ['zh' => '4.06 - 質譜儀', 'en' => '4.06 - Mass Spectrometer'],
+    
+    // Physics - Topic 5
+    '5.01 - Geiger-Muller Counter' => ['zh' => '5.01 - 蓋革-米勒計數器', 'en' => '5.01 - Geiger-Muller Counter'],
+    
+    // Physics - Elective E1
+    'E1.04 - Fraunhofer Lines' => ['zh' => 'E1.04 - 夫朗和斐譜線', 'en' => 'E1.04 - Fraunhofer Lines'],
+    
+    // Physics - Elective E2
+    'E2.01 - Rutherford Scattering Experiment' => ['zh' => 'E2.01 - 拉塞福散射實驗', 'en' => 'E2.01 - Rutherford Scattering Experiment'],
+    'E2.01 - Photoelectric Effect' => ['zh' => 'E2.01 - 光電效應', 'en' => 'E2.01 - Photoelectric Effect'],
+    'E2.02 - Electron Transition' => ['zh' => 'E2.02 - 電子躍遷', 'en' => 'E2.02 - Electron Transition'],
+    'E2.02 - Emission Line Spectra' => ['zh' => 'E2.02 - 發射線光譜', 'en' => 'E2.02 - Emission Line Spectra'],
+    
+    // Physics - Elective E3
+    'E3.01 - Air-Conditioner' => ['zh' => 'E3.01 - 空調', 'en' => 'E3.01 - Air-Conditioner'],
+    'E3.03 - Thermal Conductivity' => ['zh' => 'E3.03 - 熱導率', 'en' => 'E3.03 - Thermal Conductivity'],
+    'E3.03 - OTTV' => ['zh' => 'E3.03 - 總熱傳值', 'en' => 'E3.03 - OTTV'],
+    'E3.03 - Cars (Electric Vehicles)' => ['zh' => 'E3.03 - 汽車（電動車）', 'en' => 'E3.03 - Cars (Electric Vehicles)'],
+    'E3.04 - Wind Power' => ['zh' => 'E3.04 - 風力發電', 'en' => 'E3.04 - Wind Power'],
+    'E3.04 - Photovoltaic Plate' => ['zh' => 'E3.04 - 光伏板', 'en' => 'E3.04 - Photovoltaic Plate'],
+    
+    // Astronomy
+    'Hertzsprung-Russell Diagram' => ['zh' => '赫羅圖', 'en' => 'Hertzsprung-Russell Diagram'],
+    'Analemma' => ['zh' => '日行跡', 'en' => 'Analemma'],
+    'Solar System Model' => ['zh' => '太陽系模型', 'en' => 'Solar System Model']
+];
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -135,8 +218,11 @@ $categoryMap = [
                         <svg class="w-4 h-4 rotate-icon <?php echo $firstCategory ? 'active' : ''; ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div class="submenu bg-slate-900 rounded-md <?php echo $firstCategory ? 'open' : ''; ?>">
-                        <?php foreach ($items as $item): ?>
-                        <a href="<?php echo htmlspecialchars($item['url']); ?>" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="<?php echo htmlspecialchars($item['title']); ?>" data-en="<?php echo htmlspecialchars($item['title']); ?>"><?php echo htmlspecialchars($item['title']); ?></a>
+                        <?php foreach ($items as $item): 
+                            $titleZh = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['zh'] : $item['title'];
+                            $titleEn = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['en'] : $item['title'];
+                        ?>
+                        <a href="<?php echo htmlspecialchars($item['url']); ?>" class="sub-label block py-2 px-6 text-sm hover:text-indigo-400" data-zh="<?php echo htmlspecialchars($titleZh); ?>" data-en="<?php echo htmlspecialchars($titleEn); ?>"><?php echo htmlspecialchars($titleZh); ?></a>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -152,11 +238,11 @@ $categoryMap = [
             
             <div class="mb-6 md:mb-8 border-b border-slate-200 pb-6">
                 <nav class="flex mb-2 text-xs md:text-sm text-slate-500">
-                    <span id="breadcrumb-parent"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?></span>
+                    <span id="breadcrumb-parent" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh']) : htmlspecialchars(key($groupedData)); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en']) : htmlspecialchars(key($groupedData)); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?></span>
                     <span class="mx-2">/</span>
-                    <span id="breadcrumb-child" class="text-indigo-600 font-medium">所有實驗</span>
+                    <span id="breadcrumb-child" class="text-indigo-600 font-medium" data-zh="所有實驗" data-en="All Experiments">所有實驗</span>
                 </nav>
-                <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?>模擬實驗</h1>
+                <h1 id="page-title" class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight" data-zh="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['zh'] . '模擬實驗') : htmlspecialchars(key($groupedData) . '模擬實驗'); ?>" data-en="<?php echo isset($categoryMap[key($groupedData)]) ? htmlspecialchars($categoryMap[key($groupedData)]['en'] . ' Simulations') : htmlspecialchars(key($groupedData) . ' Simulations'); ?>"><?php echo isset($categoryMap[key($groupedData)]) ? $categoryMap[key($groupedData)]['zh'] : key($groupedData); ?>模擬實驗</h1>
             </div>
 
             <div id="card-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -166,11 +252,15 @@ $categoryMap = [
                 ?>
                 <a href="<?php echo htmlspecialchars($item['url']); ?>" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                     <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm">[實驗影像]</span>
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">[實驗影像]</span>
                         <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
-                        <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t"><?php echo htmlspecialchars($item['title']); ?></h3>
+                        <?php 
+                        $titleZh = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['zh'] : $item['title'];
+                        $titleEn = isset($titleMap[$item['title']]) ? $titleMap[$item['title']]['en'] : $item['title'];
+                        ?>
+                        <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="<?php echo htmlspecialchars($titleZh); ?>" data-en="<?php echo htmlspecialchars($titleEn); ?>"><?php echo htmlspecialchars($titleZh); ?></h3>
                         <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">點擊進入模擬實驗</p>
                     </div>
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
@@ -186,6 +276,7 @@ $categoryMap = [
         let currentLang = 'zh';
         const categoryData = <?php echo json_encode($groupedData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         const categoryMap = <?php echo json_encode($categoryMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        const titleMap = <?php echo json_encode($titleMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
         // 摺疊/展開子選單
         function toggleSub(btn) {
@@ -210,25 +301,36 @@ $categoryMap = [
             const categoryZh = categoryMap[category] ? categoryMap[category]['zh'] : category;
             const categoryEn = categoryMap[category] ? categoryMap[category]['en'] : category;
             
+            breadcrumbParent.setAttribute('data-zh', categoryZh);
+            breadcrumbParent.setAttribute('data-en', categoryEn);
             breadcrumbParent.textContent = currentLang === 'zh' ? categoryZh : categoryEn;
-            pageTitle.textContent = (currentLang === 'zh' ? categoryZh : categoryEn) + (currentLang === 'zh' ? '模擬實驗' : ' Simulations');
+            
+            const titleZh = categoryZh + '模擬實驗';
+            const titleEn = categoryEn + ' Simulations';
+            pageTitle.setAttribute('data-zh', titleZh);
+            pageTitle.setAttribute('data-en', titleEn);
+            pageTitle.textContent = currentLang === 'zh' ? titleZh : titleEn;
             
             // 生成卡片
-            container.innerHTML = items.map(item => `
+            container.innerHTML = items.map(item => {
+                const titleZh = titleMap[item.title] ? titleMap[item.title]['zh'] : item.title;
+                const titleEn = titleMap[item.title] ? titleMap[item.title]['en'] : item.title;
+                return `
                 <a href="${escapeHtml(item.url)}" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                     <div class="h-32 md:h-40 bg-slate-100 flex items-center justify-center border-b border-slate-100 relative group">
-                        <span class="text-slate-400 text-sm">[實驗影像]</span>
+                        <span class="text-slate-400 text-sm image-placeholder" data-zh="[實驗影像]" data-en="[Experiment Image]">${currentLang === 'zh' ? '[實驗影像]' : '[Experiment Image]'}</span>
                         <div class="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors"></div>
                     </div>
                     <div class="p-4 md:p-5 flex-grow">
-                        <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t">${escapeHtml(item.title)}</h3>
+                        <h3 class="font-bold text-base md:text-lg text-slate-800 mb-2 card-t" data-zh="${escapeHtml(titleZh)}" data-en="${escapeHtml(titleEn)}">${escapeHtml(currentLang === 'zh' ? titleZh : titleEn)}</h3>
                         <p class="text-slate-600 text-xs md:text-sm leading-relaxed mb-4 card-d" data-zh="點擊進入模擬實驗" data-en="Click to enter simulation">${currentLang === 'zh' ? '點擊進入模擬實驗' : 'Click to enter simulation'}</p>
                     </div>
                     <div class="px-4 py-2 md:px-5 md:py-3 bg-slate-50 border-t border-slate-100">
                         <p class="text-[10px] md:text-[11px] text-slate-400 font-medium tracking-wide update-text" data-zh="最後更新日期：2025-12-21" data-en="Last Updated: 2025-12-21">${currentLang === 'zh' ? '最後更新日期：2025-12-21' : 'Last Updated: 2025-12-21'}</p>
                     </div>
                 </a>
-            `).join('');
+            `;
+            }).join('');
             
             updateUI();
         }
@@ -272,14 +374,14 @@ $categoryMap = [
 
         function updateUI() {
             const texts = {
-                zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory", elective: "選修單元 Elective" },
-                en: { title: "Physics Sim Platform", core: "Compulsory Part", elective: "Elective Part" }
+                zh: { title: "物理模擬實驗平台", core: "核心單元 Compulsory" },
+                en: { title: "Physics Sim Platform", core: "Compulsory Part" }
             };
             document.getElementById('app-title').innerText = texts[currentLang].title;
             document.getElementById('core-label').innerText = texts[currentLang].core;
-            document.getElementById('elective-label').innerText = texts[currentLang].elective;
 
-            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text').forEach(el => {
+            // 更新所有帶有 data-zh 和 data-en 屬性的元素
+            document.querySelectorAll('.main-label, .sub-label, .card-t, .card-d, .update-text, .image-placeholder, #breadcrumb-parent, #breadcrumb-child, #page-title').forEach(el => {
                 const val = el.getAttribute(`data-${currentLang}`);
                 if (val) el.innerText = val;
             });
