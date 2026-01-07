@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 閱讀器 | PDF Viewer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        /* 翻頁動畫 - 更自然的書本翻頁效果 */
+        .page-container {
+            perspective: 3000px;
+            transform-style: preserve-3d;
+            position: relative;
+        }
+        
+        .page-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .page {
+            transform-style: preserve-3d;
+            position: relative;
+            transform-origin: left center;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .page.flipping {
+            transform: rotateY(-180deg);
+        }
+        
+        .page.flipping-next {
+            animation: flipNext 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        
+        .page.flipping-prev {
+            animation: flipPrev 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        
+        @keyframes flipNext {
+            0% {
+                transform: rotateY(0deg) translateZ(0);
+            }
+            50% {
+                transform: rotateY(-90deg) translateZ(20px);
+            }
+            100% {
+                transform: rotateY(-180deg) translateZ(0);
+            }
+        }
+        
+        @keyframes flipPrev {
+            0% {
+                transform: rotateY(-180deg) translateZ(0);
+            }
+            50% {
+                transform: rotateY(-90deg) translateZ(20px);
+            }
+            100% {
+                transform: rotateY(0deg) translateZ(0);
+            }
+        }
+        
+        .page-front, .page-back {
+            backface-visibility: hidden;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        
+        .page-front {
+            transform: rotateY(0deg);
+        }
+        
+        .page-back {
+            transform: rotateY(180deg);
+        }
+        
+        /* 雙頁模式 */
+        .two-page-mode {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .two-page-mode .page-wrapper {
+            flex: 1;
+            max-width: calc(50% - 4px);
+        }
+        
+        /* 載入動畫 */
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 縮放動畫 */
+        .zoom-transition {
+            transition: transform 0.3s ease;
+        }
+        
+        /* 工具列動畫 */
+        .toolbar-transition {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .toolbar-hidden {
+            opacity: 0;
+            transform: translateY(-100%);
+            pointer-events: none;
+        }
+        
+        /* 顯示工具列按鈕 */
+        .show-toolbar-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            padding: 12px 16px;
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .show-toolbar-btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        .show-toolbar-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- 工具列 -->
+    <div id="toolbar" class="toolbar-transition fixed top-0 left-0 right-0 bg-gray-800 border-b border-gray-700 z-50 shadow-lg">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <!-- 左側控制 -->
+                <div class="flex items-center gap-2">
+                    <input type="file" id="fileInput" accept=".pdf" class="hidden">
+                    <button id="openBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        📁 開啟 PDF
+                    </button>
+                    <button id="prevBtn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        ← 上一頁
+                    </button>
+                    <button id="nextBtn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        下一頁 →
+                    </button>
+                </div>
+                
+                <!-- 中間資訊 -->
+                <div class="flex items-center gap-4">
+                    <span id="pageInfo" class="text-gray-300">頁數: - / -</span>
+                    <input type="number" id="pageInput" min="1" value="1" 
+                           class="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-center text-white">
+                    <button id="goToPageBtn" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                        前往
+                    </button>
+                </div>
+                
+                <!-- 右側控制 -->
+                <div class="flex items-center gap-2">
+                    <button id="zoomOutBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        🔍-
+                    </button>
+                    <span id="zoomLevel" class="text-gray-300 min-w-[60px] text-center">100%</span>
+                    <button id="zoomInBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        🔍+
+                    </button>
+                    <button id="fitWidthBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        📐 適應寬度
+                    </button>
+                    <button id="fitPageBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        📄 適應頁面
+                    </button>
+                    <button id="twoPageModeBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        📖 單頁模式
+                    </button>
+                    <button id="toggleToolbarBtn" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                        ⬆️ 隱藏工具列
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 顯示工具列按鈕（當工具列隱藏時顯示） -->
+    <button id="showToolbarBtn" class="show-toolbar-btn hidden">
+        ⬇️ 顯示工具列
+    </button>
+    
+    <!-- 主要內容區域 -->
+    <div class="pt-20 pb-8 min-h-screen">
+        <!-- 載入指示器 -->
+        <div id="loadingIndicator" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div class="text-center">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-white text-lg">載入 PDF 中...</p>
+            </div>
+        </div>
+        
+        <!-- PDF 顯示區域 -->
+        <div id="pdfContainer" class="container mx-auto px-4">
+            <div id="pdfViewer" class="flex flex-col items-center gap-4">
+                <p class="text-gray-400 text-center mt-20">請選擇一個 PDF 檔案開始閱讀</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 設定 PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // 全域變數
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let scale = 1.0;
+        let isFlipping = false;
+        let toolbarVisible = true;
+        let twoPageMode = false;
+        let flipDirection = 'next'; // 'next' or 'prev'
+        
+        // DOM 元素
+        const fileInput = document.getElementById('fileInput');
+        const openBtn = document.getElementById('openBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageInfo = document.getElementById('pageInfo');
+        const pageInput = document.getElementById('pageInput');
+        const goToPageBtn = document.getElementById('goToPageBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const zoomLevel = document.getElementById('zoomLevel');
+        const fitWidthBtn = document.getElementById('fitWidthBtn');
+        const fitPageBtn = document.getElementById('fitPageBtn');
+        const twoPageModeBtn = document.getElementById('twoPageModeBtn');
+        const toggleToolbarBtn = document.getElementById('toggleToolbarBtn');
+        const showToolbarBtn = document.getElementById('showToolbarBtn');
+        const pdfViewer = document.getElementById('pdfViewer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const toolbar = document.getElementById('toolbar');
+        
+        // 開啟檔案按鈕
+        openBtn.addEventListener('click', () => fileInput.click());
+        
+        // 檔案選擇
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadPDF(file);
+            } else {
+                alert('請選擇有效的 PDF 檔案');
+            }
+        });
+        
+        // 載入 PDF
+        async function loadPDF(file) {
+            try {
+                loadingIndicator.classList.remove('hidden');
+                pdfViewer.innerHTML = '';
+                
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                totalPages = pdfDoc.numPages;
+                currentPage = 1;
+                
+                pageInput.max = totalPages;
+                updatePageInfo();
+                renderPage(currentPage);
+                
+                prevBtn.disabled = false;
+                nextBtn.disabled = false;
+                
+                loadingIndicator.classList.add('hidden');
+            } catch (error) {
+                console.error('載入 PDF 失敗:', error);
+                alert('載入 PDF 失敗，請確認檔案格式正確');
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+        
+        // 渲染單個頁面
+        async function renderSinglePage(pageNum, useFlipAnimation = false) {
+            if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return null;
+            
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+                
+                // 創建畫布
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.className = 'shadow-2xl bg-white';
+                
+                // 渲染 PDF 頁面
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+                
+                // 創建頁面容器
+                const pageWrapper = document.createElement('div');
+                pageWrapper.className = 'page-wrapper mb-8';
+                
+                const pageContainer = document.createElement('div');
+                pageContainer.className = 'page-container';
+                
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                
+                if (useFlipAnimation) {
+                    if (flipDirection === 'next') {
+                        pageDiv.classList.add('flipping-next');
+                    } else {
+                        pageDiv.classList.add('flipping-prev');
+                    }
+                }
+                
+                const pageFront = document.createElement('div');
+                pageFront.className = 'page-front';
+                pageFront.appendChild(canvas);
+                
+                pageDiv.appendChild(pageFront);
+                pageContainer.appendChild(pageDiv);
+                pageWrapper.appendChild(pageContainer);
+                
+                // 完成翻頁動畫
+                if (useFlipAnimation) {
+                    setTimeout(() => {
+                        pageDiv.classList.remove('flipping-next', 'flipping-prev');
+                    }, 800);
+                }
+                
+                return pageWrapper;
+            } catch (error) {
+                console.error('渲染頁面失敗:', error);
+                return null;
+            }
+        }
+        
+        // 渲染頁面（支援單頁和雙頁模式）
+        async function renderPage(pageNum, useFlipAnimation = false) {
+            if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
+            
+            // 清除舊頁面
+            const oldPages = pdfViewer.querySelectorAll('.page-wrapper');
+            if (oldPages.length > 0 && useFlipAnimation) {
+                // 添加翻頁動畫到舊頁面
+                oldPages.forEach(wrapper => {
+                    const page = wrapper.querySelector('.page');
+                    if (page) {
+                        if (flipDirection === 'next') {
+                            page.classList.add('flipping-next');
+                        } else {
+                            page.classList.add('flipping-prev');
+                        }
+                    }
+                });
+                setTimeout(() => {
+                    oldPages.forEach(wrapper => wrapper.remove());
+                }, 800);
+            } else if (oldPages.length > 0) {
+                oldPages.forEach(wrapper => wrapper.remove());
+            }
+            
+            // 更新容器類別以支援雙頁模式
+            if (twoPageMode) {
+                pdfViewer.classList.add('two-page-mode');
+            } else {
+                pdfViewer.classList.remove('two-page-mode');
+            }
+            
+            if (twoPageMode) {
+                // 雙頁模式：顯示兩頁（左頁和右頁）
+                const leftPageNum = pageNum % 2 === 0 ? pageNum - 1 : pageNum;
+                const rightPageNum = leftPageNum + 1;
+                
+                const leftPage = await renderSinglePage(leftPageNum, false);
+                const rightPage = rightPageNum <= totalPages ? await renderSinglePage(rightPageNum, false) : null;
+                
+                if (leftPage) {
+                    pdfViewer.appendChild(leftPage);
+                }
+                if (rightPage) {
+                    pdfViewer.appendChild(rightPage);
+                }
+                
+                // 更新當前頁面為左頁
+                currentPage = leftPageNum;
+            } else {
+                // 單頁模式
+                const pageWrapper = await renderSinglePage(pageNum, useFlipAnimation);
+                if (pageWrapper) {
+                    pdfViewer.appendChild(pageWrapper);
+                    currentPage = pageNum;
+                }
+            }
+            
+            updatePageInfo();
+            isFlipping = false;
+        }
+        
+        // 更新頁面資訊
+        function updatePageInfo() {
+            if (twoPageMode) {
+                const rightPage = currentPage + 1;
+                if (rightPage <= totalPages) {
+                    pageInfo.textContent = `頁數: ${currentPage}-${rightPage} / ${totalPages}`;
+                } else {
+                    pageInfo.textContent = `頁數: ${currentPage} / ${totalPages}`;
+                }
+            } else {
+                pageInfo.textContent = `頁數: ${currentPage} / ${totalPages}`;
+            }
+            pageInput.value = currentPage;
+        }
+        
+        // 上一頁
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1 && !isFlipping) {
+                isFlipping = true;
+                flipDirection = 'prev';
+                if (twoPageMode) {
+                    // 雙頁模式：每次翻兩頁
+                    const newPage = Math.max(1, currentPage - 2);
+                    renderPage(newPage, true);
+                } else {
+                    renderPage(currentPage - 1, true);
+                }
+            }
+        });
+        
+        // 下一頁
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages && !isFlipping) {
+                isFlipping = true;
+                flipDirection = 'next';
+                if (twoPageMode) {
+                    // 雙頁模式：每次翻兩頁
+                    const newPage = Math.min(totalPages, currentPage + 2);
+                    renderPage(newPage, true);
+                } else {
+                    renderPage(currentPage + 1, true);
+                }
+            }
+        });
+        
+        // 前往指定頁面
+        goToPageBtn.addEventListener('click', () => {
+            const pageNum = parseInt(pageInput.value);
+            if (pageNum >= 1 && pageNum <= totalPages && !isFlipping) {
+                isFlipping = true;
+                flipDirection = pageNum > currentPage ? 'next' : 'prev';
+                if (twoPageMode) {
+                    // 雙頁模式：調整到左頁（奇數頁）
+                    const targetPage = pageNum % 2 === 0 ? pageNum - 1 : pageNum;
+                    renderPage(targetPage, true);
+                } else {
+                    renderPage(pageNum, true);
+                }
+            }
+        });
+        
+        pageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                goToPageBtn.click();
+            }
+        });
+        
+        // 縮放控制
+        zoomInBtn.addEventListener('click', () => {
+            if (!isFlipping) {
+                scale = Math.min(scale + 0.25, 3.0);
+                updateZoom();
+            }
+        });
+        
+        zoomOutBtn.addEventListener('click', () => {
+            if (!isFlipping) {
+                scale = Math.max(scale - 0.25, 0.5);
+                updateZoom();
+            }
+        });
+        
+        // 更新縮放
+        function updateZoom() {
+            zoomLevel.textContent = `${Math.round(scale * 100)}%`;
+            if (pdfDoc) {
+                renderPage(currentPage);
+            }
+        }
+        
+        // 適應寬度
+        fitWidthBtn.addEventListener('click', async () => {
+            if (!pdfDoc || isFlipping) return;
+            
+            try {
+                const page = await pdfDoc.getPage(currentPage);
+                const viewport = page.getViewport({ scale: 1.0 });
+                const containerWidth = pdfViewer.clientWidth - 32; // 減去 padding
+                if (twoPageMode) {
+                    // 雙頁模式：每頁佔一半寬度
+                    scale = (containerWidth / 2 - 8) / viewport.width;
+                } else {
+                    scale = containerWidth / viewport.width;
+                }
+                updateZoom();
+            } catch (error) {
+                console.error('適應寬度失敗:', error);
+            }
+        });
+        
+        // 適應頁面
+        fitPageBtn.addEventListener('click', async () => {
+            if (!pdfDoc || isFlipping) return;
+            
+            try {
+                const page = await pdfDoc.getPage(currentPage);
+                const viewport = page.getViewport({ scale: 1.0 });
+                const containerWidth = pdfViewer.clientWidth - 32;
+                const containerHeight = window.innerHeight - 200;
+                if (twoPageMode) {
+                    // 雙頁模式：每頁佔一半寬度
+                    const scaleX = (containerWidth / 2 - 8) / viewport.width;
+                    const scaleY = containerHeight / viewport.height;
+                    scale = Math.min(scaleX, scaleY);
+                } else {
+                    const scaleX = containerWidth / viewport.width;
+                    const scaleY = containerHeight / viewport.height;
+                    scale = Math.min(scaleX, scaleY);
+                }
+                updateZoom();
+            } catch (error) {
+                console.error('適應頁面失敗:', error);
+            }
+        });
+        
+        // 切換雙頁模式
+        twoPageModeBtn.addEventListener('click', () => {
+            twoPageMode = !twoPageMode;
+            if (twoPageMode) {
+                twoPageModeBtn.textContent = '📄 單頁模式';
+                // 調整當前頁面以符合雙頁模式（確保左頁是奇數頁）
+                if (currentPage % 2 === 0) {
+                    currentPage = Math.max(1, currentPage - 1);
+                }
+            } else {
+                twoPageModeBtn.textContent = '📖 雙頁模式';
+            }
+            if (pdfDoc) {
+                renderPage(currentPage, false);
+            }
+        });
+        
+        // 切換工具列顯示
+        toggleToolbarBtn.addEventListener('click', () => {
+            toolbarVisible = false;
+            toolbar.classList.add('toolbar-hidden');
+            showToolbarBtn.classList.remove('hidden');
+        });
+        
+        // 顯示工具列按鈕
+        showToolbarBtn.addEventListener('click', () => {
+            toolbarVisible = true;
+            toolbar.classList.remove('toolbar-hidden');
+            showToolbarBtn.classList.add('hidden');
+        });
+        
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    prevBtn.click();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextBtn.click();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    zoomInBtn.click();
+                    break;
+                case '-':
+                case '_':
+                    e.preventDefault();
+                    zoomOutBtn.click();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    fitPageBtn.click();
+                    break;
+            }
+        });
+        
+        // 滑鼠滾輪縮放（按住 Ctrl/Cmd）
+        pdfViewer.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    zoomInBtn.click();
+                } else {
+                    zoomOutBtn.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
