@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量子物理：氫原子躍遷與玻爾公設模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax 配置 -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady().then(() => {
+                        if (typeof initPhotonButtons === 'function') {
+                            initPhotonButtons();
+                        }
+                    });
+                }
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        .canvas-container { background: radial-gradient(circle, #1e293b 0%, #0f172a 100%); }
+        .control-panel { background-color: rgba(30, 41, 59, 0.8); backdrop-filter: blur(8px); }
+        .photon-btn { transition: all 0.2s; border: 1px solid #475569; background: #1e293b; }
+        .photon-btn:hover { border-color: #fbbf24; background: #334155; }
+        .photon-btn.active { background-color: #fbbf24; color: #0f172a; border-color: #fbbf24; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        .tab-btn.active { border-bottom: 2px solid #38bdf8; color: #38bdf8; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <nav class="w-full bg-slate-900/90 border-b border-slate-700 p-4 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold text-white">H</div>
+                <span class="font-bold text-xl tracking-tight" id="nav-title">氫原子物理實驗室 v2.6</span>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="openModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm" id="btn-theory">原理解說</button>
+                <button onclick="toggleLang()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-bold">中 / EN</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="control-panel p-6 rounded-2xl border border-slate-700 shadow-xl space-y-6 h-fit">
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 text-blue-300" id="ui-select-particle">1. 選擇入射粒子</h2>
+                    <div class="flex gap-2">
+                        <button id="btn-electron" onclick="setParticle('electron')" class="flex-1 py-2 rounded-lg bg-blue-600 font-bold">電子</button>
+                        <button id="btn-photon" onclick="setParticle('photon')" class="flex-1 py-2 rounded-lg bg-slate-700 font-bold border border-slate-500">光子</button>
+                    </div>
+                </div>
+
+                <div id="energy-controls">
+                    <h2 class="text-xl font-semibold mb-2 text-blue-300" id="ui-set-energy">2. 設定能量</h2>
+                    
+                    <div id="ev-input-group" class="space-y-4">
+                        <label class="block text-sm text-slate-400"><span id="ui-energy-label">能量</span> (eV): <span id="ev-display" class="text-white font-mono">10.20</span> eV</label>
+                        <input type="range" id="energy-slider" min="0" max="20.0" step="0.01" value="10.20" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    
+                    <div id="photon-input-group" class="hidden space-y-3">
+                        <label class="block text-sm text-slate-400" id="ui-photon-label">選擇共振躍遷 (All Series):</label>
+                        <div class="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar" id="photon-btns-container">
+                            <!-- JS 生成按鈕 -->
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="fire()" class="w-full py-4 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black text-xl shadow-lg transition-all" id="ui-fire">發射粒子！</button>
+
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-2" id="ui-log-title">實驗紀錄</h3>
+                    <div id="log-box" class="h-32 overflow-y-auto text-sm font-mono text-green-400 space-y-1 custom-scrollbar">
+                        等待實驗開始...
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="canvas-container relative rounded-2xl border border-slate-700 shadow-2xl overflow-hidden aspect-video w-full flex items-center justify-center">
+                    <canvas id="mainCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    <div id="ionization-alert" class="hidden absolute top-10 bg-red-600/90 px-6 py-2 rounded-full font-bold text-white border border-red-400 animate-bounce">
+                        原子電離！ IONIZATION
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-sm text-slate-400" id="ui-hint">
+                    提示：光子必須具有特定的共振能量才能被原子吸收，否則會直接穿透。
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 原理解說 Modal -->
+    <div id="theory-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
+                <div class="flex gap-4">
+                    <button onclick="switchTab('mechanism')" id="tab-mechanism" class="tab-btn px-2 py-1 font-bold active">實驗機制</button>
+                    <button onclick="switchTab('bohr')" id="tab-bohr" class="tab-btn px-2 py-1 font-bold">玻爾模型公設</button>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 text-2xl hover:text-white">&times;</button>
+            </div>
+            
+            <div class="p-8 overflow-y-auto custom-scrollbar space-y-6 text-slate-300">
+                
+                <!-- 中文內容區塊 -->
+                <div id="lang-zh-content">
+                    <div id="content-mechanism-zh" class="tab-content space-y-6">
+                        <section>
+                            <h3 class="text-xl font-bold text-blue-400 mb-2">能量吸收與激發</h3>
+                            <p>氫原子中的電子平時處於能量最低的「基態」($n=1$)。當外界粒子與其碰撞時：</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li><span class="text-yellow-400 font-bold">光子碰撞：</span> 必須具備「精確」的能量差（$\Delta E = E_f - E_i$）才會被吸收。誤差容許度極低，能量不符則直接穿透（透明）。</li>
+                                <li><span class="text-blue-400 font-bold">電子碰撞：</span> 屬於非彈性碰撞。只要入射電子動能大於能階差，就能將能量傳遞給原子使其躍遷，剩餘動能繼續由入射電子攜帶。</li>
+                            </ul>
+                        </section>
+                        <section>
+                            <h3 class="text-xl font-bold text-red-400 mb-2">電離作用 (Ionization)</h3>
+                            <p>當電子獲得的總能量足以使其能量大於 $0$ 時，電子將脫離原子核的束縛成為自由電子。對於光子，若能量大於電離能（光電效應），也能造成電離。</p>
+                            <div class="bg-slate-900 p-3 rounded mt-2 border-l-4 border-red-500 italic">
+                                註：若電子已在 $n=2$ ($-3.4\text{ eV}$)，只需額外 $3.4\text{ eV}$ 即可電離。
+                            </div>
+                        </section>
+                    </div>
+                    <div id="content-bohr-zh" class="tab-content hidden space-y-6">
+                        <div class="bg-blue-900/30 p-4 rounded-lg border border-blue-700/50">
+                            <p class="text-sm italic text-blue-200">1913年，尼爾斯·玻爾提出三個著名公設，成功解釋了氫原子光譜。模型結合了經典力學的圓周運動與量子化的概念。</p>
+                        </div>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">一、定態公設 (Stationary States)</h3>
+                            <p>電子在特定的軌道上繞核運動時，具有固定的能量，且**不會**輻射電磁波。</p>
+                            <p class="mt-2 text-blue-300">$$r_n = n^2 \cdot a_0 \quad (a_0 \approx 0.529 \text{\AA})$$</p>
+                        </section>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">二、頻率條件 (Frequency Condition)</h3>
+                            <p>躍遷時吸收或放出的光子能量恰等於兩能階之差：</p>
+                            <p class="mt-2 text-yellow-400">$$\Delta E = |E_f - E_i| = h\nu$$</p>
+                        </section>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">三、角動量量子化 (Angular Momentum)</h3>
+                            <p>電子繞核運動的角動量 $L$ 只能是 $\hbar$ 的整數倍：</p>
+                            <p class="mt-2 text-green-300">$$L = mvr = n\hbar \quad (n=1, 2, 3 \dots)$$</p>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- 英文內容區塊 -->
+                <div id="lang-en-content" class="hidden">
+                    <div id="content-mechanism-en" class="tab-content space-y-6">
+                        <section>
+                            <h3 class="text-xl font-bold text-blue-400 mb-2">Energy Absorption & Excitation</h3>
+                            <p>The electron in a Hydrogen atom usually resides in the lowest energy "Ground State" ($n=1$). When external particles collide with it:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li><span class="text-yellow-400 font-bold">Photon Collision:</span> Must have the <span class="italic">exact</span> energy difference ($\Delta E = E_f - E_i$) to be absorbed. If the energy doesn't match, it passes through (transparent).</li>
+                                <li><span class="text-blue-400 font-bold">Electron Collision:</span> This is an inelastic collision. As long as the incident kinetic energy is greater than or equal to the energy level difference ($\ge \Delta E$), it can transfer energy to the atom causing a transition, retaining the remaining kinetic energy.</li>
+                            </ul>
+                        </section>
+                        <section>
+                            <h3 class="text-xl font-bold text-red-400 mb-2">Ionization</h3>
+                            <p>When the electron gains enough total energy to exceed $0\text{ eV}$, it escapes the nucleus's binding to become a free electron. For a Hydrogen atom, ionizing from the ground state requires at least $13.6\text{ eV}$.</p>
+                            <div class="bg-slate-900 p-3 rounded mt-2 border-l-4 border-red-500 italic">
+                                Note: If the electron is already at $n=2$ ($-3.4\text{ eV}$), only an additional $3.4\text{ eV}$ is needed to ionize.
+                            </div>
+                        </section>
+                    </div>
+                    <div id="content-bohr-en" class="tab-content hidden space-y-6">
+                        <div class="bg-blue-900/30 p-4 rounded-lg border border-blue-700/50">
+                            <p class="text-sm italic text-blue-200">In 1913, Niels Bohr proposed three famous postulates that successfully explained the Hydrogen spectrum. The model combines classical mechanics' circular motion with the concept of quantization.</p>
+                        </div>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">1. Stationary States</h3>
+                            <p>Electrons orbit the nucleus in specific orbits with fixed energy without radiating electromagnetic waves. These orbits are called Stationary States. This solved the classical problem where accelerating charges should radiate energy.</p>
+                            <p class="mt-2 text-blue-300">$$r_n = n^2 \cdot a_0 \quad (a_0 \approx 0.529 \text{\AA})$$</p>
+                        </section>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">2. Frequency Condition</h3>
+                            <p>When an electron transitions between energy levels $E_i$ and $E_f$, it must absorb or emit a photon of a specific frequency, where the energy equals the difference between the levels:</p>
+                            <p class="mt-2 text-yellow-400">$$\Delta E = |E_f - E_i| = h\nu$$</p>
+                        </section>
+                        <section>
+                            <h3 class="text-lg font-bold text-white border-b border-slate-600 mb-2">3. Angular Momentum Quantization</h3>
+                            <p>The angular momentum $L$ of the electron orbiting the nucleus can only be integer multiples of $\hbar$ ($h/2\pi$). This is the core assumption of the model:</p>
+                            <p class="mt-2 text-green-300">$$L = mvr = n\hbar \quad (n=1, 2, 3 \dots)$$</p>
+                        </section>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="p-4 bg-slate-900 border-t border-slate-700 text-right">
+                <button onclick="closeModal()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold" id="btn-modal-start">開始實驗</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const logBox = document.getElementById('log-box');
+        
+        const HC = 1239.84;
+        const R1 = 8; 
+        const ENERGY_LEVELS = [0]; 
+        for(let n=1; n<=10; n++) ENERGY_LEVELS.push(-13.6 / (n * n));
+
+        let lang = 'zh';
+        let particleType = 'electron';
+        let currentEnergy = 10.20;
+        let nState = 1; 
+        let particles = [];
+        let emittedPhotons = [];
+        let currentTab = 'mechanism';
+
+        const i18n = {
+            zh: {
+                navTitle: "氫原子物理實驗室 v2.6",
+                btnTheory: "原理解說",
+                selectP: "1. 選擇入射粒子",
+                electron: "電子",
+                photon: "光子",
+                setE: "2. 設定能量",
+                energyLabel: "能量",
+                photonLabel: "選擇共振躍遷 (All Series):",
+                fire: "發射粒子！",
+                logTitle: "實驗紀錄",
+                wait: "等待實驗開始...",
+                hint: "提示：光子必須具有特定的共振能量才能被原子吸收，否則會直接穿透。",
+                tabMech: "實驗機制",
+                tabBohr: "玻爾模型公設",
+                btnStart: "開始實驗",
+                impact_p_abs: "共振吸收！躍遷至 n=",
+                impact_e_inel: "非彈性碰撞！剩餘能量 ",
+                impact_e_el: "能量不足，發生彈性碰撞。",
+                impact_p_pass: "能量不符 (非共振)，光子穿透。",
+                impact_ion: "原子發生電離！",
+                emission: "自發輻射：從 n={f} 跳至 n={t}，釋放光子。"
+            },
+            en: {
+                navTitle: "Hydrogen Atom Physics Lab v2.6",
+                btnTheory: "Theory",
+                selectP: "1. Select Particle",
+                electron: "Electron",
+                photon: "Photon",
+                setE: "2. Set Energy",
+                energyLabel: "Energy",
+                photonLabel: "Select Resonance Transition:",
+                fire: "Fire Particle!",
+                logTitle: "Experiment Log",
+                wait: "Waiting to start...",
+                hint: "Hint: Photons must match the exact resonance energy to be absorbed, otherwise they pass through.",
+                tabMech: "Mechanism",
+                tabBohr: "Bohr Postulates",
+                btnStart: "Start Experiment",
+                impact_p_abs: "Resonance Absorption! Jump to n=",
+                impact_e_inel: "Inelastic! Remaining E: ",
+                impact_e_el: "Insufficient energy, elastic collision.",
+                impact_p_pass: "Energy mismatch, photon passed through.",
+                impact_ion: "Atom Ionized!",
+                emission: "Emission: n={f} to n={t}, photon released."
+            }
+        };
+
+        function initPhotonButtons() {
+            const container = document.getElementById('photon-btns-container');
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                for (let j = i + 1; j <= 6; j++) {
+                    const deltaE = ENERGY_LEVELS[j] - ENERGY_LEVELS[i];
+                    const wl = HC / deltaE;
+                    const btn = document.createElement('button');
+                    btn.className = `photon-btn p-2 rounded text-left text-xs mb-1`;
+                    if(i===1 && j===2) btn.classList.add('active');
+                    btn.innerHTML = `
+                        <div class="font-bold text-yellow-400">n=${i} → n=${j}</div>
+                        <div>$E = ${deltaE.toFixed(2)}$ eV, $\\lambda = ${wl.toFixed(1)}$ nm</div>
+                    `;
+                    btn.onclick = () => {
+                        currentEnergy = deltaE;
+                        document.querySelectorAll('.photon-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    };
+                    container.appendChild(btn);
+                }
+            }
+            if (window.MathJax?.typesetPromise) MathJax.typesetPromise([container]);
+        }
+
+        function addLog(msg, color='text-green-400') {
+            const div = document.createElement('div');
+            div.className = color;
+            div.innerText = `> ${msg}`;
+            logBox.prepend(div);
+        }
+
+        function fire() {
+            particles.push({
+                x: -50, y: canvas.height/2,
+                type: particleType, energy: currentEnergy,
+                active: true, speed: particleType==='electron'?4:7,
+                color: particleType==='electron'?'#60a5fa':'#fbbf24'
+            });
+        }
+
+        function handlePhotonImpact(p) {
+            let absorbed = false;
+            // 嚴格檢查共振吸收 (Tolerance = 0.01 eV)
+            for (let n = nState + 1; n <= 10; n++) {
+                const deltaE = ENERGY_LEVELS[n] - ENERGY_LEVELS[nState];
+                if (Math.abs(p.energy - deltaE) < 0.01) {
+                    nState = n;
+                    addLog(`${i18n[lang].impact_p_abs}${n}`, "text-yellow-400");
+                    absorbed = true;
+                    break;
+                }
+            }
+            // 檢查光電效應 (電離)
+            if (!absorbed && (p.energy + ENERGY_LEVELS[nState] >= 0)) {
+                triggerIonization();
+                absorbed = true;
+            }
+            
+            if(!absorbed) {
+                p.active = true; // Pass through
+                addLog(i18n[lang].impact_p_pass, "text-slate-500");
+            } else {
+                p.active = false; // Kill particle
+            }
+        }
+
+        function handleElectronImpact(p) {
+            const currentE = ENERGY_LEVELS[nState];
+            const totalE = p.energy + currentE;
+            
+            if (totalE >= 0) {
+                addLog(i18n[lang].impact_ion, "text-red-400");
+                triggerIonization();
+                p.energy = totalE;
+                p.active = true;
+            } else {
+                let targetN = nState;
+                for (let n = nState + 1; n <= 10; n++) {
+                    const cost = ENERGY_LEVELS[n] - currentE;
+                    if (p.energy >= cost) targetN = n;
+                }
+                
+                if (targetN > nState) {
+                    const loss = ENERGY_LEVELS[targetN] - currentE;
+                    nState = targetN;
+                    p.energy -= loss;
+                    addLog(`${i18n[lang].impact_e_inel}${p.energy.toFixed(2)}eV`, "text-blue-300");
+                } else {
+                    addLog(i18n[lang].impact_e_el, "text-slate-500");
+                }
+                p.active = true;
+            }
+        }
+
+        function triggerIonization() {
+            nState = 11;
+            document.getElementById('ionization-alert').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('ionization-alert').classList.add('hidden');
+                nState = 1;
+            }, 2000);
+        }
+
+        function emitPhoton(fromN, toN) {
+            const deltaE = ENERGY_LEVELS[fromN] - ENERGY_LEVELS[toN];
+            const cx = canvas.width/2 - 80;
+            const cy = canvas.height/2;
+            emittedPhotons.push({
+                x: cx, y: cy,
+                energy: deltaE,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                life: 1.0,
+                color: getPhotonColor(deltaE)
+            });
+        }
+
+        function getPhotonColor(energy) {
+            if (energy > 3.0) return '#a78bfa';
+            if (energy > 2.5) return '#60a5fa';
+            if (energy > 2.0) return '#4ade80';
+            if (energy > 1.8) return '#facc15';
+            return '#f87171';
+        }
+
+        function getRadius(n) { return (n * n) * R1 + 10; }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width/2 - 80;
+            const cy = canvas.height/2;
+
+            // 1. 原子核
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6, 0, Math.PI*2);
+            ctx.fillStyle = '#f87171'; ctx.fill();
+
+            // 2. 軌道
+            for(let i=1; i<=6; i++) {
+                const r = getRadius(i);
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI*2);
+                ctx.setLineDash([2, 4]);
+                ctx.strokeStyle = (nState === i) ? '#fde047' : 'rgba(100, 116, 139, 0.2)';
+                ctx.stroke();
+            }
+
+            // 3. 電子
+            if (nState <= 6) {
+                const r = getRadius(nState);
+                const angle = Date.now() * (0.002 / Math.sqrt(nState));
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(angle)*r, cy + Math.sin(angle)*r, 4, 0, Math.PI*2);
+                ctx.fillStyle = '#38bdf8'; ctx.fill();
+            }
+
+            // 4. 粒子運動與碰撞檢測
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                let oldX = p.x;
+                p.x += p.speed;
+                
+                if (p.active && oldX < (cx - 5) && p.x >= (cx - 5)) {
+                    if(p.type === 'photon') handlePhotonImpact(p);
+                    else handleElectronImpact(p);
+                }
+
+                ctx.beginPath();
+                if(p.type === 'photon') {
+                    ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+                    ctx.moveTo(p.x-20, p.y);
+                    for(let j=0; j<20; j++) ctx.lineTo(p.x-20+j, p.y + Math.sin(j*0.5 + Date.now()*0.02)*4);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+                }
+                
+                if (p.x > canvas.width) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 5. 釋放光子
+            emittedPhotons.forEach((p, idx) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.01;
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.strokeStyle = p.color;
+                ctx.moveTo(p.x-10, p.y);
+                for(let i=0; i<15; i++) ctx.lineTo(p.x-10+i, p.y + Math.sin(i*0.8 + Date.now()*0.05)*3);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+                if(p.life <= 0) emittedPhotons.splice(idx, 1);
+            });
+
+            // 6. 能階圖
+            const gx = canvas.width - 100;
+            const bY = canvas.height - 50;
+            const chartH = canvas.height - 100;
+            ctx.beginPath(); ctx.moveTo(gx, bY); ctx.lineTo(gx, bY - chartH - 20);
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 1; ctx.stroke();
+
+            ENERGY_LEVELS.slice(1, 8).forEach((ev, i) => {
+                const n = i+1;
+                const y = bY - ((ev - (-13.6)) / 13.6 * chartH);
+                ctx.beginPath(); ctx.moveTo(gx-30, y); ctx.lineTo(gx+30, y);
+                ctx.strokeStyle = (nState === n) ? '#fbbf24' : '#475569';
+                ctx.lineWidth = (nState === n) ? 3 : 1; ctx.stroke();
+                
+                ctx.fillStyle = (nState === n) ? '#fbbf24' : '#94a3b8';
+                ctx.font = '11px monospace';
+                ctx.textAlign = 'left'; ctx.fillText(`n=${n}`, gx+35, y+4);
+                ctx.textAlign = 'right'; ctx.fillText(`${ev.toFixed(2)} eV`, gx-35, y+4);
+            });
+
+            animationFrame = requestAnimationFrame(draw);
+        }
+
+        setInterval(() => {
+            if (nState > 1 && nState <= 10) {
+                if (Math.random() > 0.7) {
+                    const targetN = Math.floor(Math.random() * (nState - 1)) + 1;
+                    addLog(i18n[lang].emission.replace('{f}', nState).replace('{t}', targetN), "text-purple-400");
+                    emitPhoton(nState, targetN);
+                    nState = targetN;
+                }
+            }
+        }, 4000);
+
+        function openModal() {
+            document.getElementById('theory-modal').classList.remove('hidden');
+            switchTab(currentTab);
+        }
+
+        function closeModal() {
+            document.getElementById('theory-modal').classList.add('hidden');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            // 按鈕狀態更新
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            // 隱藏所有 tab-content (包括中英文)
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            
+            // 顯示當前語言 + 當前 tab 的內容
+            const contentId = `content-${tab}-${lang}`;
+            const el = document.getElementById(contentId);
+            if(el) {
+                el.classList.remove('hidden');
+                if (window.MathJax?.typesetPromise) MathJax.typesetPromise([el]);
+            }
+        }
+
+        function setParticle(t) {
+            particleType = t;
+            document.getElementById('btn-electron').className = t==='electron' ? 'flex-1 py-2 rounded-lg bg-blue-600 font-bold' : 'flex-1 py-2 rounded-lg bg-slate-700 font-bold border border-slate-500';
+            document.getElementById('btn-photon').className = t==='photon' ? 'flex-1 py-2 rounded-lg bg-blue-600 font-bold' : 'flex-1 py-2 rounded-lg bg-slate-700 font-bold border border-slate-500';
+            document.getElementById('ev-input-group').classList.toggle('hidden', t==='photon');
+            document.getElementById('photon-input-group').classList.toggle('hidden', t==='electron');
+        }
+
+        document.getElementById('energy-slider').addEventListener('input', (e) => {
+            currentEnergy = parseFloat(e.target.value);
+            document.getElementById('ev-display').innerText = currentEnergy.toFixed(2);
+        });
+
+        function toggleLang() { 
+            lang = lang === 'zh' ? 'en' : 'zh';
+            updateUI();
+        }
+
+        function updateUI() {
+            const t = i18n[lang];
+            
+            // 文字更新
+            document.getElementById('nav-title').innerText = t.navTitle;
+            document.getElementById('btn-theory').innerText = t.btnTheory;
+            document.getElementById('ui-select-particle').innerText = t.selectP;
+            document.getElementById('btn-electron').innerText = t.electron;
+            document.getElementById('btn-photon').innerText = t.photon;
+            document.getElementById('ui-set-energy').innerText = t.setE;
+            document.getElementById('ui-energy-label').innerText = t.energyLabel;
+            document.getElementById('ui-photon-label').innerText = t.photonLabel;
+            document.getElementById('ui-fire').innerText = t.fire;
+            document.getElementById('ui-log-title').innerText = t.logTitle;
+            document.getElementById('ui-hint').innerText = t.hint;
+            document.getElementById('tab-mechanism').innerText = t.tabMech;
+            document.getElementById('tab-bohr').innerText = t.tabBohr;
+            document.getElementById('btn-modal-start').innerText = t.btnStart;
+
+            // 關鍵修正：切換父容器的可見性
+            document.getElementById('lang-zh-content').classList.toggle('hidden', lang !== 'zh');
+            document.getElementById('lang-en-content').classList.toggle('hidden', lang !== 'en');
+
+            // 如果 Modal 是開啟的，重新執行 switchTab 以確保內容顯示正確
+            if (!document.getElementById('theory-modal').classList.contains('hidden')) {
+                switchTab(currentTab);
+            }
+        }
+
+        window.onload = () => { resize(); initPhotonButtons(); draw(); };
+        function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+        window.onresize = resize;
+    </script>
+</body>
+</html>
