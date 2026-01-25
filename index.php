@@ -1,4 +1,7 @@
 <?php
+// 啟動輸出緩衝，用於生成靜態 index.html
+ob_start();
+
 // Read and parse CSV file
 function parseCSV($filename) {
     $data = [];
@@ -857,4 +860,12 @@ $titleMap = $translations['titleMap'];
     </script>
 </body>
 </html>
+<?php
+// 獲取輸出緩衝內容並寫入 index.html
+$htmlContent = ob_get_contents();
+ob_end_flush(); // 輸出內容給瀏覽器
 
+// 將內容寫入 index.html 靜態文件
+$indexHtmlPath = __DIR__ . '/index.html';
+file_put_contents($indexHtmlPath, $htmlContent);
+?>
