@@ -25,6 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         case 'add':
             echo json_encode(addRow($_POST));
             break;
+        case 'reorder':
+            echo json_encode(reorderRows($_POST['order']));
+            break;
         default:
             echo json_encode(['success' => false, 'message' => 'Unknown action']);
     }
@@ -187,6 +190,42 @@ function addRow($postData) {
         return ['success' => true, 'message' => '新增成功', 'rowIndex' => $newRow['rowIndex']];
     }
     return ['success' => false, 'message' => '新增失敗'];
+}
+
+/**
+ * 重新排序資料
+ */
+function reorderRows($orderJson) {
+    $order = json_decode($orderJson, true);
+    
+    if (!is_array($order)) {
+        return ['success' => false, 'message' => '無效的排序資料'];
+    }
+    
+    $data = readCSV();
+    $newData = [];
+    
+    // 根據新的順序重新排列資料
+    foreach ($order as $oldIndex) {
+        if (isset($data[$oldIndex])) {
+            $newData[] = $data[$oldIndex];
+        }
+    }
+    
+    // 確保所有資料都被保留
+    if (count($newData) !== count($data)) {
+        return ['success' => false, 'message' => '排序資料不完整'];
+    }
+    
+    // 重新編號
+    foreach ($newData as $i => &$row) {
+        $row['rowIndex'] = $i;
+    }
+    
+    if (writeCSV($newData)) {
+        return ['success' => true, 'message' => '排序成功'];
+    }
+    return ['success' => false, 'message' => '排序失敗'];
 }
 
 /**
@@ -388,6 +427,48 @@ sort($categories);
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* 拖放樣式 */
+        .drag-handle {
+            cursor: grab;
+            padding: 4px;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+        
+        .drag-handle:hover {
+            color: #94a3b8;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        tr.dragging {
+            opacity: 0.5;
+            background: #334155 !important;
+        }
+        
+        tr.drag-over {
+            border-top: 2px solid #6366f1 !important;
+        }
+        
+        tr.drag-over-bottom {
+            border-bottom: 2px solid #6366f1 !important;
+        }
+        
+        .drag-indicator {
+            position: fixed;
+            background: #1e293b;
+            border: 1px solid #6366f1;
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200 min-h-screen">
@@ -469,6 +550,7 @@ sort($categories);
             <table id="data-table">
                 <thead>
                     <tr class="text-left text-sm text-slate-300">
+                        <th class="px-2 py-3 font-semibold w-10" title="拖放排序"></th>
                         <th class="px-3 py-3 font-semibold" data-sort="rowIndex">#</th>
                         <th class="px-3 py-3 font-semibold" data-sort="Category">
                             <div class="flex items-center gap-1">
@@ -523,7 +605,14 @@ sort($categories);
                 </thead>
                 <tbody id="table-body">
                     <?php foreach ($csvData as $row): ?>
-                    <tr class="border-t border-slate-700 text-sm" data-row='<?php echo htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8'); ?>'>
+                    <tr class="border-t border-slate-700 text-sm" data-row='<?php echo htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8'); ?>' data-row-index="<?php echo $row['rowIndex']; ?>" draggable="true">
+                        <td class="px-2 py-2">
+                            <div class="drag-handle" title="拖放排序">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                                </svg>
+                            </div>
+                        </td>
                         <td class="px-3 py-2 text-slate-400"><?php echo $row['rowIndex'] + 1; ?></td>
                         <td class="px-3 py-2"><?php echo htmlspecialchars($row['Category']); ?></td>
                         <td class="px-3 py-2" title="<?php echo htmlspecialchars($row['Title']); ?>"><?php echo htmlspecialchars($row['Title']); ?></td>
@@ -661,6 +750,10 @@ sort($categories);
         let sortDirection = 'asc';
         let deleteRowIndex = null;
 
+        // 拖放相關變數
+        let draggedRow = null;
+        let draggedIndex = null;
+
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             // 搜尋監聽
@@ -685,8 +778,172 @@ sort($categories);
                 }
             });
             
+            // 初始化拖放功能
+            initDragAndDrop();
+            
             updateFilteredCount();
         });
+        
+        // 初始化拖放功能
+        function initDragAndDrop() {
+            const tbody = document.getElementById('table-body');
+            
+            tbody.addEventListener('dragstart', handleDragStart);
+            tbody.addEventListener('dragend', handleDragEnd);
+            tbody.addEventListener('dragover', handleDragOver);
+            tbody.addEventListener('dragleave', handleDragLeave);
+            tbody.addEventListener('drop', handleDrop);
+        }
+        
+        // 拖放開始
+        function handleDragStart(e) {
+            const row = e.target.closest('tr');
+            if (!row || !row.dataset.rowIndex) return;
+            
+            // 檢查是否有搜尋或篩選，如果有則禁止拖放
+            const searchTerm = document.getElementById('search-input').value;
+            const categoryFilter = document.getElementById('category-filter').value;
+            if (searchTerm || categoryFilter) {
+                e.preventDefault();
+                showToast(currentLang === 'zh' ? '請先清除搜尋和篩選條件再進行排序' : 'Please clear search and filter before reordering', 'error');
+                return;
+            }
+            
+            draggedRow = row;
+            draggedIndex = parseInt(row.dataset.rowIndex);
+            
+            // 設置拖放效果
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedIndex);
+            
+            // 延遲添加拖動樣式，避免立即觸發
+            setTimeout(() => {
+                row.classList.add('dragging');
+            }, 0);
+        }
+        
+        // 拖放結束
+        function handleDragEnd(e) {
+            const row = e.target.closest('tr');
+            if (row) {
+                row.classList.remove('dragging');
+            }
+            
+            // 清除所有行的拖放狀態
+            document.querySelectorAll('#table-body tr').forEach(tr => {
+                tr.classList.remove('drag-over', 'drag-over-bottom');
+            });
+            
+            draggedRow = null;
+            draggedIndex = null;
+        }
+        
+        // 拖放經過
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const row = e.target.closest('tr');
+            if (!row || row === draggedRow || !row.dataset.rowIndex) return;
+            
+            // 清除其他行的樣式
+            document.querySelectorAll('#table-body tr').forEach(tr => {
+                if (tr !== row) {
+                    tr.classList.remove('drag-over', 'drag-over-bottom');
+                }
+            });
+            
+            // 根據滑鼠位置決定是插入到上方還是下方
+            const rect = row.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            
+            if (e.clientY < midY) {
+                row.classList.add('drag-over');
+                row.classList.remove('drag-over-bottom');
+            } else {
+                row.classList.add('drag-over-bottom');
+                row.classList.remove('drag-over');
+            }
+        }
+        
+        // 拖放離開
+        function handleDragLeave(e) {
+            const row = e.target.closest('tr');
+            if (row) {
+                // 檢查是否真的離開了這一行
+                const rect = row.getBoundingClientRect();
+                if (e.clientY < rect.top || e.clientY > rect.bottom ||
+                    e.clientX < rect.left || e.clientX > rect.right) {
+                    row.classList.remove('drag-over', 'drag-over-bottom');
+                }
+            }
+        }
+        
+        // 放下
+        async function handleDrop(e) {
+            e.preventDefault();
+            
+            const targetRow = e.target.closest('tr');
+            if (!targetRow || targetRow === draggedRow || !targetRow.dataset.rowIndex) return;
+            
+            const targetIndex = parseInt(targetRow.dataset.rowIndex);
+            const fromIndex = draggedIndex;
+            
+            // 判斷插入位置
+            const rect = targetRow.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const insertAfter = e.clientY >= midY;
+            
+            // 清除樣式
+            targetRow.classList.remove('drag-over', 'drag-over-bottom');
+            
+            // 計算新的順序
+            let newOrder = csvData.map(row => row.rowIndex);
+            
+            // 從原位置移除
+            newOrder.splice(fromIndex, 1);
+            
+            // 計算新的插入位置
+            let insertIndex = targetIndex;
+            if (fromIndex < targetIndex) {
+                insertIndex--;
+            }
+            if (insertAfter) {
+                insertIndex++;
+            }
+            
+            // 插入到新位置
+            newOrder.splice(insertIndex, 0, fromIndex);
+            
+            // 發送到後端保存
+            await saveReorder(newOrder);
+        }
+        
+        // 保存新排序
+        async function saveReorder(order) {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'reorder');
+                formData.append('order', JSON.stringify(order));
+                
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(currentLang === 'zh' ? '排序已更新' : 'Order updated', 'success');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showToast(result.message || (currentLang === 'zh' ? '排序失敗' : 'Reorder failed'), 'error');
+                }
+            } catch (error) {
+                showToast(currentLang === 'zh' ? '發生錯誤' : 'An error occurred', 'error');
+                console.error(error);
+            }
+        }
 
         // 防抖函數
         function debounce(func, wait) {
@@ -774,7 +1031,7 @@ sort($categories);
             if (filteredData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="px-3 py-8 text-center text-slate-400">
+                        <td colspan="9" class="px-3 py-8 text-center text-slate-400">
                             <span data-zh="沒有找到符合的資料" data-en="No matching records found">${currentLang === 'zh' ? '沒有找到符合的資料' : 'No matching records found'}</span>
                         </td>
                     </tr>
@@ -783,7 +1040,14 @@ sort($categories);
             }
             
             tbody.innerHTML = filteredData.map(row => `
-                <tr class="border-t border-slate-700 text-sm" data-row='${escapeHtml(JSON.stringify(row))}'>
+                <tr class="border-t border-slate-700 text-sm" data-row='${escapeHtml(JSON.stringify(row))}' data-row-index="${row.rowIndex}" draggable="true">
+                    <td class="px-2 py-2">
+                        <div class="drag-handle" title="${currentLang === 'zh' ? '拖放排序' : 'Drag to reorder'}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                            </svg>
+                        </div>
+                    </td>
                     <td class="px-3 py-2 text-slate-400">${row.rowIndex + 1}</td>
                     <td class="px-3 py-2">${escapeHtml(row.Category)}</td>
                     <td class="px-3 py-2" title="${escapeHtml(row.Title)}">${escapeHtml(row.Title)}</td>
