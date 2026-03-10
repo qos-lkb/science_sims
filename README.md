@@ -58,7 +58,7 @@ This project is an educational website hosting a collection of standalone HTML s
 ## 📁 專案結構 | Project Structure
 
 ```
-science_sims/
+qos-lkb.github.io/
 ├── index.html              # 主頁面（英文，標籤式導航）
 ├── index.php               # 動態主頁面（PHP，CSV 驅動，模態介面）
 ├── index.csv               # 模擬實驗資料來源
@@ -67,6 +67,7 @@ science_sims/
 ├── README.md               # 本檔案
 │
 ├── physics/                # 物理模擬（HKDSE 課程）
+│   ├── elevator.html       # 升降機中的表觀重量
 │   ├── 01/                # 單元 1：熱與氣體
 │   ├── 02/                # 單元 2：力與運動
 │   ├── 03a/               # 單元 3a：光學（反射與折射）
@@ -79,7 +80,7 @@ science_sims/
 │
 ├── chemistry/              # 化學模擬
 ├── biology/                # 生物學模擬
-├── science/                # 綜合科學模擬
+├── science/                # 綜合科學模擬（含 electrolysis of water.html 等）
 ├── astronomy/              # 天文學模擬
 ├── s4_physics/            # S4 物理課程模擬
 ├── other/                  # 其他模擬
@@ -183,8 +184,8 @@ This project is licensed under the [Creative Commons Attribution 4.0 Internation
 
 ## 📅 更新記錄 | Changelog
 
-**最後更新**：2026-01-01  
-**Last Updated**: 2026-01-01
+**最後更新**：2026-03-10  
+**Last Updated**: 2026-03-10
 
 ---
 

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水的電解模擬 / Electrolysis of Water</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for Physics/Chemistry Formulas -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        canvas { 
+            touch-action: none;
+            box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.2);
+            border-radius: 0.5rem;
+        }
+        /* Range slider styling */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px; width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px;
+            cursor: pointer; background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">🧪</div>
+            <h1 id="app-title" class="text-xl font-bold text-slate-700">水的電解模擬實驗</h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleLang()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-sm transition-colors">中 / EN</button>
+            <button onclick="openModal()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold text-sm transition-colors" id="btn-info">物理原理</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-4 flex flex-col md:flex-row gap-6 items-start">
+        
+        <!-- Canvas Container -->
+        <div class="flex-1 bg-white p-4 rounded-xl shadow-md flex flex-col items-center justify-center w-full">
+            <!-- 使用 aspect-ratio 容器確保比例完美縮放，不會被裁切 -->
+            <div id="canvas-wrapper" class="relative w-full aspect-[4/3] max-w-[600px] mx-auto overflow-hidden rounded-lg shadow-inner bg-slate-50">
+                <canvas id="simCanvas" class="absolute inset-0 w-full h-full touch-none"></canvas>
+            </div>
+            <p id="canvas-hint" class="text-sm text-slate-500 mt-3 font-semibold">氫氣與氧氣體積比 = 2 : 1</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="w-full md:w-80 flex-shrink-0 flex flex-col gap-4">
+            <div class="bg-white p-5 rounded-xl shadow-md">
+                <h2 id="ctrl-title" class="text-lg font-bold border-b pb-2 mb-4 text-slate-700">控制面板</h2>
+                
+                <!-- Voltage Control -->
+                <div class="mb-6">
+                    <label class="flex justify-between text-sm font-semibold mb-2">
+                        <span id="label-voltage">電源電壓 (V)</span>
+                        <span id="val-voltage" class="text-blue-600 font-bold">0 V</span>
+                    </label>
+                    <input type="range" id="slider-voltage" min="0" max="24" step="0.5" value="0" class="w-full" oninput="updateControls()">
+                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>0V</span><span>24V</span>
+                    </div>
+                </div>
+
+                <!-- Simulation Status -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-6 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span id="label-h2-vol" class="font-semibold text-slate-600">氫氣體積 (陰極):</span>
+                        <span id="val-h2-vol" class="font-mono text-blue-600 font-bold">0.0 mL</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span id="label-o2-vol" class="font-semibold text-slate-600">氧氣體積 (陽極):</span>
+                        <span id="val-o2-vol" class="font-mono text-red-500 font-bold">0.0 mL</span>
+                    </div>
+                    <div class="flex justify-between border-t pt-2 mt-2">
+                        <span id="label-current" class="font-semibold text-slate-600">迴路電流:</span>
+                        <span id="val-current" class="font-mono text-slate-800">0.0 A</span>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-2">
+                    <button id="btn-toggle" onclick="toggleSim()" class="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-bold transition-colors">啟動電源</button>
+                    <button id="btn-reset" onclick="resetSim()" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold transition-colors">重置排氣</button>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm">
+                <h3 id="tip-title" class="text-sm font-bold text-blue-800 mb-2">觀察重點</h3>
+                <ul id="tip-content" class="text-xs text-blue-700 space-y-1 list-disc pl-4">
+                    <li>電壓必須超過約 2.0V (含超電勢) 才會開始產生明顯氣泡。</li>
+                    <li>負極(陰極)產生氫氣，正極(陽極)產生氧氣。</li>
+                    <li>注意兩邊氣泡上升的速度與累積體積的差異。</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Physics Explanation -->
+    <dialog id="info-modal" class="bg-transparent p-0 w-full max-w-2xl backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full p-6 m-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 id="modal-title" class="text-2xl font-bold text-slate-800">物理與化學原理：水的電解</h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+            </div>
+            <div id="modal-content" class="space-y-4 text-slate-600 text-sm leading-relaxed">
+                <!-- Content injected by JS -->
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal()" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold">了解 / Got it</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        // --- 1. Language Translation Dictionary ---
+        const i18n = {
+            zh: {
+                appTitle: "水的電解模擬實驗",
+                btnInfo: "物理原理",
+                canvasHint: "收集法：向下排水法 | 體積比 (H₂ : O₂) = 2 : 1",
+                ctrlTitle: "控制面板",
+                lblVoltage: "電源電壓 (V)",
+                lblH2Vol: "氫氣體積 (陰極 -):",
+                lblO2Vol: "氧氣體積 (陽極 +):",
+                lblCurrent: "相對電流:",
+                btnStart: "啟動電源",
+                btnStop: "關閉電源",
+                btnReset: "重置收集",
+                tipTitle: "觀察重點",
+                tipContent: `
+                    <li>電壓必須超過約 2.0V 才會開始產生氣泡 (克服分解電壓與超電勢)。</li>
+                    <li>連接電池負極的鉑電極(陰極)產生氫氣。</li>
+                    <li>連接電池正極的鉑電極(陽極)產生氧氣。</li>
+                    <li>觀察氣泡數量與試管頂部累積的氣體體積比例。</li>
+                `,
+                modalTitle: "物理與化學原理：水的電解",
+                modalContent: `
+                    <p>在純水中加入少許電解質（如稀硫酸或氫氧化鈉）以增加導電性，通入直流電即可將水分解。</p>
+                    <h3 class="font-bold text-blue-600 mt-4">化學反應方程式</h3>
+                    <div class="bg-slate-50 p-3 rounded my-2">
+                        <p><strong>陰極 (Cathode, 連接電池負極):</strong> 發生還原反應，產生氫氣。</p>
+                        $$ 4H_2O(l) + 4e^- \rightarrow 2H_2(g) + 4OH^-(aq) $$
+                        
+                        <p class="mt-2"><strong>陽極 (Anode, 連接電池正極):</strong> 發生氧化反應，產生氧氣。</p>
+                        $$ 2H_2O(l) \rightarrow O_2(g) + 4H^+(aq) + 4e^- $$
+
+                        <p class="mt-2 border-t pt-2"><strong>總反應 (Overall Reaction):</strong></p>
+                        $$ 2H_2O(l) \rightarrow 2H_2(g) + O_2(g) $$
+                    </div>
+                    <p>由總反應式可知，消耗 2 莫耳的水，會產生 2 莫耳的氫氣與 1 莫耳的氧氣。在相同溫度與壓力下，氣體的體積比等於莫耳數比，因此 <strong>$V_{H_2} : V_{O_2} = 2 : 1$</strong>。</p>
+                    
+                    <h3 class="font-bold text-blue-600 mt-4">法拉第電解定律與電流</h3>
+                    <p>產氣速率與通過系統的<strong>電流 ($I$)</strong> 成正比。根據歐姆定律的近似，當施加的電壓 ($V$) 超過啟動閾值 ($V_{th} \approx 2.0V$) 時，電流 $I \propto (V - V_{th})$。</p>
+                `
+            },
+            en: {
+                appTitle: "Electrolysis of Water Simulation",
+                btnInfo: "Physics Theory",
+                canvasHint: "Collection: Downward Displacement of Water | Volume Ratio (H₂ : O₂) = 2 : 1",
+                ctrlTitle: "Control Panel",
+                lblVoltage: "Power Supply Voltage (V)",
+                lblH2Vol: "Hydrogen Vol (Cathode -):",
+                lblO2Vol: "Oxygen Vol (Anode +):",
+                lblCurrent: "Relative Current:",
+                btnStart: "Power ON",
+                btnStop: "Power OFF",
+                btnReset: "Reset Gas",
+                tipTitle: "Key Observations",
+                tipContent: `
+                    <li>Voltage must exceed approx 2.0V to generate bubbles (overcoming decomposition voltage & overpotential).</li>
+                    <li>Cathode (- terminal) generates Hydrogen gas.</li>
+                    <li>Anode (+ terminal) generates Oxygen gas.</li>
+                    <li>Observe the 2:1 ratio in bubble generation rate and collected gas volume.</li>
+                `,
+                modalTitle: "Physics & Chemistry: Electrolysis of Water",
+                modalContent: `
+                    <p>By adding a small amount of electrolyte to pure water to increase conductivity and applying direct current, water decomposes.</p>
+                    <h3 class="font-bold text-blue-600 mt-4">Chemical Reactions</h3>
+                    <div class="bg-slate-50 p-3 rounded my-2">
+                        <p><strong>Cathode (Negative Terminal):</strong> Reduction occurs, producing Hydrogen.</p>
+                        $$ 4H_2O(l) + 4e^- \rightarrow 2H_2(g) + 4OH^-(aq) $$
+                        
+                        <p class="mt-2"><strong>Anode (Positive Terminal):</strong> Oxidation occurs, producing Oxygen.</p>
+                        $$ 2H_2O(l) \rightarrow O_2(g) + 4H^+(aq) + 4e^- $$
+
+                        <p class="mt-2 border-t pt-2"><strong>Overall Reaction:</strong></p>
+                        $$ 2H_2O(l) \rightarrow 2H_2(g) + O_2(g) $$
+                    </div>
+                    <p>According to the overall reaction, decomposing 2 moles of water yields 2 moles of $H_2$ and 1 mole of $O_2$. Under identical temperature and pressure, volume ratio equals mole ratio, hence <strong>$V_{H_2} : V_{O_2} = 2 : 1$</strong>.</p>
+                    
+                    <h3 class="font-bold text-blue-600 mt-4">Faraday's Laws & Current</h3>
+                    <p>The rate of gas production is proportional to the <strong>current ($I$)</strong>. Approximated by Ohm's Law, when applied voltage ($V$) exceeds the threshold ($V_{th} \approx 2.0V$), current $I \propto (V - V_{th})$.</p>
+                `
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function toggleLang() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            updateUI();
+        }
+
+        function updateUI() {
+            const t = i18n[currentLang];
+            document.getElementById('app-title').innerText = t.appTitle;
+            document.getElementById('btn-info').innerText = t.btnInfo;
+            document.getElementById('canvas-hint').innerText = t.canvasHint;
+            document.getElementById('ctrl-title').innerText = t.ctrlTitle;
+            document.getElementById('label-voltage').innerText = t.lblVoltage;
+            document.getElementById('label-h2-vol').innerText = t.lblH2Vol;
+            document.getElementById('label-o2-vol').innerText = t.lblO2Vol;
+            document.getElementById('label-current').innerText = t.lblCurrent;
+            document.getElementById('btn-toggle').innerText = state.powerOn ? t.btnStop : t.btnStart;
+            document.getElementById('btn-reset').innerText = t.btnReset;
+            document.getElementById('tip-title').innerText = t.tipTitle;
+            document.getElementById('tip-content').innerHTML = t.tipContent;
+            
+            document.getElementById('modal-title').innerText = t.modalTitle;
+            document.getElementById('modal-content').innerHTML = t.modalContent;
+
+            // Re-render MathJax (Fix: 加入 typesetPromise 檢查，避免非同步載入造成的腳本中斷)
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([document.getElementById('modal-content')]).catch(err => console.log(err));
+            }
+        }
+
+        // --- 2. Simulation State & Physics Variables ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const BASE_W = 600;
+        const BASE_H = 450;
+
+        const THRESHOLD_V = 2.0; // Minimum voltage to start electrolysis
+        const MAX_TUBE_VOL = 100; // arbitrary max volume units for the test tubes
+
+        let state = {
+            voltage: 0,
+            current: 0,
+            powerOn: false,
+            h2Vol: 0,
+            o2Vol: 0,
+            bubbles: [],
+            h2Pending: 0, // 新增：用於精準計算氣泡生成的累加器
+            o2Pending: 0  // 新增：用於精準計算氣泡生成的累加器
+        };
+
+        // UI Controls Interaction
+        const sliderV = document.getElementById('slider-voltage');
+        const valV = document.getElementById('val-voltage');
+        const valH2 = document.getElementById('val-h2-vol');
+        const valO2 = document.getElementById('val-o2-vol');
+        const valI = document.getElementById('val-current');
+        const btnToggle = document.getElementById('btn-toggle');
+
+        function updateControls() {
+            state.voltage = parseFloat(sliderV.value);
+            valV.innerText = state.voltage.toFixed(1) + ' V';
+            
+            // Calculate Current (Simple model: I = (V - Vth) * k)
+            if (state.powerOn && state.voltage > THRESHOLD_V) {
+                state.current = (state.voltage - THRESHOLD_V) * 0.2; // 調整常數 k=0.2 讓24V時的反應速率較適中
+            } else {
+                state.current = 0;
+            }
+            valI.innerText = state.current.toFixed(2) + ' A';
+        }
+
+        function toggleSim() {
+            state.powerOn = !state.powerOn;
+            updateControls(); // recalculate current
+            
+            if (state.powerOn) {
+                btnToggle.className = "flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-bold transition-colors";
+                btnToggle.innerText = i18n[currentLang].btnStop;
+            } else {
+                btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-bold transition-colors";
+                btnToggle.innerText = i18n[currentLang].btnStart;
+            }
+        }
+
+        function resetSim() {
+            state.h2Vol = 0;
+            state.o2Vol = 0;
+            state.h2Pending = 0; // 重置累加器
+            state.o2Pending = 0; // 重置累加器
+            state.bubbles = [];
+            valH2.innerText = "0.0 mL";
+            valO2.innerText = "0.0 mL";
+        }
+
+        // --- 3. Modal Functions ---
+        const modal = document.getElementById('info-modal');
+        function openModal() {
+            modal.showModal();
+        }
+        function closeModal() {
+            modal.close();
+        }
+
+        // --- 4. Canvas Animation Engine ---
+        
+        // 響應式畫布縮放設定 (Responsive Canvas)
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return; // 防呆：避免容器未渲染時寬高為 0 的縮放錯誤
+            
+            const dpr = window.devicePixelRatio || 1;
+            
+            // 設定實際像素大小
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            // 重置並重新縮放繪製上下文，確保 600x450 的邏輯座標能完美適應任何螢幕大小
+            ctx.resetTransform();
+            ctx.scale(dpr * (rect.width / BASE_W), dpr * (rect.height / BASE_H));
+            
+            drawScene();
+        }
+        
+        // 使用 ResizeObserver 精準監聽容器大小變化，取代單純的 window resize，解決初始空白問題
+        const resizeObserver = new ResizeObserver(() => resizeCanvas());
+        resizeObserver.observe(canvasWrapper);
+
+        // Coordinates setup (Base internal resolution)
+        const W = BASE_W;
+        const H = BASE_H;
+        const beaker = { x: 150, y: 150, w: 300, h: 250 };
+        const waterLvl = 170;
+        
+        // Cathode (Left) & Anode (Right)
+        const tubes = {
+            H2: { x: 220, y: 80, w: 40, h: 280, color: 'rgba(59, 130, 246, 0.1)' },
+            O2: { x: 340, y: 80, w: 40, h: 280, color: 'rgba(239, 68, 68, 0.1)' }
+        };
+
+        const electrodes = {
+            Cathode: { x: 235, y: 320, w: 10, h: 40 }, // Under H2
+            Anode:   { x: 355, y: 320, w: 10, h: 40 }  // Under O2
+        };
+
+        function drawScene() {
+            ctx.clearRect(0, 0, W, H);
+
+            // 1. Draw Power Supply & Wires
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            // Left wire (-)
+            ctx.moveTo(electrodes.Cathode.x + 5, electrodes.Cathode.y + 40);
+            ctx.lineTo(electrodes.Cathode.x + 5, 420);
+            ctx.lineTo(100, 420);
+            ctx.lineTo(100, 50);
+            ctx.lineTo(260, 50);
+            // Right wire (+)
+            ctx.moveTo(electrodes.Anode.x + 5, electrodes.Anode.y + 40);
+            ctx.lineTo(electrodes.Anode.x + 5, 420);
+            ctx.lineTo(500, 420);
+            ctx.lineTo(500, 50);
+            ctx.lineTo(340, 50);
+            ctx.stroke();
+
+            // DC Power Box
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(260, 30, 80, 40);
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '16px sans-serif';
+            ctx.fillText("DC", 290, 55);
+            
+            // Labels for + and -
+            ctx.fillStyle = '#ef4444'; // Red for +
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillText("+", 325, 25);
+            ctx.fillStyle = '#3b82f6'; // Blue for -
+            ctx.fillText("-", 265, 25);
+
+            // 2. Draw Beaker
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(beaker.x, beaker.y);
+            ctx.lineTo(beaker.x, beaker.y + beaker.h);
+            ctx.lineTo(beaker.x + beaker.w, beaker.y + beaker.h);
+            ctx.lineTo(beaker.x + beaker.w, beaker.y);
+            ctx.stroke();
+
+            // 3. Draw Water in Beaker
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+            ctx.fillRect(beaker.x + 2, waterLvl, beaker.w - 4, beaker.y + beaker.h - waterLvl - 2);
+
+            // 4. Draw Platinum Electrodes
+            ctx.fillStyle = '#64748b'; // Platinum color
+            ctx.fillRect(electrodes.Cathode.x, electrodes.Cathode.y, electrodes.Cathode.w, electrodes.Cathode.h);
+            ctx.fillRect(electrodes.Anode.x, electrodes.Anode.y, electrodes.Anode.w, electrodes.Anode.h);
+
+            // 5. Draw Inverted Test Tubes
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ['H2', 'O2'].forEach(key => {
+                const t = tubes[key];
+                ctx.beginPath();
+                ctx.moveTo(t.x, t.y + t.h);
+                ctx.lineTo(t.x, t.y + 10);
+                ctx.arc(t.x + t.w/2, t.y + 10, t.w/2, Math.PI, 0); // rounded top
+                ctx.lineTo(t.x + t.w, t.y + t.h);
+                ctx.stroke();
+
+                // Gas label
+                ctx.fillStyle = '#64748b';
+                ctx.font = '14px sans-serif';
+                ctx.fillText(key === 'H2' ? 'H₂' : 'O₂', t.x + 12, t.y - 10);
+            });
+
+            // 6. Draw Gas/Water level inside tubes (Downward displacement of water)
+            const fillTube = (tubeKey, vol) => {
+                const t = tubes[tubeKey];
+                const maxH = t.h - 20; 
+                // volume determines how far DOWN the water is pushed
+                const gasH = (vol / MAX_TUBE_VOL) * maxH;
+                const innerWaterY = t.y + 10 + gasH; 
+                
+                // Draw Gas Region (slightly tinted)
+                ctx.fillStyle = t.color;
+                ctx.beginPath();
+                ctx.moveTo(t.x + 2, innerWaterY);
+                ctx.lineTo(t.x + 2, t.y + 10);
+                ctx.arc(t.x + t.w/2, t.y + 10, t.w/2 - 2, Math.PI, 0);
+                ctx.lineTo(t.x + t.w - 2, innerWaterY);
+                ctx.fill();
+
+                // Draw Water Region in tube
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+                ctx.fillRect(t.x + 2, innerWaterY, t.w - 4, (t.y + t.h) - innerWaterY);
+                
+                // Draw water meniscus line
+                ctx.strokeStyle = 'rgba(14, 165, 233, 0.8)';
+                ctx.beginPath();
+                ctx.moveTo(t.x + 2, innerWaterY);
+                ctx.lineTo(t.x + t.w - 2, innerWaterY);
+                ctx.stroke();
+                
+                return innerWaterY;
+            };
+
+            const h2WaterY = fillTube('H2', state.h2Vol);
+            const o2WaterY = fillTube('O2', state.o2Vol);
+
+            // 7. Update & Draw Bubbles
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+            ctx.lineWidth = 1;
+
+            for (let i = state.bubbles.length - 1; i >= 0; i--) {
+                const b = state.bubbles[i];
+                
+                // Move bubble up
+                b.y -= b.speed;
+                b.x += Math.sin(b.y * 0.1) * 0.5; // slight wobble
+
+                // Draw
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Check collision with water interface inside tube
+                const targetY = b.type === 'H2' ? h2WaterY : o2WaterY;
+                if (b.y - b.r <= targetY) {
+                    // Bubble pops and adds volume
+                    // 修正：每顆氣泡代表相同體積 (0.1)，單純靠 H2 氣泡數量為 O2 的兩倍來維持 2:1 比例
+                    if (b.type === 'H2' && state.h2Vol < MAX_TUBE_VOL) {
+                        state.h2Vol += 0.1; 
+                    } else if (b.type === 'O2' && state.o2Vol < MAX_TUBE_VOL) {
+                        state.o2Vol += 0.1; 
+                    }
+                    state.bubbles.splice(i, 1);
+                }
+            }
+
+            // Update UI volume text
+            valH2.innerText = state.h2Vol.toFixed(1) + " mL";
+            valO2.innerText = state.o2Vol.toFixed(1) + " mL";
+        }
+
+        // Logic Loop
+        let lastTime = 0;
+        function loop(timestamp) {
+            if (!lastTime) lastTime = timestamp; // 初始化 lastTime，避免第一幀出現巨大的時間差
+            const dt = timestamp - lastTime;
+            
+            if (dt > 50) { // Limit bubble generation rate
+                if (state.current > 0) {
+                    // 修正：使用小數累加器，確保生成數量在任何時間點都絕對是 2 : 1
+                    state.h2Pending += state.current * 0.4;
+                    state.o2Pending += state.current * 0.2; // 剛好是 H2 的一半
+
+                    // Generate H2 bubbles (Cathode)
+                    while(state.h2Pending >= 1) {
+                        if(state.h2Vol < MAX_TUBE_VOL) {
+                            state.bubbles.push({
+                                type: 'H2',
+                                x: electrodes.Cathode.x + Math.random() * electrodes.Cathode.w,
+                                y: electrodes.Cathode.y - 2,
+                                r: 2 + Math.random() * 2,
+                                speed: 1.5 + Math.random() * 1
+                            });
+                        }
+                        state.h2Pending -= 1;
+                    }
+
+                    // Generate O2 bubbles (Anode)
+                    while(state.o2Pending >= 1) {
+                        if(state.o2Vol < MAX_TUBE_VOL) {
+                            state.bubbles.push({
+                                type: 'O2',
+                                x: electrodes.Anode.x + Math.random() * electrodes.Anode.w,
+                                y: electrodes.Anode.y - 2,
+                                r: 2.5 + Math.random() * 2, // 氧氣泡視覺上可稍微大一點點，但不影響體積計算
+                                speed: 1.5 + Math.random() * 1
+                            });
+                        }
+                        state.o2Pending -= 1;
+                    }
+                }
+                lastTime = timestamp;
+            }
+
+            drawScene();
+            requestAnimationFrame(loop);
+        }
+
+        // --- 5. Init ---
+        updateUI();
+        updateControls();
+        // resizeCanvas() 現在交由 ResizeObserver 自動監聽並觸發
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+</html>
