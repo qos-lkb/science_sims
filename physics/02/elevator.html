@@ -81,7 +81,7 @@
     <div class="control-panel space-y-5">
         <h1 class="text-2xl font-extrabold text-slate-800 border-b-2 border-slate-200 pb-3" id="title">升降機物理實驗室</h1>
         
-        <!-- 模式切換 (改為獨立按鈕) -->
+        <!-- 模式切換 -->
         <div>
             <label class="block text-sm font-bold text-slate-700 mb-2" id="label-mode">操作模式</label>
             <div class="flex gap-3">
@@ -160,7 +160,7 @@
             <span id="data-state" class="px-3 py-1 bg-slate-700 text-green-400 rounded-full font-bold text-right">表觀重量等於實際重量</span>
         </div>
 
-        <!-- 實時物理圖表區 (拉高以容納四個圖表) -->
+        <!-- 實時物理圖表區 -->
         <div class="pt-2 border-t border-slate-600">
             <div class="text-sm font-bold text-slate-300 mb-2" id="label-graphs">動力學圖表 (過去10秒)</div>
             <canvas id="graph-canvas" width="300" height="400" class="w-full bg-slate-800 rounded-lg border border-slate-700"></canvas>
@@ -247,13 +247,13 @@
         let state = {
             mode: 'manual', 
             m: 60,
-            g: 9.81, // 更新為 9.81
+            g: 9.81, 
             y: 0,        
             v: 0,        
             a: 0,        
             targetFloor: 1, 
             time: 0,     
-            history: []  // {t, v, a, R, W}
+            history: []  
         };
 
         // UI 元素
@@ -293,11 +293,19 @@
             ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
             ctx.fill();
 
-            ctx.font = "bold 16px 'Segoe UI', sans-serif";
+            ctx.font = "bold 18px 'Segoe UI', sans-serif";
             ctx.fillStyle = color;
-            ctx.textAlign = dx > 0 || (dx === 0 && label === 'R') ? "right" : "left";
-            ctx.textBaseline = "middle";
-            const textX = fromx + (label === 'R' ? -20 : 20);
+            
+            // 智能配置文字位置避免遮擋
+            let textX = fromx;
+            if (label === 'R') {
+                ctx.textAlign = "right";
+                textX -= 20;
+            } else {
+                ctx.textAlign = "left";
+                textX += 20;
+            }
+            
             const textY = fromy + dy * 0.5;
             ctx.fillText(label, textX, textY);
         }
@@ -360,7 +368,6 @@
             const appWValue = Math.max(0, state.m * (state.g + state.a));
             const realWValue = state.m * state.g;
 
-            // 儲存四種資料
             state.history.push({ t: state.time, v: state.v, a: state.a, R: appWValue, W: realWValue });
             
             while (state.history.length > 0 && state.history[0].t < state.time - 10) {
@@ -377,8 +384,6 @@
 
             const tMax = state.time;
             const tMin = Math.max(0, state.time - 10);
-            
-            // 四個圖表，每個高度佔 1/4
             const chartH = h / 4;
             
             function drawLineChart(offsetY, dataKey, valMin, valMax, color, labelText, unit) {
@@ -424,19 +429,14 @@
                 graphCtx.restore();
             }
 
-            // 1. v-t 圖 (速度)
             drawLineChart(0, 'v', -AUTO_MAX_V - 2, AUTO_MAX_V + 2, "#38bdf8", "v", "m/s");
             
-            // 2. a-t 圖 (加速度)
             const aLimit = Math.max(AUTO_MAX_A, state.g);
             drawLineChart(chartH, 'a', -aLimit - 1, aLimit + 1, "#f87171", "a", "m/s²");
             
-            // 3. R-t 圖 (表觀重量) 與 4. W-t 圖 (真實重量) 共用相同的 Y 軸範圍方便比較
             const rMax = state.m * (state.g + Math.max(2, Math.abs(state.a)) + 1);
             
-            // 表觀重量 R-t
             drawLineChart(chartH * 2, 'R', 0, rMax, "#34d399", "R", "N");
-            // 真實重量 W-t (新增)
             drawLineChart(chartH * 3, 'W', 0, rMax, "#eab308", "W", "N");
         }
 
@@ -540,6 +540,7 @@
             ctx.textBaseline = "middle";
             ctx.fillText(`${state.m} kg`, width/2, personY + personHeight/2);
 
+            // --- 繪製力學向量箭頭 ---
             const forceScale = 0.08; 
             const realW = state.m * state.g;
             
@@ -547,14 +548,33 @@
             const cmY = personY + personHeight/2; 
             const feetY = personY + personHeight; 
             
+            // 1. 真實重量 (W) 向下
             const wLength = realW * forceScale;
             if(wLength > 0) {
                 drawArrow(ctx, cmX + 25, cmY, cmX + 25, cmY + wLength, "#eab308", "W", 5);
             }
 
+            // 2. 表觀重量/法向力 (R) 向上
             const rLength = appW * forceScale;
             if(rLength > 0) {
                 drawArrow(ctx, cmX - 25, feetY, cmX - 25, feetY - rLength, "#10b981", "R", 5);
+            }
+            
+            // 3. 系統加速度 (a)
+            // 將長度映射，係數為 12px per m/s²，這樣最大 ~9.81 時箭頭長度約 118px，剛好在電梯內
+            const aScale = 12; 
+            const aLength = Math.abs(state.a) * aScale;
+            
+            if (aLength > 2) {
+                // 將加速度箭頭放置在人物右側，車廂內
+                const aX = cmX + 85; 
+                // 畫布 Y 軸向下為正。a>0 代表向上(Y減少)，a<0 代表向下(Y增加)
+                const aDir = state.a > 0 ? -1 : 1; 
+                const aStartY = cmY; 
+                const aEndY = cmY + aDir * aLength;
+                
+                // 使用紅色繪製，與 UI 中的加速度顏色對應
+                drawArrow(ctx, aX, aStartY, aX, aEndY, "#ef4444", "a", 6);
             }
 
             requestAnimationFrame(draw);
@@ -578,11 +598,9 @@
             document.getElementById('data-real-w').innerText = `${realW} N`;
             document.getElementById('data-app-w').innerText = `${appW} N`;
 
-            // 嚴格套用指定文字與顏色
             let statusText = t.stIdle;
             let statusColor = "bg-slate-700 text-green-400 border border-slate-600";
             
-            // 使用些微容差避免浮點數誤差閃爍
             if (state.a > 0.05) {
                 statusText = t.stHeavy;
                 statusColor = "bg-red-900/80 text-red-300 border border-red-500";
