@@ -1,0 +1,21 @@
+---
+description: index.csv 欄位與新增／編修模擬列的規則
+globs: index.csv
+alwaysApply: false
+---
+
+# index.csv 規則
+
+首列為表頭，欄位順序須與 `index.php` 的 `parseCSV` 一致：
+
+`Category`, `Title`, `URL`, `Screenshot`, `Category_ZH`, `Category_EN`, `Title_ZH`, `Title_EN`, `Last_Updated`
+
+## 填寫要點
+
+- **URL**：相對於網站根目錄的路徑（例如 `physics/01/0105_gas_laws.html`），勿加開頭 `https://`（除非專案既有列外連）。
+- **Screenshot**：相對路徑；無圖可留空，但列表顯示行為需與現有 PHP 邏輯一致。
+- **分類／標題**：英文欄與中文欄並陳；缺省時程式會 fallback，但新列應補齊雙語以利介面。
+- **Last_Updated**：建議 `YYYY-MM-DD`。
+- CSV 含逗號或引號的欄位以標準 CSV 雙引號跳脫；勿破壞列數與欄位對齊。
+
+新增一筆模擬時，同步確認實體 HTML 已存在且路徑與 **URL** 一致。

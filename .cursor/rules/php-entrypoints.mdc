@@ -1,0 +1,22 @@
+---
+description: PHP 入口（index、CSV 解析、markdown 讀取）的編修慣例
+globs: "**/*.php"
+alwaysApply: false
+---
+
+# PHP 規則
+
+## 範圍
+
+- 主要為 `index.php`（CSV 驅動、雙語、輸出緩衝）、`index_csv_editor.php`、`markdown_reader.php` 等。
+
+## 慣例
+
+- 與現有函式風格一致：`parseCSV`、`groupByCategory`、`buildTranslationMaps` 等欄位鍵名勿任意改名（與前端／CSV 欄位對齊）。
+- `index.php` 開頭使用 `ob_start()` 等既有模式時，修改後須仍符合「可產生靜態頁」或註解所描述行為。
+- 避免在輸出已開始後 `header()`；處理上傳／檔案時沿用專案現有驗證與路徑邏輯。
+- 保持與目前檔案相符的 PHP 版本相容寫法（無命名空間時延續全域函式風格）。
+
+## 資料
+
+- CSV 結構定義見 **`index-csv`** 規則與 `index.php` 內 `parseCSV` 的欄位對應。
